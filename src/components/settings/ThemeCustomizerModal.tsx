@@ -90,7 +90,7 @@ export const ThemeCustomizerModal: React.FC<Props> = ({ onClose }) => {
               Aesthetics & Sound
             </span>
             <h3 className="text-xl md:text-2xl font-black text-slate-800 dark:text-slate-100">
-              Personalize CodeLingo
+              Personalize CoderBhai
             </h3>
           </div>
         </div>

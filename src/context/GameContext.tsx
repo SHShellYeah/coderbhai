@@ -3,7 +3,8 @@ import { CourseId, CourseProgress, Question, Quest, UserState } from '../types';
 import { COURSES } from '../data/courses';
 import { sound } from '../utils/audio';
 
-const STORAGE_KEY = 'codelingo_user_v1';
+const STORAGE_KEY = 'coderbhai_user_v1';
+const LEGACY_STORAGE_KEY = 'codelingo_user_v1';
 
 const INITIAL_QUESTS: Quest[] = [
   {

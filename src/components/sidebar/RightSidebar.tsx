@@ -27,7 +27,7 @@ export const RightSidebar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement,
     { rank: 1, name: 'Linus T.', xp: 620, avatar: '🐧', isUser: false },
     { rank: 2, name: 'Grace H.', xp: 510, avatar: '🚀', isUser: false },
     { rank: 3, name: 'Bjarne S.', xp: 440, avatar: '⚡', isUser: false },
-    { rank: 4, name: 'You (Coder)', xp: state.xp, avatar: '🦉', isUser: true },
+    { rank: 4, name: 'You (CoderBhai Champion)', xp: state.xp, avatar: '🐈‍⬛', isUser: true },
     { rank: 5, name: 'Ada L.', xp: 220, avatar: '✨', isUser: false },
   ];
 

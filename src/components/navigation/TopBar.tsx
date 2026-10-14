@@ -65,10 +65,10 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
           {/* Logo */}
           <div className="flex items-center gap-2 select-none cursor-pointer group">
             <span className="text-2xl sm:text-3xl transition-transform group-hover:scale-110 group-active:scale-95 duration-150">
-              🦉
+              🐈‍⬛
             </span>
             <span className="hidden md:inline font-black text-2xl tracking-tighter text-brand-green dark:text-brand-green-light">
-              CodeLingo
+              CoderBhai
             </span>
           </div>
 

@@ -147,7 +147,7 @@ export const PlacementModal: React.FC<Props> = ({ courseId, onClose }) => {
           </button>
 
           <div className="w-20 h-20 rounded-3xl bg-brand-green/20 text-brand-green flex items-center justify-center text-4xl shadow-md">
-            🦉
+            🐈‍⬛
           </div>
 
           <div>

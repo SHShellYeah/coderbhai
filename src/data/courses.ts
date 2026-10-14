@@ -526,17 +526,17 @@ std::cout << *(ptr + 2);`,
             id: 'cpp-u1-n1',
             unitId: 'cpp-u1',
             title: 'Your First Code & std::cout',
-            description: 'Learn what std::cout, <<, and semicolons mean with Byte the Owl',
+            description: 'Learn what std::cout, <<, and semicolons mean with Bhai the Black Cat',
             iconType: 'terminal',
             teachingIntro: {
               title: 'Your Very First Line of Code: std::cout',
-              subtitle: 'Meet Byte 🦉 and write your first message to the computer',
+              subtitle: 'Meet Bhai 🐈‍⬛ and write your first message to the computer',
               characterId: 'byte',
               steps: [
                 {
                   characterId: 'byte',
                   characterMood: 'teaching',
-                  speech: "Hey coder! 🦉 I'm Byte, your coding mentor. Welcome to C++!\n\nBefore we quiz you on anything, let's learn how to actually make the computer talk to the screen. In C++, we do this using a command called std::cout (pronounced 'see-out')!",
+                  speech: "Hey coder! 🐈‍⬛ I'm Bhai, your black cat coding mentor. Welcome to C++!\n\nBefore we quiz you on anything, let's learn how to actually make the computer talk to the screen. In C++, we do this using a command called std::cout (pronounced 'see-out')!",
                   codeSnippet: `std::cout << "Hello, World!" << std::endl;`
                 },
                 {
@@ -1090,7 +1090,7 @@ print(len({{blank2}}))`,
             iconType: 'code',
             teachingIntro: {
               title: "Python's Simplicity: print() & F-Strings",
-              subtitle: 'Byte 🦉 & Ada 👧 explain why Python reads like plain English',
+              subtitle: 'Bhai 🐈‍⬛ & Ada 👧 explain why Python reads like plain English',
               characterId: 'byte',
               steps: [
                 {
@@ -1773,7 +1773,7 @@ print(first_job)`,
             iconType: 'code',
             teachingIntro: {
               title: 'The Memory Strip: Why Arrays are Instant O(1)',
-              subtitle: 'Lin 🕶️ & Byte 🦉 explain RAM address calculation',
+              subtitle: 'Lin 🕶️ & Bhai 🐈‍⬛ explain RAM address calculation',
               characterId: 'lin',
               steps: [
                 {

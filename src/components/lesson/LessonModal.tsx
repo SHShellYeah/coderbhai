@@ -246,10 +246,10 @@ export const LessonModal: React.FC<Props> = ({
         {/* Floating Mentor Tip Speech Bubble */}
         {showMentorTip && currentQuestion && (
           <div className="w-full p-4 mb-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/60 flex items-start gap-3.5 text-left animate-pop shadow-md">
-            <span className="text-3xl select-none">🦉</span>
+            <span className="text-3xl select-none">🐈‍⬛</span>
             <div className="flex-1">
               <span className="text-xs font-black uppercase text-amber-600 dark:text-amber-400 block mb-0.5">
-                Byte's Pro Tip:
+                Bhai's Pro Tip:
               </span>
               <p className="text-xs md:text-sm font-semibold text-slate-700 dark:text-slate-200 leading-relaxed">
                 {currentQuestion.mentorTip || currentQuestion.explanation}
