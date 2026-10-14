@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-page: #FFFFFF;
+    --text-primary: #3C3C3C;
+  }
+  .dark {
+    --bg-page: #131F24;
+    --text-primary: #F7F7F7;
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    overflow-x: hidden;
+  }
+}
+
+/* Duolingo-style 3D Chunky Buttons */
+@layer components {
+  .btn-3d {
+    @apply transition-all duration-75 select-none font-extrabold uppercase tracking-wide inline-flex items-center justify-center;
+  }
+
+  .btn-3d-green {
+    @apply bg-brand-green text-white border-b-4 border-brand-green-dark hover:bg-brand-green-light active:border-b-0 active:translate-y-1;
+  }
+
+  .btn-3d-blue {
+    @apply bg-brand-blue text-white border-b-4 border-brand-blue-dark hover:brightness-110 active:border-b-0 active:translate-y-1;
+  }
+
+  .btn-3d-rose {
+    @apply bg-brand-rose text-white border-b-4 border-brand-rose-dark hover:brightness-110 active:border-b-0 active:translate-y-1;
+  }
+
+  .btn-3d-gold {
+    @apply bg-brand-gold text-amber-950 border-b-4 border-brand-gold-dark hover:brightness-110 active:border-b-0 active:translate-y-1;
+  }
+
+  .btn-3d-purple {
+    @apply bg-brand-purple text-white border-b-4 border-brand-purple-dark hover:brightness-110 active:border-b-0 active:translate-y-1;
+  }
+
+  .btn-3d-gray {
+    @apply bg-slate-100 text-slate-700 border-b-4 border-slate-300 hover:bg-slate-200 active:border-b-0 active:translate-y-1 dark:bg-[#202F36] dark:text-slate-200 dark:border-[#37464F] dark:hover:bg-[#283c45];
+  }
+
+  .btn-3d-outline {
+    @apply bg-transparent text-slate-600 border-2 border-b-4 border-slate-300 hover:bg-slate-100 active:border-b-2 active:translate-y-0.5 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800;
+  }
+
+  /* Node 3D circles */
+  .node-btn {
+    @apply relative flex items-center justify-center rounded-full transition-all duration-150 cursor-pointer shadow-md active:translate-y-1;
+  }
+
+  .node-completed {
+    @apply bg-brand-gold text-amber-900 border-b-[6px] border-brand-gold-dark hover:brightness-105 active:border-b-2;
+  }
+
+  .node-current {
+    @apply bg-brand-green text-white border-b-[6px] border-brand-green-dark hover:brightness-110 active:border-b-2 ring-4 ring-brand-green/30;
+  }
+
+  .node-locked {
+    @apply bg-slate-200 text-slate-400 border-b-[6px] border-slate-300 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600 dark:border-slate-900;
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #37464F;
+}
+
+/* Pulse Glow Keyframe */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(88, 204, 2, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(88, 204, 2, 0);
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}

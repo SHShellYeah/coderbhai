@@ -1,0 +1,67 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        nunito: ['"Nunito"', 'sans-serif'],
+        mono: ['"Fira Code"', '"JetBrains Mono"', 'Consolas', 'monospace'],
+      },
+      colors: {
+        brand: {
+          green: '#58CC02',
+          'green-dark': '#46A302',
+          'green-light': '#7BE128',
+          blue: '#1CB0F6',
+          'blue-dark': '#1899D6',
+          gold: '#FFC800',
+          'gold-dark': '#E5A500',
+          rose: '#FF4B4B',
+          'rose-dark': '#EA2B2B',
+          purple: '#CE82FF',
+          'purple-dark': '#A559D9',
+          orange: '#FF9600',
+          'orange-dark': '#E58000',
+          dark: '#131F24',
+          'dark-card': '#202F36',
+          'dark-border': '#37464F',
+          'dark-hover': '#2b3e47'
+        }
+      },
+      boxShadow: {
+        '3d-green': '0 4px 0 #46A302',
+        '3d-blue': '0 4px 0 #1899D6',
+        '3d-gold': '0 4px 0 #E5A500',
+        '3d-rose': '0 4px 0 #EA2B2B',
+        '3d-purple': '0 4px 0 #A559D9',
+        '3d-gray': '0 4px 0 #CBD5E1',
+        '3d-dark': '0 4px 0 #18252C',
+      },
+      keyframes: {
+        wiggle: {
+          '0%, 100%': { transform: 'rotate(-3deg)' },
+          '50%': { transform: 'rotate(3deg)' },
+        },
+        bounceShort: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-6px)' },
+        },
+        pop: {
+          '0%': { transform: 'scale(0.95)' },
+          '50%': { transform: 'scale(1.05)' },
+          '100%': { transform: 'scale(1)' },
+        }
+      },
+      animation: {
+        wiggle: 'wiggle 0.3s ease-in-out',
+        bounceShort: 'bounceShort 1.5s infinite ease-in-out',
+        pop: 'pop 0.25s ease-out',
+      }
+    },
+  },
+  plugins: [],
+}
