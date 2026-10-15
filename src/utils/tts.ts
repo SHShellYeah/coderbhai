@@ -86,6 +86,85 @@ class TextToSpeechService {
     return clean;
   }
 
+  /**
+   * Discovers the sweetest, soft-spoken female anime-style voice available.
+   * Strictly filters out deep male voices (David, Mark, Guy, Ryan, George, etc.)
+   */
+  private findSoftAnimeFemaleVoice(lang: Language): SpeechSynthesisVoice | null {
+    if (!this.voices || this.voices.length === 0) {
+      this.loadVoices();
+    }
+    if (!this.voices || this.voices.length === 0) return null;
+
+    const MALE_NAMES_REGEX = /\b(david|mark|george|guy|ryan|ravi|stefan|richard|james|john|paul|michael|brian|bashkar|pradeep)\b/i;
+
+    if (lang === 'bn') {
+      const bnVoices = this.voices.filter(
+        v =>
+          v.lang.toLowerCase().startsWith('bn') ||
+          v.name.toLowerCase().includes('bangla') ||
+          v.name.toLowerCase().includes('bengali')
+      );
+
+      // Prefer non-male Bengali voice (e.g. Google বাংলা)
+      const bnFemale = bnVoices.find(
+        v =>
+          !MALE_NAMES_REGEX.test(v.name) &&
+          (v.name.toLowerCase().includes('female') ||
+           v.name.toLowerCase().includes('tanisha') ||
+           v.name.toLowerCase().includes('google') ||
+           v.name.toLowerCase().includes('online'))
+      );
+      if (bnFemale) return bnFemale;
+
+      if (bnVoices.length > 0) return bnVoices[0];
+    }
+
+    // English / Anime dub female voice selection:
+    // Ranked list of preferred female voices known for sweet, gentle, anime-like dub tones:
+    const PREFERRED_FEMALE_VOICES = [
+      'jenny',      // Microsoft Jenny (Natural) - very sweet, soft anime dub tone
+      'aria',       // Microsoft Aria (Natural) - cheerful, pleasant heroine feel
+      'zira',       // Microsoft Zira Desktop - classic gentle female voice on Windows
+      'ava',        // Microsoft Ava (Natural)
+      'ana',        // Microsoft Ana (Natural)
+      'samantha',   // Apple Samantha - clean, gentle female
+      'victoria',   // Apple Victoria
+      'karen',      // Apple Karen
+      'hazel',      // Microsoft Hazel
+      'sonia',      // Microsoft Sonia
+      'neerja',     // Microsoft Neerja
+      'google us english female',
+      'google uk english female',
+      'google us english',
+      'female'
+    ];
+
+    const enVoices = this.voices.filter(v => v.lang.toLowerCase().startsWith('en'));
+
+    // 1. Try to find one of the preferred sweet female voices
+    for (const name of PREFERRED_FEMALE_VOICES) {
+      const match = enVoices.find(
+        v => v.name.toLowerCase().includes(name) && !MALE_NAMES_REGEX.test(v.name)
+      );
+      if (match) return match;
+    }
+
+    // 2. Fallback: Any English voice that is NOT male
+    const nonMaleVoices = enVoices.filter(v => !MALE_NAMES_REGEX.test(v.name));
+    if (nonMaleVoices.length > 0) {
+      return nonMaleVoices[0];
+    }
+
+    // 3. Fallback: Any voice that is not male
+    const anyNonMale = this.voices.filter(v => !MALE_NAMES_REGEX.test(v.name));
+    if (anyNonMale.length > 0) {
+      return anyNonMale[0];
+    }
+
+    return this.voices[0] || null;
+  }
+
   public speak(
     text: string,
     lang: Language = 'en',
@@ -117,37 +196,23 @@ class TextToSpeechService {
       this.isCurrentlyPlaying = true;
       this.notify();
 
+      const femaleVoice = this.findSoftAnimeFemaleVoice(lang);
+      if (femaleVoice) {
+        utterance.voice = femaleVoice;
+      }
+
       if (lang === 'bn') {
         utterance.lang = 'bn-BD';
-        // Try finding a Bengali voice
-        const bnVoice = this.voices.find(
-          v =>
-            v.lang.toLowerCase().startsWith('bn') ||
-            v.lang.toLowerCase().includes('bengali') ||
-            v.name.toLowerCase().includes('bangla') ||
-            v.name.toLowerCase().includes('bengali')
-        );
-        if (bnVoice) {
-          utterance.voice = bnVoice;
-        }
-        utterance.rate = 0.92;
-        utterance.pitch = 1.05;
+        // Sweet, gentle anime companion pitch & pace for Bengali
+        utterance.rate = 0.94;
+        utterance.pitch = 1.20;
       } else {
         utterance.lang = 'en-US';
-        const enVoice =
-          this.voices.find(
-            v =>
-              v.lang.startsWith('en') &&
-              (v.name.includes('Natural') ||
-                v.name.includes('Google') ||
-                v.name.includes('Samantha') ||
-                v.name.includes('Jenny'))
-          ) || this.voices.find(v => v.lang.startsWith('en'));
-        if (enVoice) {
-          utterance.voice = enVoice;
-        }
-        utterance.rate = 0.95;
-        utterance.pitch = 1.0;
+        // Sweet, soft-spoken anime English dub register:
+        // pitch ~1.22 gives a youthful, friendly, cute anime heroine warmth
+        // rate ~0.96 provides gentle, soft-spoken clarity
+        utterance.rate = 0.96;
+        utterance.pitch = 1.22;
       }
 
       utterance.onend = () => {

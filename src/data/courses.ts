@@ -536,7 +536,7 @@ std::cout << *(ptr + 2);`,
                 {
                   characterId: 'byte',
                   characterMood: 'teaching',
-                  speech: "Hey coder! 🐈‍⬛ I'm Bhai, your black cat coding mentor. Welcome to C++!\n\nBefore we quiz you on anything, let's learn how to actually make the computer talk to the screen. In C++, we do this using a command called std::cout (pronounced 'see-out')!",
+                  speech: "Hey coder! 🐈‍⬛ I'm Nyan, your black cat coding companion. Welcome to C++!\n\nBefore we quiz you on anything, let's learn how to actually make the computer talk to the screen. In C++, we do this using a command called std::cout (pronounced 'see-out')!",
                   codeSnippet: `std::cout << "Hello, World!" << std::endl;`
                 },
                 {
@@ -555,7 +555,7 @@ std::cout << *(ptr + 2);`,
                 {
                   characterId: 'junior',
                   characterMood: 'thinking',
-                  speech: "Wait Byte! 🧢 Why are the arrows pointing to the left (<<) instead of to the right?",
+                  speech: "Wait Nyan! 🧢 Why are the arrows pointing to the left (<<) instead of to the right?",
                   anatomy: [
                     { token: 'std::cout << "Data"', explanation: 'Arrows point LEFT because data flows from right into the cout screen!' },
                     { token: 'std::cin >> variable', explanation: 'For input, arrows point RIGHT because data flows from keyboard into variable.' }

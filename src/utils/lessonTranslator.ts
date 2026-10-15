@@ -494,14 +494,14 @@ const TEACHING_INTRO_TRANSLATIONS_BN: Record<string, Partial<TeachingIntro>> = {
         speech: "বিশুদ্ধ C প্রোগ্রামিংয়ে স্বাগতম! 🕶️ C তে কোনো ক্লাস নেই, কোনো নেমস্পেস নেই এবং কোনো 'std::cout' নেই।\n\nC সরাসরি হার্ডওয়্যারের সাথে কাজ করে এবং অবিশ্বাস্য দ্রুত। লিনাক্স এবং উইন্ডোজের মতো অপারেটিং সিস্টেমের কার্নেল C তে লেখা! স্ক্রিনে প্রিন্ট করতে আমরা <stdio.h> (Standard Input/Output) যুক্ত করি এবং printf() ফাংশন ব্যবহার করি।",
         codeSnippet: '#include <stdio.h>\n\nint main(void) {\n    printf("Hello Coder!\\n");\n    return 0;\n}',
         anatomy: [
-          { token: '#include <stdio.h>', explanation: 'স্ট্যান্ডার্ড C I/O লাইব্রেরি (printf, scanf) লোড করে।' },
-          { token: 'printf("...")', explanation: 'টার্মিনাল স্ক্রিনে ফরম্যাট করা টেক্সট প্রদর্শন করে।' },
-          { token: '\\n', explanation: 'নতুন লাইন (Newline)। কার্সারকে পরের লাইনে নিয়ে যায়।' },
-          { token: 'return 0;', explanation: 'অপারেটিং সিস্টেমকে জানায় কোডটি ০ এররে সফলভাবে চলেছে।' }
+          { token: '#include <stdio.h>', explanation: 'Standard C I/O Header: printf, scanf সহ ইনপুট/আউটপুট টুলস লোড করে।' },
+          { token: 'printf("...")', explanation: 'Formatted Print: টার্মিনাল স্ক্রিনে ফরম্যাট করা টেক্সট প্রদর্শন করে।' },
+          { token: '\\n', explanation: 'Newline character: কার্সারকে পরের লাইনে নিয়ে যায়।' },
+          { token: 'return 0;', explanation: 'Return code: অপারেটিং সিস্টেমকে জানায় কোডটি ০ এররে সফলভাবে চলেছে।' }
         ]
       },
       {
-        characterId: 'byte',
+        characterId: 'junior',
         characterMood: 'thinking',
         speech: "দাঁড়ান লিন! 🧢 \\n কী আর main কেন return 0 করে?",
       },
@@ -524,7 +524,7 @@ const TEACHING_INTRO_TRANSLATIONS_BN: Record<string, Partial<TeachingIntro>> = {
       {
         characterId: 'ada',
         characterMood: 'happy',
-        speech: "C তে printf কিন্তু নিজে থেকে বুঝতে পারে না আপনি কোন ডেটা টাইপ পাস করছেন! তাই ফরম্যাট স্পেসিফায়ার ব্যবহার করতে হয়:\n\n• %d : পূর্ণসংখ্যা (দশমিক int)\n• %f : দশমিক সংখ্যা (float/double)\n• %c : একক ক্যারেক্টার (char)\n• %s : টেক্সট স্ট্রিং (string)",
+        speech: "C তে printf কিন্তু নিজে থেকে বুঝতে পারে না আপনি কোন ডেটা টাইপ পাস করছেন! তাই Format Specifiers ব্যবহার করতে হয়:\n\n• %d : Integer (দশমিক int)\n• %f : Float / Double (দশমিক সংখ্যা)\n• %c : Character (একক char বর্ণ)\n• %s : String (টেক্সট স্ট্রিং)",
       }
     ]
   },
@@ -534,7 +534,7 @@ const TEACHING_INTRO_TRANSLATIONS_BN: Record<string, Partial<TeachingIntro>> = {
       {
         characterId: 'byte',
         characterMood: 'happy',
-        speech: "C তে প্রতিটি ভ্যারিয়েবল র‍্যামের একটি নির্দিষ্ট সংখ্যাভিত্তিক মেমোরি ঠিকানায় থাকে।\n\n• &variable : ভ্যারিয়েবলের মেমোরি ঠিকানা বের করে।\n• int* ptr : সেই ঠিকানা সংরক্ষণের জন্য পয়েন্টার ভ্যারিয়েবল ডিক্লেয়ার করে।\n• *ptr : পয়েন্টার ডিরিফারেন্স করে সেই ঠিকানায় থাকা মূল মানটি পড়ে বা পরিবর্তন করে!",
+        speech: "C তে প্রতিটি ভ্যারিয়েবল র‍্যামের একটি নির্দিষ্ট সংখ্যাভিত্তিক মেমোরি ঠিকানায় থাকে।\n\n• &variable : Address-of অপারেটর, ভ্যারিয়েবলের মেমোরি ঠিকানা বের করে।\n• int* ptr : Pointer variable, সেই ঠিকানা সংরক্ষণের জন্য ডিক্লেয়ার করে।\n• *ptr : Dereference operator, সেই ঠিকানায় থাকা মূল মানটি পড়ে বা পরিবর্তন করে!",
       }
     ]
   },
@@ -544,24 +544,24 @@ const TEACHING_INTRO_TRANSLATIONS_BN: Record<string, Partial<TeachingIntro>> = {
       {
         characterId: 'byte',
         characterMood: 'happy',
-        speech: "হ্যালো কোডার! 🐈‍⬛ আমি ভাই, আপনার ব্ল্যাক ক্যাট কোডিং মেন্টর। C++ এ স্বাগতম!\n\nকুইজ শুরুর আগে চলুন শিখি কীভাবে কম্পিউটারকে স্ক্রিনে কথা বলাতে হয়। C++ এ আমরা std::cout (উচ্চারণ: 'সি-আউট') নামের কমান্ড দিয়ে এটি করি!",
+        speech: "হ্যালো কোডার! 🐈‍⬛ আমি নয়ন (Nyan), তোমার কিউট ব্ল্যাক ক্যাট কোডিং কম্প্যানিয়ন। C++ এ স্বাগতম!\n\nকুইজ শুরুর আগে চলুন শিখি কীভাবে কম্পিউটারকে স্ক্রিনে কথা বলাতে হয়। C++ এ আমরা std::cout (pronounced 'see-out') কমান্ড দিয়ে এটি করি!",
         codeSnippet: '#include <iostream>\n\nint main() {\n    std::cout << "Hello, World!" << std::endl;\n    return 0;\n}',
         anatomy: [
-          { token: 'std::', explanation: 'স্ট্যান্ডার্ড নেমস্পেস। C++ এর স্ট্যান্ডার্ড লাইব্রেরি টুলস ব্যবহারের নির্দেশ।' },
-          { token: 'cout', explanation: 'Character Output (সি-আউট)। আপনার টার্মিনালে টেক্সট পাঠায়।' },
-          { token: '<<', explanation: 'স্ট্রিম ইনসার্শন অপারেটর। তীরচিহ্নের মতো টেক্সটকে স্ক্রিনে ঠেলে দেয়!' },
-          { token: '"Hello, World!"', explanation: 'স্ট্রিং লিটারেল। ডাবল কোটেশনের ভেতরের টেক্সট বার্তা।' },
-          { token: 'std::endl', explanation: 'End Line। টার্মিনালে পরের লাইনে যাওয়ার জন্য এন্টার প্রেস করে।' },
-          { token: ';', explanation: 'সেমিকোলন! C++ এ প্রতিটি নির্দেশ অবশ্যই সেমিকোলন দিয়ে শেষ করতে হয়।' }
+          { token: 'std::', explanation: 'Standard namespace. C++ এর স্ট্যান্ডার্ড লাইব্রেরি টুলস ব্যবহারের নির্দেশ।' },
+          { token: 'cout', explanation: 'Character Output (pronounced "see-out"). টার্মিনালে টেক্সট পাঠায়।' },
+          { token: '<<', explanation: 'Stream Insertion operator. তীরচিহ্নের মতো টেক্সটকে স্ক্রিনে ঠেলে দেয়!' },
+          { token: '"Hello, World!"', explanation: 'String literal. ডাবল কোটেশনের ভেতরের টেক্সট বার্তা।' },
+          { token: 'std::endl', explanation: 'End Line. টার্মিনালে পরের লাইনে যাওয়ার জন্য এন্টার প্রেস করে।' },
+          { token: ';', explanation: 'Semicolon. C++ এ প্রতিটি নির্দেশ অবশ্যই সেমিকোলন দিয়ে শেষ করতে হয়।' }
         ]
       },
       {
-        characterId: 'byte',
+        characterId: 'junior',
         characterMood: 'thinking',
-        speech: "দাঁড়ান ভাই! 🧢 তীরচিহ্নগুলো ডানদিকে না গিয়ে বামদিকে (<<) কেন যাচ্ছে?",
+        speech: "দাঁড়ান নয়ন! 🧢 তীরচিহ্নগুলো ডানদিকে না গিয়ে বামদিকে (<<) কেন যাচ্ছে?",
         anatomy: [
-          { token: 'std::cout << "Data"', explanation: 'তীর বামে নির্দেশ করে কারণ ডেটা ডান থেকে স্ক্রিনের ভেতরে প্রবেশ করে!' },
-          { token: 'std::cin >> variable', explanation: 'ইনপুটের ক্ষেত্রে তীর ডানে যায় কারণ কীবোর্ড থেকে ডেটা ভ্যারিয়েবলে যায়।' }
+          { token: 'std::cout << "Data"', explanation: 'Stream Insertion: তীর বামে নির্দেশ করে কারণ ডেটা ডান থেকে স্ক্রিনের ভেতরে প্রবেশ করে!' },
+          { token: 'std::cin >> variable', explanation: 'Stream Extraction: ইনপুটের ক্ষেত্রে তীর ডানে যায় কারণ কীবোর্ড থেকে ডেটা ভ্যারিয়েবলে যায়।' }
         ]
       },
       {
@@ -585,10 +585,10 @@ const TEACHING_INTRO_TRANSLATIONS_BN: Record<string, Partial<TeachingIntro>> = {
         characterMood: 'happy',
         speech: "হাই! আমি অ্যাডা 👧। মেমোরি ছাড়া কম্পিউটার সবকিছু সাথে সাথে ভুলে যেত!\n\nC++ এ ভ্যারিয়েবল হলো নামযুক্ত বাক্সের মতো যেখানে সংখ্যা, শব্দ ইত্যাদি রাখি। তবে C++ এ বাক্সের ধরন (Data Type) আগে থেকেই বলে দিতে হয়!",
         anatomy: [
-          { token: 'int', explanation: 'পূর্ণসংখ্যা (যেমন: 42, -5, 0)। মেমোরিতে ৪ বাইট নেয়।' },
-          { token: 'double', explanation: 'দশমিক সংখ্যা (যেমন: 3.14, 9.99)। মেমোরিতে ৮ বাইট নেয়।' },
-          { token: 'char', explanation: 'একক ক্যারেক্টার বা বর্ণ (যেমন: \'A\', \'z\')।' },
-          { token: 'std::string', explanation: 'টেক্সট বা স্ট্রিং (যেমন: "CoderBhai")।' }
+          { token: 'int', explanation: 'Integer type: পূর্ণসংখ্যা (যেমন: 42, -5, 0)। মেমোরিতে ৪ বাইট নেয়।' },
+          { token: 'double', explanation: 'Double floating-point: দশমিক সংখ্যা (যেমন: 3.14, 9.99)। মেমোরিতে ৮ বাইট নেয়।' },
+          { token: 'char', explanation: 'Character type: একক ক্যারেক্টার বা বর্ণ (যেমন: \'A\', \'z\')।' },
+          { token: 'std::string', explanation: 'String object: টেক্সট বা স্ট্রিং (যেমন: "CoderBhai")।' }
         ]
       }
     ]

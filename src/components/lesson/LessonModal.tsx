@@ -238,7 +238,7 @@ export const LessonModal: React.FC<Props> = ({
             </div>
           )}
 
-          {/* Bhai Mascot Interactive Head */}
+          {/* Nyan Mascot Interactive Head */}
           <button
             type="button"
             onClick={() => {
@@ -247,7 +247,7 @@ export const LessonModal: React.FC<Props> = ({
               setTimeout(() => setCatMood('idle'), 1500);
             }}
             className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-transform hover:scale-105 active:scale-95 cursor-pointer"
-            title="Click Bhai for encouragement!"
+            title="Click Nyan for encouragement!"
           >
             <CatFace mood={catMood} size="sm" />
           </button>

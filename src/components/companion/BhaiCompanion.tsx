@@ -72,7 +72,7 @@ export const BhaiCompanion: React.FC<Props> = ({
         </div>
         <div className="flex flex-col text-left">
           <span className="text-[10px] font-black uppercase text-brand-primary tracking-wider leading-none">
-            Bhai 🐾
+            Nyan 🐾
           </span>
           <span className="text-xs font-bold text-slate-700 dark:text-slate-200 line-clamp-1 max-w-[140px]">
             {currentQuote}
@@ -100,7 +100,7 @@ export const BhaiCompanion: React.FC<Props> = ({
         </div>
 
         <span className="mt-1 text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1">
-          Bhai
+          Nyan
           <span className="text-[10px] text-brand-primary font-bold">{t.mentor}</span>
         </span>
       </div>
