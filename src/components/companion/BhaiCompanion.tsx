@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CatFace, CatMood } from '../common/CatFace';
+import { TTSButton } from '../common/TTSButton';
 import { sound } from '../../utils/audio';
 import { useGame } from '../../context/GameContext';
 import { BHAI_QUOTES_BY_LANG, useTranslation } from '../../data/translations';
@@ -115,17 +116,20 @@ export const BhaiCompanion: React.FC<Props> = ({
               <Sparkles className="w-3 h-3" />
               {t.bhaiCodeWisdom}
             </span>
-            <button
-              type="button"
-              onClick={e => {
-                e.stopPropagation();
-                handleInteract();
-              }}
-              className="text-slate-400 hover:text-brand-primary transition-colors p-0.5"
-              title="Next quote"
-            >
-              <RefreshCw className="w-3 h-3" />
-            </button>
+            <div className="flex items-center gap-1">
+              <TTSButton text={currentQuote} size="icon-only" />
+              <button
+                type="button"
+                onClick={e => {
+                  e.stopPropagation();
+                  handleInteract();
+                }}
+                className="text-slate-400 hover:text-brand-primary transition-colors p-1 cursor-pointer rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                title="Next quote"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           <p className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 leading-snug">

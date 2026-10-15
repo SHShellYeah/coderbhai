@@ -58,7 +58,7 @@ export const LessonCompleteModal: React.FC<Props> = ({
 
           <div className="absolute -top-1 -right-2 bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 text-xs font-black px-3 py-1 rounded-full border-2 border-white dark:border-slate-900 shadow-md flex items-center gap-1">
             <Sparkles className="w-3.5 h-3.5 fill-current" />
-            PURRFECT!
+            {state.language === 'bn' ? 'অসাধারণ!' : 'PURRFECT!'}
           </div>
         </div>
 

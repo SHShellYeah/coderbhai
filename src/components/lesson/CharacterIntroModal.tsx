@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { TeachingIntro } from '../../types';
 import { CHARACTERS } from '../../data/characters';
 import { CatFace } from '../common/CatFace';
+import { TTSButton } from '../common/TTSButton';
+import { useGame } from '../../context/GameContext';
+import { useTranslation } from '../../data/translations';
 import { sound } from '../../utils/audio';
 import { Sparkles, ArrowRight, CheckCircle2, Terminal } from 'lucide-react';
 
@@ -16,6 +19,10 @@ export const CharacterIntroModal: React.FC<Props> = ({
   onFinishIntro,
   onSkipIntro,
 }) => {
+  const { state } = useGame();
+  const t = useTranslation(state.language);
+  const isBn = state.language === 'bn';
+
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [interactiveTokens, setInteractiveTokens] = useState<string[]>([]);
 
@@ -58,21 +65,23 @@ export const CharacterIntroModal: React.FC<Props> = ({
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 rounded-full bg-brand-green/15 text-brand-green text-xs font-black uppercase tracking-wider flex items-center gap-1">
               <Sparkles className="w-3.5 h-3.5" />
-              Lesson Intro & Concept Guide
+              {t.conceptGuide}
             </span>
           </div>
 
           <div className="flex items-center gap-3">
             <span className="text-xs font-black text-slate-400">
-              Step {currentStepIndex + 1} of {intro.steps.length}
+              {isBn
+                ? `${intro.steps.length} এর মধ্যে ধাপ ${currentStepIndex + 1}`
+                : `Step ${currentStepIndex + 1} of ${intro.steps.length}`}
             </span>
             {onSkipIntro && (
               <button
                 type="button"
                 onClick={onSkipIntro}
-                className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 uppercase"
+                className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 uppercase cursor-pointer"
               >
-                Skip Intro
+                {isBn ? 'এড়িয়ে যান' : 'Skip Intro'}
               </button>
             )}
           </div>
@@ -102,9 +111,12 @@ export const CharacterIntroModal: React.FC<Props> = ({
             {/* Arrow pointing to character on desktop */}
             <div className="hidden sm:block absolute -left-2.5 top-6 w-5 h-5 bg-slate-100 dark:bg-[#202F36] border-l-2 border-b-2 border-slate-200 dark:border-slate-700/80 rotate-45" />
 
-            <h3 className="text-lg md:text-xl font-black text-slate-800 dark:text-slate-100 mb-2">
-              {intro.title}
-            </h3>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <h3 className="text-lg md:text-xl font-black text-slate-800 dark:text-slate-100">
+                {intro.title}
+              </h3>
+              <TTSButton text={step.speech} size="sm" />
+            </div>
 
             <p className="text-sm md:text-base font-semibold text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line">
               {step.speech}
@@ -134,7 +146,7 @@ export const CharacterIntroModal: React.FC<Props> = ({
         {step.anatomy && step.anatomy.length > 0 && (
           <div className="flex flex-col gap-2.5 text-left">
             <span className="text-xs font-black uppercase tracking-wider text-slate-400">
-              Breakdown: How Each Token Works
+              {isBn ? 'প্রতিটি টোকেন যেভাবে কাজ করে:' : 'Breakdown: How Each Token Works'}
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {step.anatomy.map((item, idx) => (
@@ -160,11 +172,11 @@ export const CharacterIntroModal: React.FC<Props> = ({
             <div className="flex items-center justify-between">
               <span className="text-xs font-black uppercase text-brand-blue flex items-center gap-1.5">
                 <Terminal className="w-4 h-4" />
-                Try it: {step.interactiveTry.prompt}
+                {isBn ? 'নিজে সাজান:' : 'Try it:'} {step.interactiveTry.prompt}
               </span>
               {isInteractiveComplete && (
                 <span className="text-xs font-black text-brand-green flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4" /> Perfect!
+                  <CheckCircle2 className="w-4 h-4" /> {isBn ? 'একদম পারফেক্ট!' : 'Perfect!'}
                 </span>
               )}
             </div>
@@ -247,7 +259,11 @@ export const CharacterIntroModal: React.FC<Props> = ({
             onClick={handleNextStep}
             className="btn-3d btn-3d-primary py-3.5 px-6 rounded-2xl text-sm md:text-base font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer"
           >
-            <span>{isLastStep ? "Let's Practice! (+XP)" : 'Next Concept'}</span>
+            <span>
+              {isLastStep
+                ? (isBn ? 'অনুশীলন শুরু করি! (+XP)' : "Let's Practice! (+XP)")
+                : (isBn ? 'পরবর্তী ধারণা' : 'Next Concept')}
+            </span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

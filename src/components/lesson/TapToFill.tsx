@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TapToFillQuestion } from '../../types';
+import { useGame } from '../../context/GameContext';
+import { useTranslation } from '../../data/translations';
 import { sound } from '../../utils/audio';
 import { Keyboard, MousePointerClick } from 'lucide-react';
 
@@ -24,6 +26,9 @@ export const TapToFill: React.FC<Props> = ({
   isAnswerSubmitted,
   isCorrect,
 }) => {
+  const { state } = useGame();
+  const isBn = state.language === 'bn';
+
   // Mode: 'type' (direct keyboard typing) vs 'tap' (word bank pills)
   const [inputMode, setInputMode] = useState<'type' | 'tap'>('type');
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -130,7 +135,7 @@ export const TapToFill: React.FC<Props> = ({
                 type="text"
                 disabled={isAnswerSubmitted}
                 value={val}
-                placeholder={isActive ? '' : '[type]'}
+                placeholder={isActive ? '' : (isBn ? '[টাইপ]' : '[type]')}
                 onChange={e => handleInputChange(blankId, e.target.value)}
                 onFocus={() => setActiveBlankId(blankId)}
                 onKeyDown={e => handleInputKeyDown(e, blankId, blankIndex)}
@@ -181,8 +186,8 @@ export const TapToFill: React.FC<Props> = ({
           </h3>
           <p className="text-xs md:text-sm font-semibold text-slate-500 dark:text-slate-400">
             {inputMode === 'type'
-              ? 'Type the missing code directly into the blanks with your keyboard:'
-              : 'Tap tokens from the word bank below to complete the code:'}
+              ? (isBn ? 'আপনার কীবোর্ড দিয়ে সরাসরি ফাঁকা স্থানে কোড টাইপ করুন:' : 'Type the missing code directly into the blanks with your keyboard:')
+              : (isBn ? 'নিচের শব্দভাণ্ডার থেকে ট্যাপ করে কোডটি সম্পন্ন করুন:' : 'Tap tokens from the word bank below to complete the code:')}
           </p>
         </div>
 
@@ -201,7 +206,7 @@ export const TapToFill: React.FC<Props> = ({
             }`}
           >
             <Keyboard className="w-3.5 h-3.5" />
-            Type
+            {isBn ? 'টাইপ' : 'Type'}
           </button>
           <button
             type="button"
@@ -216,7 +221,7 @@ export const TapToFill: React.FC<Props> = ({
             }`}
           >
             <MousePointerClick className="w-3.5 h-3.5" />
-            Tap Bank
+            {isBn ? 'ট্যাপ ব্যাংক' : 'Tap Bank'}
           </button>
         </div>
       </div>
@@ -234,7 +239,9 @@ export const TapToFill: React.FC<Props> = ({
             source_editor.c
           </span>
           <div className="text-[11px] font-bold text-slate-400 font-mono">
-            {inputMode === 'type' ? '⌨️ Keyboard Mode' : '👆 Word Bank'}
+            {inputMode === 'type'
+              ? (isBn ? '⌨️ কীবোর্ড মোড' : '⌨️ Keyboard Mode')
+              : (isBn ? '👆 ওয়ার্ড ব্যাংক' : '👆 Word Bank')}
           </div>
         </div>
 

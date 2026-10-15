@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LessonNode, Question, TapToFillQuestion, SpotTheBugQuestion, PredictOutputQuestion, ConceptMatchQuestion } from '../../types';
 import { useGame } from '../../context/GameContext';
 import { useTranslation } from '../../data/translations';
+import { getLocalizedNode, getLocalizedQuestion } from '../../utils/lessonTranslator';
 import { sound } from '../../utils/audio';
 import { fireSmallBurst } from '../../utils/confetti';
 import { CatFace, CatMood } from '../common/CatFace';
+import { TTSButton } from '../common/TTSButton';
 import { X, Heart, AlertTriangle, Lightbulb, Sparkles, BookOpen, Flame, Zap } from 'lucide-react';
 import { TapToFill } from './TapToFill';
 import { SpotTheBug } from './SpotTheBug';
@@ -29,6 +31,9 @@ export const LessonModal: React.FC<Props> = ({
 }) => {
   const { state, completeNodeLesson, deductHeart, addMistake } = useGame();
   const t = useTranslation(state.language);
+
+  // Localized Node based on current language
+  const localizedNode = useMemo(() => getLocalizedNode(node, state.language), [node, state.language]);
 
   // Concept Guide state: ensure user is TAUGHT first, not just thrown into a quiz!
   const [showIntro, setShowIntro] = useState<boolean>(!!node.teachingIntro);
@@ -68,7 +73,11 @@ export const LessonModal: React.FC<Props> = ({
   const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
   const [showOutOfHearts, setShowOutOfHearts] = useState<boolean>(false);
 
-  const currentQuestion = questionQueue[currentQueueIndex];
+  const rawQuestion = questionQueue[currentQueueIndex];
+  const currentQuestion = useMemo(() => {
+    if (!rawQuestion) return rawQuestion;
+    return getLocalizedQuestion(rawQuestion, state.language);
+  }, [rawQuestion, state.language]);
 
   // Determine if user has made an active input to enable the "Check" button
   const canCheckAnswer = (): boolean => {
@@ -252,9 +261,9 @@ export const LessonModal: React.FC<Props> = ({
       </header>
 
       {/* Character Teaching Intro Modal (for lessons with custom dialogue) */}
-      {showIntro && node.teachingIntro && (
+      {showIntro && (localizedNode.teachingIntro || node.teachingIntro) && (
         <CharacterIntroModal
-          intro={node.teachingIntro}
+          intro={localizedNode.teachingIntro || node.teachingIntro!}
           onFinishIntro={() => setShowIntro(false)}
           onSkipIntro={() => setShowIntro(false)}
         />
@@ -263,7 +272,7 @@ export const LessonModal: React.FC<Props> = ({
       {/* Universal Concept Guide Modal (Teaches the concept first before any quiz!) */}
       {showConceptGuide && (
         <ConceptGuideModal
-          node={node}
+          node={localizedNode}
           onStartPractice={() => setShowConceptGuide(false)}
         />
       )}
@@ -282,7 +291,7 @@ export const LessonModal: React.FC<Props> = ({
         {/* Mentor Bar: Ask Bhai / Review Concept Guide */}
         {currentQuestion && (
           <div className="w-full flex items-center justify-between mb-4 flex-wrap gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={() => {
@@ -306,9 +315,15 @@ export const LessonModal: React.FC<Props> = ({
                 <BookOpen className="w-3.5 h-3.5" />
                 <span>{t.conceptGuide}</span>
               </button>
+
+              {/* TTS Listen Button for Current Question */}
+              <TTSButton
+                text={`${currentQuestion.prompt}. ${currentQuestion.explanation}`}
+                size="sm"
+              />
             </div>
 
-            {node.teachingIntro && (
+            {(localizedNode.teachingIntro || node.teachingIntro) && (
               <button
                 type="button"
                 onClick={() => {
@@ -328,9 +343,15 @@ export const LessonModal: React.FC<Props> = ({
           <div className="w-full p-4 mb-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/60 flex items-start gap-3.5 text-left animate-pop shadow-md">
             <CatFace mood="thinking" size="sm" />
             <div className="flex-1">
-              <span className="text-xs font-black uppercase text-amber-600 dark:text-amber-400 block mb-0.5">
-                {t.bhaiMentalModel}
-              </span>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="text-xs font-black uppercase text-amber-600 dark:text-amber-400 block">
+                  {t.bhaiMentalModel}
+                </span>
+                <TTSButton
+                  text={currentQuestion.mentorTip || currentQuestion.explanation}
+                  size="sm"
+                />
+              </div>
               <p className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 leading-relaxed">
                 {currentQuestion.mentorTip || currentQuestion.explanation}
               </p>

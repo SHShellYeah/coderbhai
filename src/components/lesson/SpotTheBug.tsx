@@ -1,5 +1,6 @@
 import React from 'react';
 import { SpotTheBugQuestion } from '../../types';
+import { useGame } from '../../context/GameContext';
 import { sound } from '../../utils/audio';
 import { Bug, AlertCircle } from 'lucide-react';
 
@@ -18,6 +19,9 @@ export const SpotTheBug: React.FC<Props> = ({
   isAnswerSubmitted,
   isCorrect,
 }) => {
+  const { state } = useGame();
+  const isBn = state.language === 'bn';
+
   const handleLineClick = (idx: number) => {
     if (isAnswerSubmitted) return;
     sound.playClick();
@@ -29,13 +33,15 @@ export const SpotTheBug: React.FC<Props> = ({
       <div className="text-left">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 text-brand-rose dark:bg-rose-500/20 text-xs font-black uppercase tracking-wider mb-2">
           <Bug className="w-4 h-4" />
-          Spot the Bug Challenge
+          {isBn ? 'বাগ চিহ্নিতকরণ চ্যালেঞ্জ' : 'Spot the Bug Challenge'}
         </div>
         <h3 className="text-xl md:text-2xl font-black text-slate-800 dark:text-slate-100 mb-1">
           {question.prompt}
         </h3>
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-          Click directly on the line of code that introduces a bug or crash:
+          {isBn
+            ? 'যে কোডের লাইনে বাগ বা ক্র্যাশ তৈরি হচ্ছে সরাসরি সেখানে ক্লিক করুন:'
+            : 'Click directly on the line of code that introduces a bug or crash:'}
         </p>
       </div>
 
@@ -53,7 +59,7 @@ export const SpotTheBug: React.FC<Props> = ({
           </span>
           <div className="flex items-center gap-1 text-xs text-amber-400 font-bold">
             <AlertCircle className="w-3.5 h-3.5" />
-            1 Bug Found
+            {isBn ? '১টি বাগ পাওয়া গেছে' : '1 Bug Found'}
           </div>
         </div>
 

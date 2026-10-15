@@ -1,6 +1,7 @@
 import React from 'react';
 import { LessonNode, Question } from '../../types';
 import { CatFace } from '../common/CatFace';
+import { TTSButton } from '../common/TTSButton';
 import { sound } from '../../utils/audio';
 import { useGame } from '../../context/GameContext';
 import { useTranslation } from '../../data/translations';
@@ -74,9 +75,15 @@ export const ConceptGuideModal: React.FC<Props> = ({ node, onStartPractice }) =>
           </div>
 
           <div className="flex-1">
-            <span className="text-xs font-black uppercase text-brand-primary tracking-wide block mb-0.5">
-              {t.bhaiBriefing}
-            </span>
+            <div className="flex items-center justify-between gap-2 mb-0.5">
+              <span className="text-xs font-black uppercase text-brand-primary tracking-wide block">
+                {t.bhaiBriefing}
+              </span>
+              <TTSButton
+                text={`${node.title}. ${getConceptExplanation()}. ${firstQ?.explanation || ''}`}
+                size="sm"
+              />
+            </div>
             <h3 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100 leading-snug">
               {node.title}
             </h3>
@@ -108,10 +115,15 @@ export const ConceptGuideModal: React.FC<Props> = ({ node, onStartPractice }) =>
 
         {/* Key Takeaways & Mental Model Card */}
         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col gap-2.5">
-          <span className="text-xs font-black uppercase text-slate-400 flex items-center gap-1.5">
-            <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-            {t.readBeforeStart}
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black uppercase text-slate-400 flex items-center gap-1.5">
+              <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+              {t.readBeforeStart}
+            </span>
+            {firstQ?.explanation && (
+              <TTSButton text={`${firstQ.explanation}. ${firstQ.mentorTip || ''}`} size="sm" />
+            )}
+          </div>
 
           <div className="flex items-start gap-2.5 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200">
             <CheckCircle2 className="w-4 h-4 text-brand-primary shrink-0 mt-0.5" />

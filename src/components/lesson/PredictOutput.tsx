@@ -1,5 +1,6 @@
 import React from 'react';
 import { PredictOutputQuestion } from '../../types';
+import { useGame } from '../../context/GameContext';
 import { sound } from '../../utils/audio';
 import { Terminal, Check, X } from 'lucide-react';
 
@@ -17,6 +18,9 @@ export const PredictOutput: React.FC<Props> = ({
   onSelectOption,
   isAnswerSubmitted,
 }) => {
+  const { state } = useGame();
+  const isBn = state.language === 'bn';
+
   const handleOptionClick = (optionId: string) => {
     if (isAnswerSubmitted) return;
     sound.playClick();
@@ -30,13 +34,15 @@ export const PredictOutput: React.FC<Props> = ({
       <div className="text-left">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-blue/10 text-brand-blue dark:bg-brand-blue/20 text-xs font-black uppercase tracking-wider mb-2">
           <Terminal className="w-4 h-4" />
-          Predict Output
+          {isBn ? 'আউটপুট অনুমান করুন' : 'Predict Output'}
         </div>
         <h3 className="text-xl md:text-2xl font-black text-slate-800 dark:text-slate-100 mb-1">
           {question.prompt}
         </h3>
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-          Analyze the code and choose the exact stdout console output:
+          {isBn
+            ? 'কোডটি বিশ্লেষণ করে কনসোলের সঠিক আউটপুট নির্বাচন করুন:'
+            : 'Analyze the code and choose the exact stdout console output:'}
         </p>
       </div>
 

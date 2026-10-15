@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ConceptMatchQuestion } from '../../types';
+import { useGame } from '../../context/GameContext';
 import { sound } from '../../utils/audio';
 import { Sparkles, Check } from 'lucide-react';
 
@@ -14,6 +15,9 @@ export const ConceptMatch: React.FC<Props> = ({
   onAllMatched,
   isAnswerSubmitted,
 }) => {
+  const { state } = useGame();
+  const isBn = state.language === 'bn';
+
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
   const [selectedDefId, setSelectedDefId] = useState<string | null>(null);
   const [matchedIds, setMatchedIds] = useState<Set<string>>(new Set());
@@ -89,13 +93,15 @@ export const ConceptMatch: React.FC<Props> = ({
       <div className="text-left">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-purple/10 text-brand-purple dark:bg-brand-purple/20 text-xs font-black uppercase tracking-wider mb-2">
           <Sparkles className="w-4 h-4" />
-          Concept Match
+          {isBn ? 'কনসেপ্ট মেলান' : 'Concept Match'}
         </div>
         <h3 className="text-xl md:text-2xl font-black text-slate-800 dark:text-slate-100 mb-1">
           {question.prompt}
         </h3>
         <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-          Tap a term on the left and connect it to its correct definition on the right:
+          {isBn
+            ? 'বাম পাশের বিষয়ের সাথে ডান পাশের সঠিক বর্ণনাটি মেলাতে ট্যাপ করুন:'
+            : 'Tap a term on the left and connect it to its correct definition on the right:'}
         </p>
       </div>
 
@@ -104,7 +110,7 @@ export const ConceptMatch: React.FC<Props> = ({
         {/* Column 1: Terms */}
         <div className="flex flex-col gap-3">
           <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400 text-left">
-            Terms ({matchedIds.size}/{question.pairs.length})
+            {isBn ? 'বিষয়সমূহ' : 'Terms'} ({matchedIds.size}/{question.pairs.length})
           </span>
           {question.pairs.map(pair => {
             const isMatched = matchedIds.has(pair.id);
@@ -140,7 +146,7 @@ export const ConceptMatch: React.FC<Props> = ({
         {/* Column 2: Definitions */}
         <div className="flex flex-col gap-3">
           <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400 text-left">
-            Definitions
+            {isBn ? 'বর্ণনাসমূহ' : 'Definitions'}
           </span>
           {shuffledDefs.map(item => {
             const isMatched = matchedIds.has(item.id);

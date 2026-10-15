@@ -1,5 +1,6 @@
 import React from 'react';
 import { CatFace } from '../common/CatFace';
+import { TTSButton } from '../common/TTSButton';
 import { useGame } from '../../context/GameContext';
 import { useTranslation } from '../../data/translations';
 import { CheckCircle2, XCircle, Zap, HeartCrack } from 'lucide-react';
@@ -54,6 +55,7 @@ export const FeedbackBanner: React.FC<Props> = ({
               >
                 {isCorrect ? t.purrfectCode : t.bhaiCorrection}
               </span>
+              <TTSButton text={explanation} size="sm" />
               {isCorrect && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
                   <Zap className="w-3.5 h-3.5 fill-current" />
