@@ -259,107 +259,51 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
             <span>{state.xp}</span>
           </div>
 
-          <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 mx-0.5 sm:mx-1 hidden sm:block" />
+          <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 mx-0.5 sm:mx-1 hidden xs:block" />
 
-          {/* Sound Toggle - Desktop */}
+          {/* Sound Toggle - Directly accessible on all screens */}
           <button
             type="button"
             onClick={toggleSound}
-            className="hidden sm:flex p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             title={state.soundEnabled ? 'Mute sound' : 'Enable sound'}
           >
             {state.soundEnabled ? (
-              <Volume2 className="w-5 h-5 text-brand-primary" />
+              <Volume2 className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-brand-primary" />
             ) : (
-              <VolumeX className="w-5 h-5 text-slate-400" />
+              <VolumeX className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-slate-400" />
             )}
           </button>
 
-          {/* Dark Mode Toggle - Desktop */}
+          {/* Dark Mode Toggle - DIRECTLY ACCESSIBLE ON MOBILE & DESKTOP */}
           <button
             type="button"
-            onClick={toggleDarkMode}
-            className="hidden sm:flex p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            title={state.darkMode ? 'Light mode' : 'Dark mode'}
+            onClick={() => {
+              sound.playClick();
+              toggleDarkMode();
+            }}
+            className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title={state.darkMode ? 'Switch to Light mode' : 'Switch to Dark mode'}
           >
             {state.darkMode ? (
-              <Sun className="w-5 h-5 text-amber-400" />
+              <Sun className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-amber-400" />
             ) : (
-              <Moon className="w-5 h-5 text-slate-600" />
+              <Moon className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-slate-600 dark:text-slate-300" />
             )}
           </button>
 
-          {/* Theme & Sound Customizer */}
+          {/* Theme & Sound Customizer - Directly accessible */}
           <button
             type="button"
-            onClick={onOpenSettings}
+            onClick={() => {
+              sound.playClick();
+              onOpenSettings();
+            }}
             className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             title="Customize Theme & Aesthetics"
           >
             <Palette className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-brand-secondary" />
           </button>
-
-          {/* Mobile Overflow Menu */}
-          <div className="relative sm:hidden" ref={mobileMenuRef}>
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-1.5 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 transition-colors cursor-pointer"
-              title="More options"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-
-            {mobileMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 rounded-2xl bg-white dark:bg-[#111827] border-2 border-slate-200 dark:border-slate-800 shadow-2xl p-2 z-50 animate-pop flex flex-col gap-1 text-left">
-                <div className="px-3 py-1.5 text-[11px] font-black uppercase text-slate-400 flex items-center justify-between">
-                  <span>Stats</span>
-                  <span className="text-amber-500">⚡ {state.xp} XP</span>
-                </div>
-                <div className="px-3 py-1 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                  <span>💎 {state.gems} Gems</span>
-                </div>
-
-                <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    toggleDarkMode();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  {state.darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-                  <span>{state.darkMode ? 'Light Theme' : 'Dark Theme'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    toggleSound();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  {state.soundEnabled ? <Volume2 className="w-4 h-4 text-brand-primary" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
-                  <span>{state.soundEnabled ? 'Mute Sounds' : 'Unmute Sounds'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    onOpenSettings();
-                  }}
-                  className="flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <Palette className="w-4 h-4 text-brand-secondary" />
-                  <span>Theme & Sounds</span>
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </header>

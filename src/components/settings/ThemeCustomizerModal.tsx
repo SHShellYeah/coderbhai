@@ -3,7 +3,7 @@ import { useGame } from '../../context/GameContext';
 import { sound } from '../../utils/audio';
 import { SoundPack, ThemeColor } from '../../types';
 import { CatFace } from '../common/CatFace';
-import { Palette, Volume2, Sparkles, X, Check } from 'lucide-react';
+import { Palette, Volume2, Sparkles, X, Check, Moon, Sun } from 'lucide-react';
 
 interface Props {
   onClose: () => void;
@@ -19,7 +19,7 @@ interface ThemeConfig {
 }
 
 export const ThemeCustomizerModal: React.FC<Props> = ({ onClose }) => {
-  const { state, setSoundPack, setThemeColor } = useGame();
+  const { state, setSoundPack, setThemeColor, toggleDarkMode } = useGame();
 
   const themes: ThemeConfig[] = [
     {
@@ -110,6 +110,34 @@ export const ThemeCustomizerModal: React.FC<Props> = ({ onClose }) => {
               Personalize CoderBhai
             </h3>
           </div>
+        </div>
+
+        {/* Dark Mode Appearance Switch */}
+        <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 text-left">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${state.darkMode ? 'bg-amber-400/20 text-amber-400' : 'bg-slate-200 text-slate-700'}`}>
+              {state.darkMode ? <Moon className="w-5 h-5 text-amber-400" /> : <Sun className="w-5 h-5 text-amber-500" />}
+            </div>
+            <div>
+              <span className="text-sm font-black text-slate-800 dark:text-slate-100 block">
+                {state.darkMode ? 'Dark Mode (Active)' : 'Light Mode (Active)'}
+              </span>
+              <span className="text-xs text-slate-400">
+                {state.darkMode ? 'High-contrast dark OLED background' : 'Clean crisp light background'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              toggleDarkMode();
+            }}
+            className="btn-3d px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-950 cursor-pointer"
+          >
+            {state.darkMode ? 'Switch to Light' : 'Switch to Dark'}
+          </button>
         </div>
 
         {/* Section 1: Color Themes (Truly distinct themes with live swatches!) */}
