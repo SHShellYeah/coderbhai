@@ -15,8 +15,7 @@ import {
   ChevronDown,
   Sparkles,
   RotateCcw,
-  Palette,
-  MoreVertical
+  Palette
 } from 'lucide-react';
 
 interface Props {
@@ -29,29 +28,29 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
   const { state, setActiveCourse, toggleSound, toggleDarkMode, refillHearts } = useGame();
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
   const [heartDropdownOpen, setHeartDropdownOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const heartRef = useRef<HTMLDivElement>(null);
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   const activeCourse = COURSES[state.activeCourseId] || COURSES.cpp;
 
-  // Close dropdowns on outside click
+  // Close dropdowns on outside click or touch
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
         setCourseDropdownOpen(false);
       }
-      if (heartRef.current && !heartRef.current.contains(e.target as Node)) {
+      if (heartRef.current && !heartRef.current.contains(target)) {
         setHeartDropdownOpen(false);
       }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
-        setMobileMenuOpen(false);
-      }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
   }, []);
 
   const handleCourseSelect = (id: CourseId) => {
@@ -64,23 +63,23 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#0B0F19]/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 transition-colors w-full max-w-full overflow-visible">
-      <div className="max-w-7xl w-full mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-1.5 sm:gap-4">
+    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#0B0F19]/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 transition-colors w-full max-w-full">
+      <div className="max-w-7xl w-full mx-auto px-2 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-1 sm:gap-4">
         {/* Left: Brand Mascot & Course Switcher */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* Logo with Animated Cat Face */}
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          {/* Logo: Compact Cat Face on mobile, text on desktop */}
           <div
             onClick={() => sound.playMeow()}
             className="flex items-center gap-1.5 sm:gap-2 select-none cursor-pointer group"
             title="CoderBhai - Click Bhai to hear a meow!"
           >
             <CatFace size="sm" mood="happy" className="transform group-hover:scale-110 transition-transform" />
-            <span className="font-black text-xl sm:text-2xl tracking-tight text-brand-primary">
+            <span className="hidden md:inline font-black text-xl sm:text-2xl tracking-tight text-brand-primary">
               CoderBhai
             </span>
           </div>
 
-          <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 mx-0.5 sm:mx-1 hidden xs:block" />
+          <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 mx-0.5 sm:mx-1 hidden sm:block" />
 
           {/* Course Switcher Dropdown */}
           <div className="relative" ref={dropdownRef}>
@@ -90,16 +89,24 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
                 sound.playClick();
                 setCourseDropdownOpen(!courseDropdownOpen);
               }}
-              className="btn-3d flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border-b-2 border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-900 text-slate-800 dark:text-slate-100 text-xs sm:text-sm font-black transition-all cursor-pointer"
+              className="btn-3d flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border-b-2 border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-900 text-slate-800 dark:text-slate-100 text-xs sm:text-sm font-black transition-all cursor-pointer"
             >
               <span className="text-sm sm:text-base">{activeCourse.badge.split(' ')[0]}</span>
-              <span className="font-extrabold max-w-[80px] sm:max-w-none truncate">{activeCourse.shortTitle}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-transform" />
+              <span className="font-extrabold max-w-[55px] xs:max-w-[80px] sm:max-w-none truncate">{activeCourse.shortTitle}</span>
+              <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 group-hover:text-slate-600 transition-transform" />
             </button>
 
-            {/* Dropdown Menu */}
+            {/* Backdrop for mobile */}
             {courseDropdownOpen && (
-              <div className="absolute top-full left-0 mt-2 w-64 rounded-2xl bg-white dark:bg-[#111827] border-2 border-slate-200 dark:border-slate-800 shadow-2xl p-2 z-50 animate-pop">
+              <div
+                className="fixed inset-0 z-40 bg-black/30 sm:hidden backdrop-blur-xs"
+                onClick={() => setCourseDropdownOpen(false)}
+              />
+            )}
+
+            {/* Dropdown Menu (Centered modal on mobile, dropdown on desktop) */}
+            {courseDropdownOpen && (
+              <div className="fixed sm:absolute top-16 sm:top-full left-3 sm:left-0 right-3 sm:right-auto mt-1 sm:mt-2 max-w-sm sm:w-64 mx-auto sm:mx-0 rounded-2xl bg-white dark:bg-[#111827] border-2 border-slate-200 dark:border-slate-800 shadow-2xl p-2.5 z-50 animate-pop text-left">
                 <div className="px-3 py-1.5 text-xs font-black uppercase text-slate-400">
                   Switch Track
                 </div>
@@ -156,14 +163,14 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
           </div>
         </div>
 
-        {/* Right: Gamification Stats Bar */}
-        <div className="flex items-center gap-1.5 sm:gap-3 select-none shrink-0">
+        {/* Right: Gamification Stats Bar & Action Toggles */}
+        <div className="flex items-center gap-1 sm:gap-2.5 select-none shrink-0">
           {/* Daily Streak (🔥) */}
           <div
-            className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-brand-orange font-black text-xs sm:text-sm"
+            className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-brand-orange font-black text-xs sm:text-sm"
             title={`${state.streak} Day Coding Streak`}
           >
-            <Flame className="w-3.5 sm:w-5 h-3.5 sm:h-5 fill-brand-orange stroke-brand-orange animate-wiggle" />
+            <Flame className="w-3.5 sm:w-4.5 h-3.5 sm:h-4.5 fill-brand-orange stroke-brand-orange animate-wiggle" />
             <span>{state.streak}</span>
           </div>
 
@@ -175,25 +182,33 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
                 sound.playClick();
                 setHeartDropdownOpen(!heartDropdownOpen);
               }}
-              className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-rose-500/10 dark:bg-rose-500/20 text-brand-rose font-black text-xs sm:text-sm cursor-pointer hover:brightness-95 transition-all"
+              className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-rose-500/10 dark:bg-rose-500/20 text-brand-rose font-black text-xs sm:text-sm cursor-pointer hover:brightness-95 transition-all"
               title="Hearts Remaining (Click to refill)"
             >
               <Heart
-                className={`w-3.5 sm:w-5 h-3.5 sm:h-5 fill-brand-rose stroke-brand-rose ${
+                className={`w-3.5 sm:w-4.5 h-3.5 sm:h-4.5 fill-brand-rose stroke-brand-rose ${
                   state.hearts <= 1 ? 'animate-bounce' : ''
                 }`}
               />
               <span>{state.hearts}</span>
             </button>
 
-            {/* Hearts Popover */}
+            {/* Backdrop for mobile */}
             {heartDropdownOpen && (
-              <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-white dark:bg-[#111827] border-2 border-slate-200 dark:border-slate-800 shadow-2xl p-4 z-50 animate-pop text-center">
+              <div
+                className="fixed inset-0 z-40 bg-black/30 sm:hidden backdrop-blur-xs"
+                onClick={() => setHeartDropdownOpen(false)}
+              />
+            )}
+
+            {/* Hearts Popover (Centered modal on mobile, dropdown on desktop) */}
+            {heartDropdownOpen && (
+              <div className="fixed sm:absolute top-16 sm:top-full left-3 sm:left-auto right-3 sm:right-0 mt-1 sm:mt-2 max-w-sm sm:w-64 mx-auto sm:mx-0 rounded-2xl bg-white dark:bg-[#111827] border-2 border-slate-200 dark:border-slate-800 shadow-2xl p-4 z-50 animate-pop text-center">
                 <div className="flex items-center justify-center gap-1 mb-2">
                   {Array.from({ length: state.maxHearts }).map((_, i) => (
                     <Heart
                       key={i}
-                      className={`w-6 h-6 ${
+                      className={`w-5 h-5 sm:w-6 sm:h-6 ${
                         i < state.hearts
                           ? 'fill-brand-rose text-brand-rose'
                           : 'text-slate-300 dark:text-slate-700'
@@ -205,7 +220,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
                   {state.hearts} / {state.maxHearts} Hearts
                 </h4>
                 <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 mb-3">
-                  Hearts protect you from compile mistakes. Practice to restore them anytime!
+                  Hearts protect you from coding mistakes. Practice to restore them anytime!
                 </p>
 
                 <div className="flex flex-col gap-2">
@@ -243,7 +258,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
 
           {/* Gems (💎) - Desktop only */}
           <div
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-sky-500/10 dark:bg-sky-500/20 text-brand-accent font-black text-xs sm:text-sm"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl bg-sky-500/10 dark:bg-sky-500/20 text-brand-accent font-black text-xs sm:text-sm"
             title={`${state.gems} Gems`}
           >
             <span>💎</span>
@@ -252,7 +267,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
 
           {/* XP (⚡) - Desktop only */}
           <div
-            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 dark:text-amber-400 font-black text-xs sm:text-sm"
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 dark:text-amber-400 font-black text-xs sm:text-sm"
             title={`${state.xp} Total XP`}
           >
             <Zap className="w-4 h-4 fill-current" />
@@ -261,11 +276,41 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
 
           <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 mx-0.5 sm:mx-1 hidden xs:block" />
 
-          {/* Sound Toggle - Directly accessible on all screens */}
+          {/* Dark Mode Toggle - ALWAYS VISIBLE AND CLICKABLE (1-TAP) ON ALL SCREENS */}
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              toggleDarkMode();
+            }}
+            className="p-1 sm:p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title={state.darkMode ? 'Switch to Light mode' : 'Switch to Dark mode'}
+          >
+            {state.darkMode ? (
+              <Sun className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-amber-400" />
+            ) : (
+              <Moon className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-slate-700 dark:text-slate-300" />
+            )}
+          </button>
+
+          {/* Theme & Sound Customizer - ALWAYS VISIBLE AND CLICKABLE ON ALL SCREENS */}
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              onOpenSettings();
+            }}
+            className="p-1 sm:p-2 rounded-xl text-brand-secondary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Customize Theme & Aesthetics"
+          >
+            <Palette className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-brand-secondary" />
+          </button>
+
+          {/* Sound Toggle - ALWAYS VISIBLE AND CLICKABLE ON ALL SCREENS */}
           <button
             type="button"
             onClick={toggleSound}
-            className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1 sm:p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             title={state.soundEnabled ? 'Mute sound' : 'Enable sound'}
           >
             {state.soundEnabled ? (
@@ -273,36 +318,6 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
             ) : (
               <VolumeX className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-slate-400" />
             )}
-          </button>
-
-          {/* Dark Mode Toggle - DIRECTLY ACCESSIBLE ON MOBILE & DESKTOP */}
-          <button
-            type="button"
-            onClick={() => {
-              sound.playClick();
-              toggleDarkMode();
-            }}
-            className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            title={state.darkMode ? 'Switch to Light mode' : 'Switch to Dark mode'}
-          >
-            {state.darkMode ? (
-              <Sun className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-amber-400" />
-            ) : (
-              <Moon className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-slate-600 dark:text-slate-300" />
-            )}
-          </button>
-
-          {/* Theme & Sound Customizer - Directly accessible */}
-          <button
-            type="button"
-            onClick={() => {
-              sound.playClick();
-              onOpenSettings();
-            }}
-            className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            title="Customize Theme & Aesthetics"
-          >
-            <Palette className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-brand-secondary" />
           </button>
         </div>
       </div>
