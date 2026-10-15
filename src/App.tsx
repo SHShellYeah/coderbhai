@@ -28,7 +28,7 @@ const MainApp: React.FC = () => {
   }, [state.activeCourseId, state.courseProgress]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#131F24] text-slate-800 dark:text-slate-100 transition-colors">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0B0F19] text-slate-800 dark:text-slate-100 transition-colors w-full max-w-full overflow-x-hidden">
       {/* Top Stats & Course Bar */}
       <TopBar
         onOpenPractice={() => setIsPracticeOpen(true)}
@@ -39,13 +39,13 @@ const MainApp: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col lg:flex-row justify-center pb-20 lg:pb-8">
         {/* Mobile View Switching Tabs */}
-        <div className="lg:hidden flex items-center justify-around border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1A282F] py-2 px-4 sticky top-16 z-20">
+        <div className="lg:hidden flex items-center justify-around border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] py-2 px-3 sticky top-16 z-20 w-full">
           <button
             type="button"
             onClick={() => setMobileTab('learn')}
             className={`flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-xl transition-all ${
               mobileTab === 'learn'
-                ? 'bg-brand-green text-white'
+                ? 'bg-brand-primary text-white shadow-md'
                 : 'text-slate-500 dark:text-slate-400'
             }`}
           >

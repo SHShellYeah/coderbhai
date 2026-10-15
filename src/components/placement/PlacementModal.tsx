@@ -4,6 +4,7 @@ import { COURSES } from '../../data/courses';
 import { useGame } from '../../context/GameContext';
 import { sound } from '../../utils/audio';
 import { fireSuccessConfetti } from '../../utils/confetti';
+import { CatFace } from '../common/CatFace';
 import { Sparkles, Compass, CheckCircle, ArrowRight, X } from 'lucide-react';
 import { TapToFill } from '../lesson/TapToFill';
 import { SpotTheBug } from '../lesson/SpotTheBug';
@@ -146,8 +147,8 @@ export const PlacementModal: React.FC<Props> = ({ courseId, onClose }) => {
             <X className="w-5 h-5" />
           </button>
 
-          <div className="w-20 h-20 rounded-3xl bg-brand-green/20 text-brand-green flex items-center justify-center text-4xl shadow-md">
-            🐈‍⬛
+          <div className="p-3 rounded-3xl bg-brand-primary/10 border-2 border-brand-primary/30 flex items-center justify-center shadow-lg animate-bounceShort">
+            <CatFace mood="happy" size="lg" />
           </div>
 
           <div>

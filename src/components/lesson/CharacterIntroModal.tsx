@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TeachingIntro } from '../../types';
 import { CHARACTERS } from '../../data/characters';
+import { CatFace } from '../common/CatFace';
 import { sound } from '../../utils/audio';
 import { Sparkles, ArrowRight, CheckCircle2, Terminal } from 'lucide-react';
 
@@ -81,8 +82,12 @@ export const CharacterIntroModal: React.FC<Props> = ({
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
           {/* Animated Mascot */}
           <div className="flex flex-col items-center shrink-0">
-            <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-brand-green/20 dark:bg-brand-green/30 border-4 border-brand-green flex items-center justify-center text-5xl shadow-lg animate-bounceShort select-none">
-              {character.avatar}
+            <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-brand-primary/10 border-2 border-brand-primary/40 flex items-center justify-center text-5xl shadow-lg animate-bounceShort select-none">
+              {character.id === 'byte' ? (
+                <CatFace mood={step.characterMood === 'cheering' ? 'cheering' : step.characterMood === 'thinking' ? 'thinking' : 'happy'} size="xl" />
+              ) : (
+                character.avatar
+              )}
             </div>
             <span className="mt-2 text-sm font-black text-slate-800 dark:text-slate-200">
               {character.name}
@@ -227,9 +232,9 @@ export const CharacterIntroModal: React.FC<Props> = ({
                 key={i}
                 className={`w-2.5 h-2.5 rounded-full transition-all ${
                   i === currentStepIndex
-                    ? 'w-7 bg-brand-green'
+                    ? 'w-7 bg-brand-primary'
                     : i < currentStepIndex
-                    ? 'bg-brand-green/40'
+                    ? 'bg-brand-primary/40'
                     : 'bg-slate-200 dark:bg-slate-700'
                 }`}
               />
@@ -240,7 +245,7 @@ export const CharacterIntroModal: React.FC<Props> = ({
           <button
             type="button"
             onClick={handleNextStep}
-            className="btn-3d btn-3d-green py-3.5 px-6 rounded-2xl text-sm md:text-base font-black uppercase tracking-wider flex items-center gap-2"
+            className="btn-3d btn-3d-primary py-3.5 px-6 rounded-2xl text-sm md:text-base font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer"
           >
             <span>{isLastStep ? "Let's Practice! (+XP)" : 'Next Concept'}</span>
             <ArrowRight className="w-4 h-4" />

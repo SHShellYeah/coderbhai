@@ -81,15 +81,15 @@ export const SpotTheBug: React.FC<Props> = ({
                 type="button"
                 disabled={isAnswerSubmitted}
                 onClick={() => handleLineClick(idx)}
-                className={`w-full flex items-center gap-4 px-3 py-2.5 rounded-xl border-2 transition-all cursor-pointer text-left group ${lineStyles}`}
+                className={`w-full min-w-0 flex items-center gap-2.5 sm:gap-4 px-2.5 sm:px-3 py-2.5 rounded-xl border-2 transition-all cursor-pointer text-left group ${lineStyles}`}
               >
                 {/* Line number */}
-                <span className="w-6 text-right text-xs font-semibold text-slate-500 select-none">
+                <span className="w-5 sm:w-6 text-right text-xs font-semibold text-slate-500 select-none shrink-0">
                   {idx + 1}
                 </span>
 
                 {/* Bug indicator icon */}
-                <span className="w-5 flex items-center justify-center">
+                <span className="w-4 sm:w-5 flex items-center justify-center shrink-0">
                   {isSelected ? (
                     <Bug className="w-4 h-4 text-brand-rose animate-bounce" />
                   ) : (
@@ -98,7 +98,7 @@ export const SpotTheBug: React.FC<Props> = ({
                 </span>
 
                 {/* Code line content */}
-                <span className="flex-1 whitespace-pre overflow-x-auto">
+                <span className="flex-1 min-w-0 font-mono text-xs sm:text-sm md:text-base whitespace-pre overflow-x-auto">
                   {line}
                 </span>
               </button>

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CourseId, LessonNode, Unit } from '../../types';
 import { COURSES } from '../../data/courses';
 import { useGame } from '../../context/GameContext';
 import { sound } from '../../utils/audio';
+import { BhaiCompanion } from '../companion/BhaiCompanion';
 import {
   Check,
   Star,
@@ -32,9 +33,21 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
   };
 
   const [activeGuidebookUnit, setActiveGuidebookUnit] = useState<Unit | null>(null);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
 
-  // Winding horizontal offsets for the nodes (Duolingo snake pattern in px)
-  const xOffsets = [0, -45, -75, -45, 0, 45, 75, 45];
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Winding horizontal offsets for the nodes (responsive so mobile screens never overflow)
+  const xOffsetsDesktop = [0, -45, -75, -45, 0, 45, 75, 45];
+  const xOffsetsMobile = [0, -22, -38, -22, 0, 22, 38, 22];
+  const xOffsets = isMobile ? xOffsetsMobile : xOffsetsDesktop;
 
   const getNodeIcon = (node: LessonNode, isCompleted: boolean, isCurrent: boolean) => {
     if (isCompleted) {
@@ -68,7 +81,16 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto py-6 px-4 flex flex-col items-center">
+    <div className="w-full max-w-xl mx-auto py-5 px-3 sm:px-4 flex flex-col items-center overflow-x-hidden">
+      {/* Bhai the Black Cat Companion (Always keeping you company like Duo!) */}
+      <div className="w-full mb-6">
+        <BhaiCompanion
+          streak={state.streak}
+          xp={state.xp}
+          activeCourseTitle={course.shortTitle}
+        />
+      </div>
+
       {course.units.map((unit, unitIdx) => {
         const isUnitUnlocked = unitIdx < progress.unlockedUnitCount;
 
@@ -76,26 +98,26 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
           <div key={unit.id} className="w-full flex flex-col items-center mb-10">
             {/* Unit Header Banner */}
             <div
-              className={`w-full rounded-3xl p-5 mb-8 text-white shadow-xl transition-all ${
-                isUnitUnlocked ? unit.bannerColor : 'bg-slate-400 dark:bg-slate-700 opacity-75'
+              className={`w-full rounded-3xl p-4 sm:p-5 mb-8 text-white shadow-xl transition-all ${
+                isUnitUnlocked ? unit.bannerColor : 'bg-slate-400 dark:bg-slate-800 opacity-75'
               }`}
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-3 sm:gap-4">
                 <div className="text-left">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-black uppercase tracking-wider bg-black/20 px-2.5 py-0.5 rounded-full">
+                    <span className="text-[11px] font-black uppercase tracking-wider bg-black/25 px-2.5 py-0.5 rounded-full">
                       Unit {unit.unitNumber}
                     </span>
                     {!isUnitUnlocked && (
-                      <span className="flex items-center gap-1 text-xs font-bold bg-black/30 px-2 py-0.5 rounded-full">
+                      <span className="flex items-center gap-1 text-[11px] font-bold bg-black/35 px-2 py-0.5 rounded-full">
                         <Lock className="w-3 h-3" /> Locked
                       </span>
                     )}
                   </div>
-                  <h3 className="text-lg md:text-xl font-black leading-snug">
+                  <h3 className="text-base sm:text-lg md:text-xl font-black leading-snug">
                     {unit.title}
                   </h3>
-                  <p className="text-xs md:text-sm font-medium text-white/90 mt-1">
+                  <p className="text-xs sm:text-sm font-medium text-white/90 mt-1">
                     {unit.description}
                   </p>
                 </div>
@@ -107,7 +129,7 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
                     sound.playClick();
                     setActiveGuidebookUnit(unit);
                   }}
-                  className="btn-3d px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-black uppercase flex items-center gap-1.5 shrink-0"
+                  className="btn-3d px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-black uppercase flex items-center gap-1.5 shrink-0 cursor-pointer"
                 >
                   <BookOpen className="w-4 h-4" />
                   <span className="hidden sm:inline">Guidebook</span>
@@ -135,7 +157,7 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
                     {/* Floating Tooltip/Badge on Active Node */}
                     {isCurrent && (
                       <div className="absolute -top-10 z-20 animate-bounceShort">
-                        <div className="bg-white dark:bg-slate-800 text-brand-green dark:text-emerald-400 font-black text-xs px-3 py-1.5 rounded-2xl shadow-lg border-2 border-slate-200 dark:border-slate-700 uppercase tracking-wider flex items-center gap-1">
+                        <div className="bg-white dark:bg-slate-800 text-brand-primary font-black text-xs px-3 py-1.5 rounded-2xl shadow-lg border-2 border-slate-200 dark:border-slate-700 uppercase tracking-wider flex items-center gap-1">
                           <Zap className="w-3.5 h-3.5 fill-current" />
                           START (+15 XP)
                         </div>
@@ -149,7 +171,7 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
                       type="button"
                       onClick={() => handleNodeClick(node, isLocked)}
                       disabled={isLocked}
-                      className={`node-btn w-20 h-20 md:w-22 md:h-22 ${
+                      className={`node-btn w-18 h-18 sm:w-20 sm:h-20 md:w-22 md:h-22 ${
                         isCompleted
                           ? 'node-completed'
                           : isCurrent
@@ -164,14 +186,14 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
                     >
                       {/* Node Icon */}
                       {isLocked ? (
-                        <Lock className="w-7 h-7 text-slate-400 dark:text-slate-600" />
+                        <Lock className="w-6 h-6 sm:w-7 sm:h-7 text-slate-400 dark:text-slate-600" />
                       ) : (
                         getNodeIcon(node, isCompleted, isCurrent)
                       )}
                     </button>
 
                     {/* Node Title Subtext */}
-                    <span className="mt-2 text-xs font-black tracking-tight text-center max-w-[130px] line-clamp-1 text-slate-700 dark:text-slate-300">
+                    <span className="mt-2 text-xs font-black tracking-tight text-center max-w-[120px] sm:max-w-[140px] line-clamp-1 text-slate-700 dark:text-slate-300">
                       {node.title}
                     </span>
                   </div>

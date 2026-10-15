@@ -1,6 +1,7 @@
 import React from 'react';
 import { useGame } from '../../context/GameContext';
 import { sound } from '../../utils/audio';
+import { CatFace } from '../common/CatFace';
 import {
   Trophy,
   Target,
@@ -178,7 +179,7 @@ export const RightSidebar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement,
               key={user.rank}
               className={`p-2.5 rounded-2xl flex items-center justify-between transition-all ${
                 user.isUser
-                  ? 'bg-brand-green/15 text-brand-green font-black border border-brand-green/30 dark:bg-brand-green/20'
+                  ? 'bg-brand-primary/15 text-brand-primary font-black border border-brand-primary/30 dark:bg-brand-primary/20'
                   : 'hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-700 dark:text-slate-300 font-bold'
               }`}
             >
@@ -186,7 +187,9 @@ export const RightSidebar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement,
                 <span className="w-5 text-center text-xs font-black text-slate-400">
                   {user.rank}
                 </span>
-                <span className="text-lg">{user.avatar}</span>
+                <span className="flex items-center justify-center">
+                  {user.isUser ? <CatFace size="xs" mood="happy" /> : <span className="text-lg">{user.avatar}</span>}
+                </span>
                 <span className="text-xs md:text-sm">{user.name}</span>
               </div>
               <div className="flex items-center gap-1 font-mono text-xs font-extrabold text-amber-500">

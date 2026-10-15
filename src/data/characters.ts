@@ -5,9 +5,9 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     id: 'byte',
     name: 'Bhai',
     title: 'Lead Code Mentor & Black Cat Hacker',
-    avatar: '🐈‍⬛',
+    avatar: '🐾',
     role: 'Your clever black cat guide who prowls through tricky CS syntax and makes code purrfect.',
-    color: 'bg-emerald-500 text-white',
+    color: 'bg-brand-primary text-white',
   },
   ada: {
     id: 'ada',

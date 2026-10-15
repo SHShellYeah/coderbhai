@@ -201,6 +201,106 @@ class SoundEngine {
       // ignore
     }
   }
+
+  /**
+   * Synthesize a cute playful Black Cat "Meow"
+   */
+  public playMeow() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      // Pitch glide: start low (~520Hz) -> swell up (~880Hz) -> sweet tail (~660Hz)
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(920, now + 0.12);
+      osc.frequency.exponentialRampToValueAtTime(640, now + 0.32);
+
+      // Volume envelope
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.18, now + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.36);
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * Synthesize a warm purring vibration
+   */
+  public playPurr() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(80, now);
+      osc.frequency.linearRampToValueAtTime(110, now + 0.2);
+      osc.frequency.linearRampToValueAtTime(85, now + 0.4);
+
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.46);
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * High-dopamine combo streak sound: ascending pitch chime
+   */
+  public playCombo(comboCount: number) {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const baseFreq = 440; // A4
+      const scaleSteps = [0, 2, 4, 7, 9, 12, 14, 16]; // Major pentatonic steps
+      const step = scaleSteps[Math.min(comboCount - 1, scaleSteps.length - 1)];
+      const freq = baseFreq * Math.pow(2, step / 12);
+
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = this.currentPack === 'retro-8bit' ? 'square' : 'triangle';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.15);
+
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.3);
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export const sound = new SoundEngine();

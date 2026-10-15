@@ -90,7 +90,7 @@ const DEFAULT_USER_STATE: UserState = {
   mistakes: [],
   soundEnabled: true,
   soundPack: 'duolingo',
-  themeColor: 'emerald',
+  themeColor: 'midnight',
   darkMode: false,
   quests: INITIAL_QUESTS,
 };
@@ -122,9 +122,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
+        // Normalize old duolingo emerald theme to fresh midnight theme
+        const themeColor = parsed.themeColor === 'emerald' ? 'midnight' : (parsed.themeColor || 'midnight');
         return {
           ...DEFAULT_USER_STATE,
           ...parsed,
+          themeColor,
           courseProgress: {
             ...DEFAULT_COURSE_PROGRESS,
             ...(parsed.courseProgress || {}),
@@ -145,6 +148,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // ignore
     }
   }, [state]);
+
+  // Sync theme attribute to documentElement
+  useEffect(() => {
+    const theme = state.themeColor || 'midnight';
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [state.themeColor]);
 
   // Sync dark mode class
   useEffect(() => {

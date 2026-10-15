@@ -196,7 +196,7 @@ export const TapToFill: React.FC<Props> = ({
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all cursor-pointer ${
               inputMode === 'type'
-                ? 'bg-white dark:bg-[#1A282F] text-brand-blue shadow-sm'
+                ? 'bg-white dark:bg-[#111827] text-brand-primary shadow-sm'
                 : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
             }`}
           >
@@ -211,7 +211,7 @@ export const TapToFill: React.FC<Props> = ({
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all cursor-pointer ${
               inputMode === 'tap'
-                ? 'bg-white dark:bg-[#1A282F] text-brand-green shadow-sm'
+                ? 'bg-white dark:bg-[#111827] text-brand-primary shadow-sm'
                 : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
             }`}
           >

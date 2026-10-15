@@ -1,4 +1,5 @@
 import React from 'react';
+import { CatFace } from '../common/CatFace';
 import { CheckCircle2, XCircle, Zap, HeartCrack } from 'lucide-react';
 
 interface Props {
@@ -18,38 +19,38 @@ export const FeedbackBanner: React.FC<Props> = ({
     <div
       className={`fixed bottom-0 left-0 right-0 z-50 p-4 md:py-6 md:px-8 border-t-2 shadow-2xl transition-all duration-300 transform translate-y-0 ${
         isCorrect
-          ? 'bg-emerald-100 border-emerald-300 dark:bg-[#183120] dark:border-emerald-800'
-          : 'bg-rose-100 border-rose-300 dark:bg-[#34181A] dark:border-rose-900'
+          ? 'bg-emerald-50 border-emerald-300 dark:bg-[#071F14] dark:border-emerald-800'
+          : 'bg-rose-50 border-rose-300 dark:bg-[#2A0E11] dark:border-rose-900'
       }`}
     >
       <div className="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Feedback Message & Explanation */}
-        <div className="flex items-start gap-4 text-left w-full sm:w-auto flex-1">
+        <div className="flex items-start gap-3.5 text-left w-full sm:w-auto flex-1">
           <div className="shrink-0 mt-0.5">
             {isCorrect ? (
-              <div className="w-12 h-12 rounded-2xl bg-brand-green flex items-center justify-center text-white shadow-lg animate-pop">
-                <CheckCircle2 className="w-8 h-8" />
+              <div className="p-1 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 shadow-md animate-pop">
+                <CatFace mood="cheering" size="sm" />
               </div>
             ) : (
-              <div className="w-12 h-12 rounded-2xl bg-brand-rose flex items-center justify-center text-white shadow-lg animate-wiggle">
-                <XCircle className="w-8 h-8" />
+              <div className="p-1 rounded-2xl bg-rose-500/20 border border-rose-500/40 shadow-md animate-wiggle">
+                <CatFace mood="comforting" size="sm" />
               </div>
             )}
           </div>
 
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
               <span
-                className={`text-xl md:text-2xl font-black ${
+                className={`text-xl sm:text-2xl font-black ${
                   isCorrect
-                    ? 'text-brand-green dark:text-emerald-400'
+                    ? 'text-emerald-700 dark:text-emerald-400'
                     : 'text-brand-rose dark:text-rose-400'
                 }`}
               >
-                {isCorrect ? 'Nicely done!' : 'Correct Solution:'}
+                {isCorrect ? 'Purrfect Code!' : 'Bhai\'s Correction:'}
               </span>
               {isCorrect && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-brand-green/20 text-brand-green dark:bg-emerald-500/30">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
                   <Zap className="w-3.5 h-3.5 fill-current" />
                   +{xpEarned} XP
                 </span>
@@ -62,7 +63,7 @@ export const FeedbackBanner: React.FC<Props> = ({
               )}
             </div>
 
-            <p className="text-sm md:text-base font-semibold text-slate-700 dark:text-slate-300 leading-snug">
+            <p className="text-xs sm:text-sm md:text-base font-semibold text-slate-700 dark:text-slate-200 leading-snug">
               {explanation}
             </p>
           </div>
@@ -72,8 +73,8 @@ export const FeedbackBanner: React.FC<Props> = ({
         <button
           type="button"
           onClick={onContinue}
-          className={`btn-3d w-full sm:w-auto min-w-[160px] py-3.5 px-8 rounded-2xl text-base font-black uppercase tracking-wider ${
-            isCorrect ? 'btn-3d-green' : 'btn-3d-rose'
+          className={`btn-3d w-full sm:w-auto min-w-[150px] py-3.5 px-8 rounded-2xl text-base font-black uppercase tracking-wider cursor-pointer shadow-lg ${
+            isCorrect ? 'btn-3d-primary' : 'btn-3d-rose'
           }`}
         >
           Continue

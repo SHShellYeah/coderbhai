@@ -154,7 +154,7 @@ export interface CourseProgress {
 }
 
 export type SoundPack = 'duolingo' | 'retro-8bit' | 'arcade-synth';
-export type ThemeColor = 'emerald' | 'cyberpunk' | 'sunset' | 'obsidian';
+export type ThemeColor = 'midnight' | 'cyberpunk' | 'sunset' | 'emerald-synth' | 'emerald' | 'obsidian';
 
 export interface UserState {
   activeCourseId: CourseId;

@@ -3,30 +3,131 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --bg-page: #FFFFFF;
-    --text-primary: #3C3C3C;
+  /* =========================================================================
+     DYNAMIC THEME SYSTEM (Replaces Duolingo Green Clone with Sleek Dev Palettes)
+     ========================================================================= */
+
+  /* Default Theme: Cosmic Midnight (Indigo & Cyber Cyan) */
+  :root,
+  [data-theme="midnight"] {
+    --brand-primary: #6366F1;
+    --brand-primary-dark: #4F46E5;
+    --brand-primary-light: #818CF8;
+    --brand-primary-glow: rgba(99, 102, 241, 0.45);
+    --brand-accent: #06B6D4;
+    --brand-secondary: #A855F7;
+    --bg-page: #F8FAFC;
+    --bg-card: #FFFFFF;
+    --text-primary: #1E293B;
   }
+
+  /* Cyberpunk Neon Matrix */
+  [data-theme="cyberpunk"] {
+    --brand-primary: #00F0FF;
+    --brand-primary-dark: #00B4D8;
+    --brand-primary-light: #70F8FF;
+    --brand-primary-glow: rgba(0, 240, 255, 0.5);
+    --brand-accent: #FF007F;
+    --brand-secondary: #CE82FF;
+    --bg-page: #F8FAFC;
+    --bg-card: #FFFFFF;
+    --text-primary: #0F172A;
+  }
+
+  /* Sunset Amber & Solar Flare */
+  [data-theme="sunset"] {
+    --brand-primary: #F97316;
+    --brand-primary-dark: #EA580C;
+    --brand-primary-light: #FB923C;
+    --brand-primary-glow: rgba(249, 115, 22, 0.45);
+    --brand-accent: #F59E0B;
+    --brand-secondary: #EF4444;
+    --bg-page: #FFFBEB;
+    --bg-card: #FFFFFF;
+    --text-primary: #451A03;
+  }
+
+  /* Terminal Matrix & Hacker Green */
+  [data-theme="emerald-synth"],
+  [data-theme="emerald"] {
+    --brand-primary: #10B981;
+    --brand-primary-dark: #059669;
+    --brand-primary-light: #34D399;
+    --brand-primary-glow: rgba(16, 185, 129, 0.45);
+    --brand-accent: #38BDF8;
+    --brand-secondary: #6366F1;
+    --bg-page: #F0FDF4;
+    --bg-card: #FFFFFF;
+    --text-primary: #064E3B;
+  }
+
+  /* Obsidian OLED */
+  [data-theme="obsidian"] {
+    --brand-primary: #38BDF8;
+    --brand-primary-dark: #0284C7;
+    --brand-primary-light: #7DD3FC;
+    --brand-primary-glow: rgba(56, 189, 248, 0.45);
+    --brand-accent: #A855F7;
+    --brand-secondary: #F43F5E;
+    --bg-page: #FFFFFF;
+    --bg-card: #FFFFFF;
+    --text-primary: #0F172A;
+  }
+
+  /* Dark mode overrides */
   .dark {
-    --bg-page: #131F24;
-    --text-primary: #F7F7F7;
+    --bg-page: #0B0F19;
+    --bg-card: #111827;
+    --text-primary: #F8FAFC;
+  }
+
+  [data-theme="cyberpunk"].dark {
+    --bg-page: #07090E;
+    --bg-card: #0E131F;
+  }
+
+  [data-theme="sunset"].dark {
+    --bg-page: #140B07;
+    --bg-card: #20130E;
+  }
+
+  [data-theme="emerald-synth"].dark,
+  [data-theme="emerald"].dark {
+    --bg-page: #05140E;
+    --bg-card: #092318;
+  }
+
+  [data-theme="obsidian"].dark {
+    --bg-page: #000000;
+    --bg-card: #0A0A0A;
+  }
+
+  /* Mobile Zoom prevention and viewport safety */
+  html, body, #root {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
   }
 
   body {
     background-color: var(--bg-page);
     color: var(--text-primary);
-    overflow-x: hidden;
   }
 }
 
-/* Duolingo-style 3D Chunky Buttons */
+/* 3D Chunky Developer Buttons */
 @layer components {
   .btn-3d {
     @apply transition-all duration-75 select-none font-extrabold uppercase tracking-wide inline-flex items-center justify-center;
   }
 
+  .btn-3d-primary,
   .btn-3d-green {
-    @apply bg-brand-green text-white border-b-4 border-brand-green-dark hover:bg-brand-green-light active:border-b-0 active:translate-y-1;
+    @apply text-white border-b-4 hover:brightness-110 active:border-b-0 active:translate-y-1;
+    background-color: var(--brand-primary);
+    border-color: var(--brand-primary-dark);
   }
 
   .btn-3d-blue {
@@ -46,7 +147,7 @@
   }
 
   .btn-3d-gray {
-    @apply bg-slate-100 text-slate-700 border-b-4 border-slate-300 hover:bg-slate-200 active:border-b-0 active:translate-y-1 dark:bg-[#202F36] dark:text-slate-200 dark:border-[#37464F] dark:hover:bg-[#283c45];
+    @apply bg-slate-100 text-slate-700 border-b-4 border-slate-300 hover:bg-slate-200 active:border-b-0 active:translate-y-1 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-900 dark:hover:bg-slate-700;
   }
 
   .btn-3d-outline {
@@ -59,11 +160,14 @@
   }
 
   .node-completed {
-    @apply bg-brand-gold text-amber-900 border-b-[6px] border-brand-gold-dark hover:brightness-105 active:border-b-2;
+    @apply bg-brand-gold text-amber-950 border-b-[6px] border-brand-gold-dark hover:brightness-105 active:border-b-2;
   }
 
   .node-current {
-    @apply bg-brand-green text-white border-b-[6px] border-brand-green-dark hover:brightness-110 active:border-b-2 ring-4 ring-brand-green/30;
+    @apply text-white border-b-[6px] hover:brightness-110 active:border-b-2;
+    background-color: var(--brand-primary);
+    border-color: var(--brand-primary-dark);
+    box-shadow: 0 0 0 4px var(--brand-primary-glow);
   }
 
   .node-locked {
@@ -73,8 +177,8 @@
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -84,19 +188,69 @@
   border-radius: 9999px;
 }
 .dark ::-webkit-scrollbar-thumb {
-  background: #37464F;
+  background: #334155;
 }
 
 /* Pulse Glow Keyframe */
 @keyframes pulseGlow {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(88, 204, 2, 0.4);
+    box-shadow: 0 0 0 0 var(--brand-primary-glow);
   }
   50% {
-    box-shadow: 0 0 0 14px rgba(88, 204, 2, 0);
+    box-shadow: 0 0 0 16px rgba(0, 0, 0, 0);
   }
 }
 
 .pulse-glow {
   animation: pulseGlow 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+/* Dopamine Floating Rewards */
+@keyframes floatUpReward {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.85);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0) scale(1.1);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-36px) scale(0.9);
+  }
+}
+
+.animate-float-reward {
+  animation: floatUpReward 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* Shimmer shine sweep */
+@keyframes sweepShine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.shimmer-sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-sweep::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  animation: sweepShine 2.5s infinite;
 }
