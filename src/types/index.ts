@@ -155,6 +155,7 @@ export interface CourseProgress {
 
 export type SoundPack = 'duolingo' | 'retro-8bit' | 'arcade-synth';
 export type ThemeColor = 'midnight' | 'cyberpunk' | 'sunset' | 'emerald-synth' | 'emerald' | 'obsidian';
+export type Language = 'en' | 'bn';
 
 export interface UserState {
   activeCourseId: CourseId;
@@ -170,5 +171,6 @@ export interface UserState {
   soundPack: SoundPack;
   themeColor: ThemeColor;
   darkMode: boolean;
+  language: Language;
   quests: Quest[];
 }

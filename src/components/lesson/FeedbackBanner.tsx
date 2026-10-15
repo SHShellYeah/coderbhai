@@ -1,5 +1,7 @@
 import React from 'react';
 import { CatFace } from '../common/CatFace';
+import { useGame } from '../../context/GameContext';
+import { useTranslation } from '../../data/translations';
 import { CheckCircle2, XCircle, Zap, HeartCrack } from 'lucide-react';
 
 interface Props {
@@ -15,6 +17,9 @@ export const FeedbackBanner: React.FC<Props> = ({
   xpEarned,
   onContinue,
 }) => {
+  const { state } = useGame();
+  const t = useTranslation(state.language);
+
   return (
     <div
       className={`fixed bottom-0 left-0 right-0 z-50 p-4 md:py-6 md:px-8 border-t-2 shadow-2xl transition-all duration-300 transform translate-y-0 ${
@@ -47,7 +52,7 @@ export const FeedbackBanner: React.FC<Props> = ({
                     : 'text-brand-rose dark:text-rose-400'
                 }`}
               >
-                {isCorrect ? 'Purrfect Code!' : 'Bhai\'s Correction:'}
+                {isCorrect ? t.purrfectCode : t.bhaiCorrection}
               </span>
               {isCorrect && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
@@ -58,7 +63,7 @@ export const FeedbackBanner: React.FC<Props> = ({
               {!isCorrect && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-brand-rose/20 text-brand-rose dark:bg-rose-500/30">
                   <HeartCrack className="w-3.5 h-3.5" />
-                  -1 Heart
+                  -1 {t.hearts}
                 </span>
               )}
             </div>
@@ -77,7 +82,7 @@ export const FeedbackBanner: React.FC<Props> = ({
             isCorrect ? 'btn-3d-primary' : 'btn-3d-rose'
           }`}
         >
-          Continue
+          {t.continue}
         </button>
       </div>
     </div>

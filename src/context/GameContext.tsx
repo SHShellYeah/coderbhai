@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
-import { CourseId, CourseProgress, Question, Quest, UserState } from '../types';
+import { CourseId, CourseProgress, Question, Quest, UserState, Language } from '../types';
 import { COURSES } from '../data/courses';
 import { sound } from '../utils/audio';
 
@@ -92,6 +92,7 @@ const DEFAULT_USER_STATE: UserState = {
   soundPack: 'duolingo',
   themeColor: 'midnight',
   darkMode: false,
+  language: 'en',
   quests: INITIAL_QUESTS,
 };
 
@@ -107,6 +108,8 @@ interface GameContextType {
   toggleDarkMode: () => void;
   setSoundPack: (pack: import('../types').SoundPack) => void;
   setThemeColor: (theme: import('../types').ThemeColor) => void;
+  setLanguage: (lang: Language) => void;
+  toggleLanguage: () => void;
   completePlacementTest: (courseId: CourseId, score: number) => void;
   startScratch: (courseId: CourseId) => void;
   resetProgress: () => void;
@@ -124,10 +127,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsed = JSON.parse(stored);
         // Normalize old duolingo emerald theme to fresh midnight theme
         const themeColor = parsed.themeColor === 'emerald' ? 'midnight' : (parsed.themeColor || 'midnight');
+        const language = parsed.language === 'bn' ? 'bn' : 'en';
         return {
           ...DEFAULT_USER_STATE,
           ...parsed,
           themeColor,
+          language,
           courseProgress: {
             ...DEFAULT_COURSE_PROGRESS,
             ...(parsed.courseProgress || {}),
@@ -163,6 +168,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       document.documentElement.classList.remove('dark');
     }
   }, [state.darkMode]);
+
+  // Sync document language attribute
+  useEffect(() => {
+    document.documentElement.setAttribute('lang', state.language || 'en');
+  }, [state.language]);
 
   // Sync sound muted
   useEffect(() => {
@@ -363,6 +373,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({ ...prev, themeColor: theme }));
   };
 
+  const setLanguage = (lang: Language) => {
+    sound.playClick();
+    setState(prev => ({ ...prev, language: lang }));
+  };
+
+  const toggleLanguage = () => {
+    sound.playClick();
+    setState(prev => ({ ...prev, language: prev.language === 'en' ? 'bn' : 'en' }));
+  };
+
   const resetProgress = () => {
     setState({
       ...DEFAULT_USER_STATE,
@@ -392,6 +412,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toggleDarkMode,
       setSoundPack,
       setThemeColor,
+      setLanguage,
+      toggleLanguage,
       completePlacementTest,
       startScratch,
       resetProgress,

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { fireSuccessConfetti } from '../../utils/confetti';
 import { sound } from '../../utils/audio';
+import { useGame } from '../../context/GameContext';
+import { useTranslation } from '../../data/translations';
 import { CatFace } from '../common/CatFace';
 import { Zap, Target, Flame, Sparkles } from 'lucide-react';
 
@@ -17,6 +19,8 @@ export const LessonCompleteModal: React.FC<Props> = ({
   streak,
   onFinish,
 }) => {
+  const { state } = useGame();
+  const t = useTranslation(state.language);
   const [displayedXp, setDisplayedXp] = useState(0);
 
   useEffect(() => {
@@ -60,10 +64,10 @@ export const LessonCompleteModal: React.FC<Props> = ({
 
         <div>
           <h2 className="text-2xl md:text-3xl font-black text-slate-800 dark:text-slate-100">
-            Lesson Mastered!
+            {t.lessonMastered}
           </h2>
           <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mt-1">
-            Bhai is cheering! You leveled up your programming intuition.
+            {t.lessonMasteredDesc}
           </p>
         </div>
 
@@ -73,7 +77,7 @@ export const LessonCompleteModal: React.FC<Props> = ({
           <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 shadow-sm">
             <Zap className="w-6 h-6 text-brand-gold fill-brand-gold mb-1 animate-wiggle" />
             <span className="text-[11px] font-black uppercase text-amber-600 dark:text-amber-400">
-              XP Earned
+              {t.xpEarned}
             </span>
             <span className="text-lg sm:text-xl font-black text-slate-800 dark:text-slate-100 font-mono">
               +{displayedXp}
@@ -84,7 +88,7 @@ export const LessonCompleteModal: React.FC<Props> = ({
           <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500/30 shadow-sm">
             <Target className="w-6 h-6 text-brand-primary mb-1" />
             <span className="text-[11px] font-black uppercase text-brand-primary">
-              Accuracy
+              {t.accuracy}
             </span>
             <span className="text-lg sm:text-xl font-black text-slate-800 dark:text-slate-100 font-mono">
               {accuracy}%
@@ -95,10 +99,10 @@ export const LessonCompleteModal: React.FC<Props> = ({
           <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-orange-500/10 border-2 border-orange-500/30 shadow-sm">
             <Flame className="w-6 h-6 text-brand-orange fill-brand-orange mb-1 animate-wiggle" />
             <span className="text-[11px] font-black uppercase text-orange-600 dark:text-orange-400">
-              Streak
+              {t.streak}
             </span>
             <span className="text-lg sm:text-xl font-black text-slate-800 dark:text-slate-100 font-mono">
-              {streak} Days
+              {streak} {t.streakDays}
             </span>
           </div>
         </div>
@@ -107,9 +111,9 @@ export const LessonCompleteModal: React.FC<Props> = ({
         <div className="w-full p-3 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
           <span className="flex items-center gap-2">
             <span className="text-lg">💎</span>
-            <span>Bonus Gem Reward</span>
+            <span>{t.bonusGemReward}</span>
           </span>
-          <span className="text-brand-accent font-black font-mono">+15 Gems</span>
+          <span className="text-brand-accent font-black font-mono">+15 {t.gems}</span>
         </div>
 
         {/* Continue Button */}
@@ -121,7 +125,7 @@ export const LessonCompleteModal: React.FC<Props> = ({
           }}
           className="btn-3d btn-3d-primary w-full py-4 rounded-2xl text-base font-black uppercase tracking-wider cursor-pointer"
         >
-          Keep Learning
+          {t.keepLearning}
         </button>
       </div>
     </div>

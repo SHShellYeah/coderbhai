@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { CourseId } from '../../types';
 import { COURSES } from '../../data/courses';
 import { useGame } from '../../context/GameContext';
+import { useTranslation } from '../../data/translations';
 import { sound } from '../../utils/audio';
 import { CatFace } from '../common/CatFace';
 import {
@@ -15,7 +16,8 @@ import {
   ChevronDown,
   Sparkles,
   RotateCcw,
-  Palette
+  Palette,
+  Languages
 } from 'lucide-react';
 
 interface Props {
@@ -25,7 +27,8 @@ interface Props {
 }
 
 export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpenSettings }) => {
-  const { state, setActiveCourse, toggleSound, toggleDarkMode, refillHearts } = useGame();
+  const { state, setActiveCourse, toggleSound, toggleDarkMode, toggleLanguage, refillHearts } = useGame();
+  const t = useTranslation(state.language);
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
   const [heartDropdownOpen, setHeartDropdownOpen] = useState(false);
 
@@ -108,7 +111,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
             {courseDropdownOpen && (
               <div className="fixed sm:absolute top-16 sm:top-full left-3 sm:left-0 right-3 sm:right-auto mt-1 sm:mt-2 max-w-sm sm:w-64 mx-auto sm:mx-0 rounded-2xl bg-white dark:bg-[#111827] border-2 border-slate-200 dark:border-slate-800 shadow-2xl p-2.5 z-50 animate-pop text-left">
                 <div className="px-3 py-1.5 text-xs font-black uppercase text-slate-400">
-                  Switch Track
+                  {t.switchTrack}
                 </div>
                 {(Object.keys(COURSES) as CourseId[]).map(id => {
                   const c = COURSES[id];
@@ -134,7 +137,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
                             {c.shortTitle}
                           </span>
                           <span className="text-xs text-slate-400 font-semibold">
-                            {completedCount} lessons completed
+                            {completedCount} {t.lessonsCompleted}
                           </span>
                         </div>
                       </div>
@@ -155,7 +158,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
                     className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-black text-brand-accent hover:bg-brand-accent/10 transition-colors cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
-                    Take Placement Test
+                    {t.takePlacementTest}
                   </button>
                 </div>
               </div>
@@ -168,7 +171,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
           {/* Daily Streak (🔥) */}
           <div
             className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-brand-orange font-black text-xs sm:text-sm"
-            title={`${state.streak} Day Coding Streak`}
+            title={`${state.streak} ${t.streakTitle}`}
           >
             <Flame className="w-3.5 sm:w-4.5 h-3.5 sm:h-4.5 fill-brand-orange stroke-brand-orange animate-wiggle" />
             <span>{state.streak}</span>
@@ -183,7 +186,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
                 setHeartDropdownOpen(!heartDropdownOpen);
               }}
               className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-rose-500/10 dark:bg-rose-500/20 text-brand-rose font-black text-xs sm:text-sm cursor-pointer hover:brightness-95 transition-all"
-              title="Hearts Remaining (Click to refill)"
+              title={`${t.heartsRemaining} (${t.refill})`}
             >
               <Heart
                 className={`w-3.5 sm:w-4.5 h-3.5 sm:h-4.5 fill-brand-rose stroke-brand-rose ${
@@ -217,10 +220,10 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
                   ))}
                 </div>
                 <h4 className="text-base font-black text-slate-800 dark:text-slate-100">
-                  {state.hearts} / {state.maxHearts} Hearts
+                  {state.hearts} / {state.maxHearts} {t.hearts}
                 </h4>
                 <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 mb-3">
-                  Hearts protect you from coding mistakes. Practice to restore them anytime!
+                  {t.heartsDesc}
                 </p>
 
                 <div className="flex flex-col gap-2">
@@ -233,7 +236,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
                     className="btn-3d btn-3d-primary w-full py-2.5 px-3 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    Practice to Refill (Free)
+                    {t.practiceToRefill}
                   </button>
 
                   <button
@@ -249,7 +252,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
                         : 'bg-slate-200 text-slate-400 border-b-2 border-slate-300 dark:bg-slate-800 dark:text-slate-600 dark:border-slate-900 cursor-not-allowed'
                     }`}
                   >
-                    <span>Refill Now (50 💎)</span>
+                    <span>{t.refillNow}</span>
                   </button>
                 </div>
               </div>
@@ -259,7 +262,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
           {/* Gems (💎) - Desktop only */}
           <div
             className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl bg-sky-500/10 dark:bg-sky-500/20 text-brand-accent font-black text-xs sm:text-sm"
-            title={`${state.gems} Gems`}
+            title={`${state.gems} ${t.gems}`}
           >
             <span>💎</span>
             <span>{state.gems}</span>
@@ -268,13 +271,26 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
           {/* XP (⚡) - Desktop only */}
           <div
             className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 dark:text-amber-400 font-black text-xs sm:text-sm"
-            title={`${state.xp} Total XP`}
+            title={`${state.xp} ${t.totalXp}`}
           >
             <Zap className="w-4 h-4 fill-current" />
             <span>{state.xp}</span>
           </div>
 
           <div className="h-5 w-px bg-slate-200 dark:bg-slate-800 mx-0.5 sm:mx-1 hidden xs:block" />
+
+          {/* Language Switcher Pill: EN ⇄ বাং (1-tap instant switch) */}
+          <button
+            type="button"
+            onClick={toggleLanguage}
+            className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-xl text-xs font-black bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary transition-all cursor-pointer border border-brand-primary/30"
+            title={state.language === 'en' ? 'বাংলা ভাষায় পরিবর্তন করুন (Switch to Bangla)' : 'Switch to English'}
+          >
+            <Languages className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-brand-primary" />
+            <span className="font-extrabold text-[11px] sm:text-xs">
+              {state.language === 'en' ? 'বাং' : 'EN'}
+            </span>
+          </button>
 
           {/* Dark Mode Toggle - ALWAYS VISIBLE AND CLICKABLE (1-TAP) ON ALL SCREENS */}
           <button
@@ -284,7 +300,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
               toggleDarkMode();
             }}
             className="p-1 sm:p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            title={state.darkMode ? 'Switch to Light mode' : 'Switch to Dark mode'}
+            title={state.darkMode ? t.lightMode : t.darkMode}
           >
             {state.darkMode ? (
               <Sun className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-amber-400" />
@@ -301,7 +317,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
               onOpenSettings();
             }}
             className="p-1 sm:p-2 rounded-xl text-brand-secondary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            title="Customize Theme & Aesthetics"
+            title={t.themesAndSounds}
           >
             <Palette className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-brand-secondary" />
           </button>
@@ -311,7 +327,7 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
             type="button"
             onClick={toggleSound}
             className="p-1 sm:p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            title={state.soundEnabled ? 'Mute sound' : 'Enable sound'}
+            title={state.soundEnabled ? t.muteSound : t.enableSound}
           >
             {state.soundEnabled ? (
               <Volume2 className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-brand-primary" />

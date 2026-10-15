@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { CatFace, CatMood } from '../common/CatFace';
 import { sound } from '../../utils/audio';
+import { useGame } from '../../context/GameContext';
+import { BHAI_QUOTES_BY_LANG, useTranslation } from '../../data/translations';
 import { Sparkles, MessageCircle, RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -11,19 +13,6 @@ interface Props {
   compact?: boolean;
 }
 
-const BHAI_QUOTES = [
-  "Meow! 🐾 Ready to write some clean, bug-free code today?",
-  "Remember: Pointers aren't scary, they're just memory house addresses!",
-  "Always free your heap memory, unless you want memory leaks haunting your RAM!",
-  "Stuck on a tricky problem? Break it into tiny 1-line steps!",
-  "Senior devs don't memorize everything—they understand the core mental models.",
-  "Your streak is looking legendary! Let's keep that fire burning! 🔥",
-  "In C++, std::cout stands for 'Character Output'. Data flows like a river! 🌊",
-  "Python tip: list comprehensions are faster and cleaner than manual loops!",
-  "Tap the hint button in any lesson if you need me to bail you out! 💡",
-  "Syntax errors are just computers asking for clarification politely. Purr... 🐈"
-];
-
 export const BhaiCompanion: React.FC<Props> = ({
   streak,
   xp,
@@ -31,10 +20,19 @@ export const BhaiCompanion: React.FC<Props> = ({
   className = '',
   compact = false,
 }) => {
+  const { state } = useGame();
+  const t = useTranslation(state.language);
+  const quotes = BHAI_QUOTES_BY_LANG[state.language] || BHAI_QUOTES_BY_LANG.en;
+
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [mood, setMood] = useState<CatMood>('idle');
   const [isBouncing, setIsBouncing] = useState(false);
   const [showBubble, setShowBubble] = useState(true);
+
+  // Reset quote index if out of bounds on language switch
+  useEffect(() => {
+    setQuoteIndex(prev => prev % quotes.length);
+  }, [state.language, quotes.length]);
 
   // Rotate mood occasionally
   useEffect(() => {
@@ -49,7 +47,7 @@ export const BhaiCompanion: React.FC<Props> = ({
     sound.playMeow();
     setIsBouncing(true);
     setMood('cheering');
-    setQuoteIndex(prev => (prev + 1) % BHAI_QUOTES.length);
+    setQuoteIndex(prev => (prev + 1) % quotes.length);
     setShowBubble(true);
 
     setTimeout(() => {
@@ -58,7 +56,7 @@ export const BhaiCompanion: React.FC<Props> = ({
     }, 1200);
   };
 
-  const currentQuote = BHAI_QUOTES[quoteIndex];
+  const currentQuote = quotes[quoteIndex] || quotes[0];
 
   if (compact) {
     return (
@@ -66,7 +64,7 @@ export const BhaiCompanion: React.FC<Props> = ({
         type="button"
         onClick={handleInteract}
         className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-white dark:bg-[#1A282F] border-2 border-slate-200 dark:border-slate-800 shadow-md hover:border-brand-primary transition-all cursor-pointer ${className}`}
-        title="Tap Bhai for a tip!"
+        title={t.tapBhai}
       >
         <div className={`transform transition-transform ${isBouncing ? 'scale-125' : 'group-hover:scale-110'}`}>
           <CatFace mood={mood} size="sm" />
@@ -91,7 +89,7 @@ export const BhaiCompanion: React.FC<Props> = ({
         className={`cursor-pointer group flex flex-col items-center shrink-0 transition-transform duration-300 ${
           isBouncing ? 'animate-bounce' : 'hover:-translate-y-1'
         }`}
-        title="Click Bhai to chat or hear him meow!"
+        title={t.tapBhai}
       >
         <div className="relative p-2 rounded-3xl bg-slate-100 dark:bg-slate-800/80 border-2 border-slate-200 dark:border-slate-700 shadow-lg group-hover:border-brand-primary group-hover:shadow-brand-primary/20 transition-all">
           <CatFace mood={mood} size="lg" />
@@ -102,7 +100,7 @@ export const BhaiCompanion: React.FC<Props> = ({
 
         <span className="mt-1 text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1">
           Bhai
-          <span className="text-[10px] text-brand-primary font-bold">Mentor</span>
+          <span className="text-[10px] text-brand-primary font-bold">{t.mentor}</span>
         </span>
       </div>
 
@@ -115,7 +113,7 @@ export const BhaiCompanion: React.FC<Props> = ({
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] font-black uppercase text-brand-primary flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
-              Bhai's Code Wisdom
+              {t.bhaiCodeWisdom}
             </span>
             <button
               type="button"
@@ -135,8 +133,8 @@ export const BhaiCompanion: React.FC<Props> = ({
           </p>
 
           <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-bold">
-            <span>Tracking: {activeCourseTitle}</span>
-            <span className="text-amber-500">🔥 {streak}d streak</span>
+            <span>{t.tracking}: {activeCourseTitle}</span>
+            <span className="text-amber-500">🔥 {streak} {t.streakDays}</span>
           </div>
         </div>
       )}

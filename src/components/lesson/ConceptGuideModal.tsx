@@ -2,6 +2,8 @@ import React from 'react';
 import { LessonNode, Question } from '../../types';
 import { CatFace } from '../common/CatFace';
 import { sound } from '../../utils/audio';
+import { useGame } from '../../context/GameContext';
+import { useTranslation } from '../../data/translations';
 import { Sparkles, ArrowRight, Lightbulb, Code2, CheckCircle2 } from 'lucide-react';
 
 interface Props {
@@ -10,6 +12,9 @@ interface Props {
 }
 
 export const ConceptGuideModal: React.FC<Props> = ({ node, onStartPractice }) => {
+  const { state } = useGame();
+  const t = useTranslation(state.language);
+
   // Extract teaching details from the node and its first question
   const firstQ = node.questions[0] as Question | undefined;
   const isC = node.id.startsWith('c-') || node.id.includes('c-');
@@ -53,12 +58,12 @@ export const ConceptGuideModal: React.FC<Props> = ({ node, onStartPractice }) =>
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 rounded-full bg-brand-primary/15 text-brand-primary text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
-              Learn with Bhai • Concept Walkthrough
+              {t.conceptGuide}
             </span>
           </div>
 
           <span className="text-xs font-extrabold text-slate-400">
-            {node.questions.length} Challenges Ahead
+            {node.questions.length} {t.challengesAhead}
           </span>
         </div>
 
@@ -70,7 +75,7 @@ export const ConceptGuideModal: React.FC<Props> = ({ node, onStartPractice }) =>
 
           <div className="flex-1">
             <span className="text-xs font-black uppercase text-brand-primary tracking-wide block mb-0.5">
-              Mentor Bhai's Briefing
+              {t.bhaiBriefing}
             </span>
             <h3 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100 leading-snug">
               {node.title}
@@ -105,7 +110,7 @@ export const ConceptGuideModal: React.FC<Props> = ({ node, onStartPractice }) =>
         <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col gap-2.5">
           <span className="text-xs font-black uppercase text-slate-400 flex items-center gap-1.5">
             <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-            Bhai's Mental Model (Read Before You Start):
+            {t.readBeforeStart}
           </span>
 
           <div className="flex items-start gap-2.5 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -130,7 +135,7 @@ export const ConceptGuideModal: React.FC<Props> = ({ node, onStartPractice }) =>
           onClick={handleStart}
           className="btn-3d btn-3d-primary w-full py-4 rounded-2xl text-base font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg"
         >
-          <span>Got It! Let's Practice</span>
+          <span>{t.gotItPractice}</span>
           <ArrowRight className="w-5 h-5 stroke-[2.5]" />
         </button>
       </div>

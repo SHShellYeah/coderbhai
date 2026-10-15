@@ -1,5 +1,6 @@
 import React from 'react';
 import { useGame } from '../../context/GameContext';
+import { useTranslation } from '../../data/translations';
 import { sound } from '../../utils/audio';
 import { CatFace } from '../common/CatFace';
 import {
@@ -31,6 +32,7 @@ export const RightSidebar: React.FC<Props> = ({
   filter = 'all',
 }) => {
   const { state, toggleDarkMode } = useGame();
+  const t = useTranslation(state.language);
 
   const mockLeaderboard = [
     { rank: 1, name: 'Linus T.', xp: 620, avatar: '🐧', isUser: false },
@@ -65,7 +67,7 @@ export const RightSidebar: React.FC<Props> = ({
               <Palette className="w-4 h-4" />
             </div>
             <h4 className="text-base font-black text-slate-800 dark:text-slate-100">
-              Appearance & Mode
+              {t.appearanceMode}
             </h4>
           </div>
 
@@ -74,7 +76,7 @@ export const RightSidebar: React.FC<Props> = ({
               {state.darkMode ? <Moon className="w-5 h-5 text-amber-400" /> : <Sun className="w-5 h-5 text-amber-500" />}
               <div className="flex flex-col">
                 <span className="text-xs font-black text-slate-800 dark:text-slate-100">
-                  {state.darkMode ? 'Dark Appearance' : 'Light Appearance'}
+                  {state.darkMode ? t.darkAppearance : t.lightAppearance}
                 </span>
                 <span className="text-[11px] text-slate-400">
                   {state.darkMode ? 'OLED Dark' : 'Crisp Light'}
@@ -89,7 +91,7 @@ export const RightSidebar: React.FC<Props> = ({
               }}
               className="btn-3d px-3 py-1.5 rounded-xl text-xs font-black uppercase bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-900 cursor-pointer"
             >
-              Toggle
+              {t.toggle}
             </button>
           </div>
         </div>
@@ -104,10 +106,10 @@ export const RightSidebar: React.FC<Props> = ({
             </div>
             <div className="text-left">
               <div className="text-sm font-black text-slate-800 dark:text-slate-100">
-                {state.hearts} / 5 Hearts
+                {state.hearts} / 5 {t.hearts}
               </div>
               <div className="text-xs font-semibold text-rose-600 dark:text-rose-400">
-                Practice to refill hearts
+                {t.practiceRefillHearts}
               </div>
             </div>
           </div>
@@ -116,7 +118,7 @@ export const RightSidebar: React.FC<Props> = ({
             onClick={onOpenPractice}
             className="btn-3d btn-3d-rose px-3 py-1.5 rounded-xl text-xs font-black uppercase cursor-pointer"
           >
-            Refill
+            {t.refill}
           </button>
         </div>
       )}
@@ -130,18 +132,18 @@ export const RightSidebar: React.FC<Props> = ({
                 <RotateCcw className="w-4 h-4" />
               </div>
               <h4 className="text-base font-black text-slate-800 dark:text-slate-100">
-                Weak Areas & Practice
+                {t.weakAreas}
               </h4>
             </div>
             <span className="text-xs font-black uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
-              {state.mistakes.length} Logged
+              {state.mistakes.length} {t.logged}
             </span>
           </div>
 
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
             {state.mistakes.length > 0
-              ? `You have ${state.mistakes.length} tricky questions to review from past sessions.`
-              : 'Zero pending mistakes! You can practice any course questions to reinforce memory and restore hearts.'}
+              ? t.pendingMistakes(state.mistakes.length)
+              : t.zeroMistakes}
           </p>
 
           <button
@@ -153,7 +155,7 @@ export const RightSidebar: React.FC<Props> = ({
             className="btn-3d btn-3d-purple w-full py-2.5 px-3 rounded-2xl text-xs font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Practice Weak Areas (+1 ❤️)
+            {t.practiceMistakesBtn}
           </button>
         </div>
       )}
@@ -167,10 +169,10 @@ export const RightSidebar: React.FC<Props> = ({
                 <Target className="w-4 h-4" />
               </div>
               <h4 className="text-base font-black text-slate-800 dark:text-slate-100">
-                Daily Quests
+                {t.dailyQuests}
               </h4>
             </div>
-            <span className="text-xs font-bold text-slate-400">Resets daily</span>
+            <span className="text-xs font-bold text-slate-400">{t.resetsDaily}</span>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -220,10 +222,10 @@ export const RightSidebar: React.FC<Props> = ({
               </div>
               <div>
                 <h4 className="text-base font-black text-slate-800 dark:text-slate-100 leading-tight">
-                  Diamond League
+                  {t.diamondLeague}
                 </h4>
                 <span className="text-[11px] font-bold text-slate-400">
-                  Top 3 advance to Masters
+                  {t.topThreeAdvance}
                 </span>
               </div>
             </div>
@@ -266,7 +268,7 @@ export const RightSidebar: React.FC<Props> = ({
           </div>
           <div>
             <span className="text-[11px] font-black uppercase text-indigo-500 tracking-wider">
-              Engineer's Wisdom
+              {t.engineersWisdom}
             </span>
             <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
               {tipOfTheDay}
@@ -287,7 +289,7 @@ export const RightSidebar: React.FC<Props> = ({
         >
           <span className="flex items-center gap-2">
             <Palette className="w-4 h-4 text-brand-secondary" />
-            Themes & Sounds (3D Style)
+            {t.themesAndSounds}
           </span>
           <ChevronRight className="w-4 h-4 text-purple-400" />
         </button>
@@ -302,7 +304,7 @@ export const RightSidebar: React.FC<Props> = ({
         >
           <span className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-brand-accent" />
-            Test Out / Placement Test
+            {t.testOutPlacement}
           </span>
           <ChevronRight className="w-4 h-4 text-slate-400" />
         </button>

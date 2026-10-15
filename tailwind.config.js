@@ -8,7 +8,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        nunito: ['"Nunito"', 'sans-serif'],
+        nunito: ['"Nunito"', '"Hind Siliguri"', 'sans-serif'],
+        bangla: ['"Hind Siliguri"', 'sans-serif'],
         mono: ['"Fira Code"', '"JetBrains Mono"', 'Consolas', 'monospace'],
       },
       colors: {

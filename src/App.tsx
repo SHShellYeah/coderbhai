@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
+import { useTranslation } from './data/translations';
 import { LessonNode } from './types';
 import { TopBar } from './components/navigation/TopBar';
 import { WindingPath } from './components/path/WindingPath';
@@ -13,6 +14,7 @@ import { Map, Trophy, Target, RotateCcw, Settings } from 'lucide-react';
 
 const MainApp: React.FC = () => {
   const { state } = useGame();
+  const t = useTranslation(state.language);
   const [activeLessonNode, setActiveLessonNode] = useState<LessonNode | null>(null);
   const [isPracticeOpen, setIsPracticeOpen] = useState<boolean>(false);
   const [isPlacementOpen, setIsPlacementOpen] = useState<boolean>(false);
@@ -50,7 +52,7 @@ const MainApp: React.FC = () => {
             }`}
           >
             <Map className="w-3.5 h-3.5" />
-            Learn
+            {t.learn}
           </button>
           <button
             type="button"
@@ -62,7 +64,7 @@ const MainApp: React.FC = () => {
             }`}
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Practice
+            {t.practice}
           </button>
           <button
             type="button"
@@ -74,7 +76,7 @@ const MainApp: React.FC = () => {
             }`}
           >
             <Target className="w-3.5 h-3.5" />
-            Quests
+            {t.quests}
           </button>
           <button
             type="button"
@@ -86,7 +88,7 @@ const MainApp: React.FC = () => {
             }`}
           >
             <Trophy className="w-3.5 h-3.5" />
-            Ranks
+            {t.rankings}
           </button>
           <button
             type="button"
@@ -98,7 +100,7 @@ const MainApp: React.FC = () => {
             }`}
           >
             <Settings className="w-3.5 h-3.5" />
-            Themes
+            {t.themes}
           </button>
         </div>
 

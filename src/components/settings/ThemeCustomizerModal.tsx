@@ -2,8 +2,9 @@ import React from 'react';
 import { useGame } from '../../context/GameContext';
 import { sound } from '../../utils/audio';
 import { SoundPack, ThemeColor } from '../../types';
+import { useTranslation } from '../../data/translations';
 import { CatFace } from '../common/CatFace';
-import { Palette, Volume2, Sparkles, X, Check, Moon, Sun } from 'lucide-react';
+import { Palette, Volume2, Sparkles, X, Check, Moon, Sun, Languages } from 'lucide-react';
 
 interface Props {
   onClose: () => void;
@@ -19,7 +20,8 @@ interface ThemeConfig {
 }
 
 export const ThemeCustomizerModal: React.FC<Props> = ({ onClose }) => {
-  const { state, setSoundPack, setThemeColor, toggleDarkMode } = useGame();
+  const { state, setSoundPack, setThemeColor, setLanguage, toggleDarkMode } = useGame();
+  const t = useTranslation(state.language);
 
   const themes: ThemeConfig[] = [
     {
@@ -104,11 +106,70 @@ export const ThemeCustomizerModal: React.FC<Props> = ({ onClose }) => {
           <CatFace mood="happy" size="md" />
           <div>
             <span className="text-xs font-black uppercase text-brand-primary tracking-wider">
-              Aesthetics & Sound
+              {t.personalizeSubtitle}
             </span>
             <h3 className="text-xl md:text-2xl font-black text-slate-800 dark:text-slate-100">
-              Personalize CoderBhai
+              {t.personalizeTitle}
             </h3>
+          </div>
+        </div>
+
+        {/* Language Selection: English ⇄ বাংলা */}
+        <div className="flex flex-col gap-3 text-left">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black uppercase text-slate-400 flex items-center gap-1.5">
+              <Languages className="w-3.5 h-3.5 text-brand-primary" />
+              {t.languageSectionTitle}
+            </span>
+            <span className="text-xs font-semibold text-slate-400">
+              {t.languageSectionSubtitle}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {/* English Card */}
+            <button
+              type="button"
+              onClick={() => {
+                setLanguage('en');
+              }}
+              className={`btn-3d p-3.5 rounded-2xl flex items-center justify-between text-left transition-all cursor-pointer ${
+                state.language === 'en'
+                  ? 'bg-slate-100 dark:bg-slate-800 text-brand-primary border-b-4 border-brand-primary ring-2 ring-brand-primary/30'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-b-4 border-slate-200 dark:bg-slate-900/80 dark:text-slate-200 dark:border-slate-950'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl">🇬🇧</span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-black">English</span>
+                  <span className="text-xs text-slate-400">Default</span>
+                </div>
+              </div>
+              {state.language === 'en' && <Check className="w-4.5 h-4.5 text-brand-primary" />}
+            </button>
+
+            {/* Bangla Card */}
+            <button
+              type="button"
+              onClick={() => {
+                setLanguage('bn');
+              }}
+              className={`btn-3d p-3.5 rounded-2xl flex items-center justify-between text-left transition-all cursor-pointer ${
+                state.language === 'bn'
+                  ? 'bg-slate-100 dark:bg-slate-800 text-brand-primary border-b-4 border-brand-primary ring-2 ring-brand-primary/30'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-b-4 border-slate-200 dark:bg-slate-900/80 dark:text-slate-200 dark:border-slate-950'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl">🇧🇩</span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-black font-bangla">বাংলা</span>
+                  <span className="text-xs text-slate-400">Bengali</span>
+                </div>
+              </div>
+              {state.language === 'bn' && <Check className="w-4.5 h-4.5 text-brand-primary" />}
+            </button>
           </div>
         </div>
 
@@ -120,7 +181,7 @@ export const ThemeCustomizerModal: React.FC<Props> = ({ onClose }) => {
             </div>
             <div>
               <span className="text-sm font-black text-slate-800 dark:text-slate-100 block">
-                {state.darkMode ? 'Dark Mode (Active)' : 'Light Mode (Active)'}
+                {state.darkMode ? `${t.darkMode} (${state.language === 'bn' ? 'সক্রিয়' : 'Active'})` : `${t.lightMode} (${state.language === 'bn' ? 'সক্রিয়' : 'Active'})`}
               </span>
               <span className="text-xs text-slate-400">
                 {state.darkMode ? 'High-contrast dark OLED background' : 'Clean crisp light background'}
@@ -136,7 +197,7 @@ export const ThemeCustomizerModal: React.FC<Props> = ({ onClose }) => {
             }}
             className="btn-3d px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border-b-2 border-slate-300 dark:border-slate-950 cursor-pointer"
           >
-            {state.darkMode ? 'Switch to Light' : 'Switch to Dark'}
+            {state.darkMode ? t.lightMode : t.darkMode}
           </button>
         </div>
 
@@ -145,10 +206,10 @@ export const ThemeCustomizerModal: React.FC<Props> = ({ onClose }) => {
           <div className="flex items-center justify-between">
             <span className="text-xs font-black uppercase text-slate-400 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
-              Theme & Palette
+              {t.paletteTheme}
             </span>
             <span className="text-xs font-semibold text-brand-primary">
-              Tap to apply instantly
+              {t.tapToApply}
             </span>
           </div>
 
@@ -213,10 +274,10 @@ export const ThemeCustomizerModal: React.FC<Props> = ({ onClose }) => {
           <div className="flex items-center justify-between">
             <span className="text-xs font-black uppercase text-slate-400 flex items-center gap-1.5">
               <Volume2 className="w-3.5 h-3.5" />
-              Sound Effects Pack
+              {t.soundEffectsPack}
             </span>
             <span className="text-xs font-semibold text-slate-400">
-              Tap to sample
+              {t.tapToSample}
             </span>
           </div>
 
@@ -259,7 +320,7 @@ export const ThemeCustomizerModal: React.FC<Props> = ({ onClose }) => {
           onClick={onClose}
           className="btn-3d btn-3d-primary w-full py-3.5 rounded-2xl text-sm font-black uppercase tracking-wider cursor-pointer"
         >
-          Save & Continue
+          {t.saveAndContinue}
         </button>
       </div>
     </div>

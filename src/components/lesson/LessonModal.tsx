@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { LessonNode, Question, TapToFillQuestion, SpotTheBugQuestion, PredictOutputQuestion, ConceptMatchQuestion } from '../../types';
 import { useGame } from '../../context/GameContext';
+import { useTranslation } from '../../data/translations';
 import { sound } from '../../utils/audio';
 import { fireSmallBurst } from '../../utils/confetti';
 import { CatFace, CatMood } from '../common/CatFace';
@@ -27,6 +28,7 @@ export const LessonModal: React.FC<Props> = ({
   onOpenPractice,
 }) => {
   const { state, completeNodeLesson, deductHeart, addMistake } = useGame();
+  const t = useTranslation(state.language);
 
   // Concept Guide state: ensure user is TAUGHT first, not just thrown into a quiz!
   const [showIntro, setShowIntro] = useState<boolean>(!!node.teachingIntro);
@@ -290,7 +292,7 @@ export const LessonModal: React.FC<Props> = ({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-wider transition-all cursor-pointer border border-amber-500/20"
               >
                 <Lightbulb className="w-3.5 h-3.5 fill-current" />
-                <span>{showMentorTip ? 'Hide Hint' : 'Bhai\'s Hint 💡'}</span>
+                <span>{showMentorTip ? t.hideHint : t.bhaiHint}</span>
               </button>
 
               <button
@@ -302,7 +304,7 @@ export const LessonModal: React.FC<Props> = ({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary text-xs font-black uppercase tracking-wider transition-all cursor-pointer border border-brand-primary/20"
               >
                 <BookOpen className="w-3.5 h-3.5" />
-                <span>Concept Guide 📖</span>
+                <span>{t.conceptGuide}</span>
               </button>
             </div>
 
@@ -315,7 +317,7 @@ export const LessonModal: React.FC<Props> = ({
                 }}
                 className="text-xs font-extrabold text-brand-accent hover:underline cursor-pointer"
               >
-                Character Intro 💬
+                {t.reviewIntro}
               </button>
             )}
           </div>
@@ -327,7 +329,7 @@ export const LessonModal: React.FC<Props> = ({
             <CatFace mood="thinking" size="sm" />
             <div className="flex-1">
               <span className="text-xs font-black uppercase text-amber-600 dark:text-amber-400 block mb-0.5">
-                Bhai's Mental Model Tip:
+                {t.bhaiMentalModel}
               </span>
               <p className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 leading-relaxed">
                 {currentQuestion.mentorTip || currentQuestion.explanation}
@@ -398,8 +400,8 @@ export const LessonModal: React.FC<Props> = ({
               <CatFace mood={catMood} size="xs" />
               <span>
                 {currentQuestion?.type === 'concept-match'
-                  ? 'Match all pairs to proceed'
-                  : 'Select your answer and press Check'}
+                  ? t.matchAllPairs
+                  : t.selectYourAnswer}
               </span>
             </div>
 
@@ -413,7 +415,7 @@ export const LessonModal: React.FC<Props> = ({
                   : 'bg-slate-200 text-slate-400 border-b-4 border-slate-300 dark:bg-slate-800 dark:text-slate-600 dark:border-slate-900 cursor-not-allowed'
               }`}
             >
-              Check Answer
+              {t.checkAnswer}
             </button>
           </div>
         </footer>
@@ -469,10 +471,10 @@ export const LessonModal: React.FC<Props> = ({
               <CatFace mood="thinking" size="md" />
             </div>
             <h3 className="text-xl font-black text-slate-800 dark:text-slate-100">
-              Take a pause?
+              {t.quitLesson}
             </h3>
             <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-              All progress in this active session will reset. Are you sure you want to quit?
+              {t.quitLessonDesc}
             </p>
             <div className="w-full flex flex-col gap-2.5 mt-2">
               <button
@@ -480,7 +482,7 @@ export const LessonModal: React.FC<Props> = ({
                 onClick={() => setShowExitConfirm(false)}
                 className="btn-3d btn-3d-primary w-full py-3 rounded-2xl text-sm font-black uppercase cursor-pointer"
               >
-                Keep Learning
+                {t.keepLearning}
               </button>
               <button
                 type="button"
@@ -490,7 +492,7 @@ export const LessonModal: React.FC<Props> = ({
                 }}
                 className="btn-3d btn-3d-gray w-full py-3 rounded-2xl text-sm font-black uppercase text-rose-500 cursor-pointer"
               >
-                Quit Session
+                {t.quitAnyway}
               </button>
             </div>
           </div>
