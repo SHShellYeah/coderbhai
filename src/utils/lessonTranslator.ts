@@ -544,7 +544,7 @@ const TEACHING_INTRO_TRANSLATIONS_BN: Record<string, Partial<TeachingIntro>> = {
       {
         characterId: 'byte',
         characterMood: 'happy',
-        speech: "হ্যালো কোডার! 🐈‍⬛ আমি নয়ন (Nyan), তোমার কিউট ব্ল্যাক ক্যাট কোডিং কম্প্যানিয়ন। C++ এ স্বাগতম!\n\nকুইজ শুরুর আগে চলুন শিখি কীভাবে কম্পিউটারকে স্ক্রিনে কথা বলাতে হয়। C++ এ আমরা std::cout (pronounced 'see-out') কমান্ড দিয়ে এটি করি!",
+        speech: "হ্যালো কোডার! 🐈‍⬛ আমি নিয়ান (Nyan), তোমার কিউট ব্ল্যাক ক্যাট কোডিং কম্প্যানিয়ন। C++ এ স্বাগতম!\n\nকুইজ শুরুর আগে চলুন শিখি কীভাবে কম্পিউটারকে স্ক্রিনে কথা বলাতে হয়। C++ এ আমরা std::cout (pronounced 'see-out') কমান্ড দিয়ে এটি করি!",
         codeSnippet: '#include <iostream>\n\nint main() {\n    std::cout << "Hello, World!" << std::endl;\n    return 0;\n}',
         anatomy: [
           { token: 'std::', explanation: 'Standard namespace. C++ এর স্ট্যান্ডার্ড লাইব্রেরি টুলস ব্যবহারের নির্দেশ।' },
@@ -558,7 +558,7 @@ const TEACHING_INTRO_TRANSLATIONS_BN: Record<string, Partial<TeachingIntro>> = {
       {
         characterId: 'junior',
         characterMood: 'thinking',
-        speech: "দাঁড়ান নয়ন! 🧢 তীরচিহ্নগুলো ডানদিকে না গিয়ে বামদিকে (<<) কেন যাচ্ছে?",
+        speech: "দাঁড়ান নিয়ান! 🧢 তীরচিহ্নগুলো ডানদিকে না গিয়ে বামদিকে (<<) কেন যাচ্ছে?",
         anatomy: [
           { token: 'std::cout << "Data"', explanation: 'Stream Insertion: তীর বামে নির্দেশ করে কারণ ডেটা ডান থেকে স্ক্রিনের ভেতরে প্রবেশ করে!' },
           { token: 'std::cin >> variable', explanation: 'Stream Extraction: ইনপুটের ক্ষেত্রে তীর ডানে যায় কারণ কীবোর্ড থেকে ডেটা ভ্যারিয়েবলে যায়।' }

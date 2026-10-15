@@ -125,23 +125,23 @@ export const TRANSLATIONS = {
     currentLanguageName: 'বাংলা',
 
     // Nyan Companion
-    bhaiCodeWisdom: 'নয়নের (Nyan) কোডিং জ্ঞান',
+    bhaiCodeWisdom: 'নিয়ানের (Nyan) কোডিং জ্ঞান',
     mentor: 'কম্প্যানিয়ন',
     tracking: 'কোর্স',
     streakDays: 'দিনের স্ট্রাইক',
-    tapBhai: 'টিপস পেতে নয়নকে স্পর্শ করুন!',
+    tapBhai: 'টিপস পেতে নিয়ানকে স্পর্শ করুন!',
 
     // Lesson Modal & Concept Guide
     conceptGuide: 'কনসেপ্ট গাইড 📖',
-    bhaiHint: 'নয়নের টিপস 💡',
+    bhaiHint: 'নিয়ানের টিপস 💡',
     hideHint: 'টিপস লুকান',
-    bhaiMentalModel: 'নয়নের মেন্টাল মডেল টিপস:',
+    bhaiMentalModel: 'নিয়ানের মেন্টাল মডেল টিপস:',
     checkAnswer: 'উত্তর যাচাই করুন',
     continue: 'চালিয়ে যান',
     purrfectCode: 'অসাধারণ! একদম পারফেক্ট!',
-    bhaiCorrection: 'নয়নের সংশোধন:',
+    bhaiCorrection: 'নিয়ানের সংশোধন:',
     lessonMastered: 'লেসন সম্পন্ন হয়েছে!',
-    lessonMasteredDesc: 'নয়ন দারুণ খুশি! আপনার প্রোগ্রামিং দক্ষতা এক ধাপ এগিয়ে গেল।',
+    lessonMasteredDesc: 'নিয়ান দারুণ খুশি! আপনার প্রোগ্রামিং দক্ষতা এক ধাপ এগিয়ে গেল।',
     xpEarned: 'অর্জিত এক্সপি',
     accuracy: 'সঠিকতার হার',
     streak: 'ধারাবাহিকতা',
@@ -150,9 +150,9 @@ export const TRANSLATIONS = {
     inARow: 'টানা সঠিক!',
     onFire: 'দারুণ ফর্মে আছেন!',
     gotItPractice: 'বুঝেছি! অনুশীলন শুরু করি',
-    bhaiBriefing: 'নয়নের ব্রিফিং',
+    bhaiBriefing: 'নিয়ানের ব্রিফিং',
     challengesAhead: 'টি চ্যালেঞ্জ সামনে',
-    readBeforeStart: 'নয়নের মেন্টাল মডেল (শুরুর আগে পড়ুন):',
+    readBeforeStart: 'নিয়ানের মেন্টাল মডেল (শুরুর আগে পড়ুন):',
     quitLesson: 'একটু বিরতি নিবেন?',
     quitLessonDesc: 'বর্তমান সেশনের সব অগ্রগতি মুছে যাবে। আপনি কি সত্যিই বের হতে চান?',
     quitAnyway: 'সেশন ত্যাগ করুন',
@@ -215,7 +215,7 @@ export const BHAI_QUOTES_BY_LANG: Record<Language, string[]> = {
     "আপনার কোডিং স্ট্রাইক দারুণ দেখাচ্ছে! আগুনটা জ্বালিয়ে রাখুন! 🔥",
     "C++ এ std::cout মানে Character Output, ডেটা নদীর মতো পর্দায় যায়! 🌊",
     "পাইথন টিপ: সাধারণ লুপের চেয়ে লিস্ট কম্প্রিহেনশন অনেক দ্রুত চলে!",
-    "আটকে গেলে হিন্ট বাটনে ট্যাপ করুন, নয়ন সবসময় তোমার পাশে আছে! 💡",
+    "আটকে গেলে হিন্ট বাটনে ট্যাপ করুন, নিয়ান সবসময় তোমার পাশে আছে! 💡",
     "সিনট্যাক্স এরর মানে কম্পিউটার ভদ্রভাবে বলছে কোডটা আরেকবার দেখতে। পাররর... 🐾"
   ]
 };
