@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-c';
 import 'prismjs/components/prism-cpp';
@@ -214,6 +214,16 @@ export const CodeZoneModal: React.FC<Props> = ({
   const editorTextareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
+  const selectionRef = useRef<{ start: number; end: number } | null>(null);
+
+  // Synchronously lock selection range after React DOM updates
+  useLayoutEffect(() => {
+    if (selectionRef.current && editorTextareaRef.current) {
+      const { start, end } = selectionRef.current;
+      editorTextareaRef.current.setSelectionRange(start, end);
+      selectionRef.current = null;
+    }
+  });
 
   // Synchronize scroll between textarea, pre highlight layer, and line number gutter
   const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
@@ -290,6 +300,36 @@ export const CodeZoneModal: React.FC<Props> = ({
     window.open(url, '_blank');
   };
 
+  // Synchronous text insertion helper
+  const insertPair = (openChar: string, closeChar: string) => {
+    const textarea = editorTextareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const val = textarea.value;
+
+    if (start !== end) {
+      // Selection wrapping
+      const selected = val.substring(start, end);
+      const wrapped = openChar + selected + closeChar;
+      textarea.setRangeText(wrapped, start, end, 'select');
+      const newStart = start + openChar.length;
+      const newEnd = end + openChar.length;
+      textarea.setSelectionRange(newStart, newEnd);
+      selectionRef.current = { start: newStart, end: newEnd };
+      setCode(textarea.value);
+      return;
+    }
+
+    // Single cursor: insert pair and place cursor in the middle
+    const pair = openChar + closeChar;
+    textarea.setRangeText(pair, start, end, 'end');
+    const targetPos = start + openChar.length;
+    textarea.setSelectionRange(targetPos, targetPos);
+    selectionRef.current = { start: targetPos, end: targetPos };
+    setCode(textarea.value);
+  };
+
   // Advanced Developer Keydown Handling: Auto-indent, Auto-closing brackets & quotes, Over-typing, Backspace pairs, Tab
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const textarea = editorTextareaRef.current;
@@ -316,13 +356,13 @@ export const CodeZoneModal: React.FC<Props> = ({
         const effectiveEnd = lineEnd === -1 ? val.length : lineEnd;
         const selectedBlock = val.substring(lineStart, effectiveEnd);
         const outdented = selectedBlock.replace(/^ {1,4}/gm, '');
-        const newCode = val.substring(0, lineStart) + outdented + val.substring(effectiveEnd);
-        setCode(newCode);
+        textarea.setRangeText(outdented, lineStart, effectiveEnd, 'select');
         const diff = selectedBlock.length - outdented.length;
-        setTimeout(() => {
-          textarea.selectionStart = Math.max(lineStart, start - diff);
-          textarea.selectionEnd = Math.max(lineStart, end - diff);
-        }, 0);
+        const newStart = Math.max(lineStart, start - diff);
+        const newEnd = Math.max(lineStart, end - diff);
+        textarea.setSelectionRange(newStart, newEnd);
+        selectionRef.current = { start: newStart, end: newEnd };
+        setCode(textarea.value);
         return;
       }
 
@@ -333,23 +373,23 @@ export const CodeZoneModal: React.FC<Props> = ({
         const effectiveEnd = lineEnd === -1 ? val.length : lineEnd;
         const selectedBlock = val.substring(lineStart, effectiveEnd);
         const indented = selectedBlock.replace(/^/gm, '    ');
-        const newCode = val.substring(0, lineStart) + indented + val.substring(effectiveEnd);
-        setCode(newCode);
+        textarea.setRangeText(indented, lineStart, effectiveEnd, 'select');
         const added = indented.length - selectedBlock.length;
-        setTimeout(() => {
-          textarea.selectionStart = start + 4;
-          textarea.selectionEnd = end + added;
-        }, 0);
+        const newStart = start + 4;
+        const newEnd = end + added;
+        textarea.setSelectionRange(newStart, newEnd);
+        selectionRef.current = { start: newStart, end: newEnd };
+        setCode(textarea.value);
         return;
       }
 
       // Single cursor Tab: 4 spaces
       const indentation = '    ';
-      const newCode = val.substring(0, start) + indentation + val.substring(end);
-      setCode(newCode);
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + indentation.length;
-      }, 0);
+      textarea.setRangeText(indentation, start, end, 'end');
+      const newPos = start + indentation.length;
+      textarea.setSelectionRange(newPos, newPos);
+      selectionRef.current = { start: newPos, end: newPos };
+      setCode(textarea.value);
       return;
     }
 
@@ -361,84 +401,65 @@ export const CodeZoneModal: React.FC<Props> = ({
       const indentMatch = lineBeforeCursor.match(/^[ \t]*/);
       const currentIndent = indentMatch ? indentMatch[0] : '';
       const trimmedBefore = lineBeforeCursor.trim();
+      const charAfter = val[start];
+
+      const isBetweenPair =
+        (trimmedBefore.endsWith('{') && charAfter === '}') ||
+        (trimmedBefore.endsWith('(') && charAfter === ')') ||
+        (trimmedBefore.endsWith('[') && charAfter === ']');
+
+      if (isBetweenPair) {
+        // Expand pair on enter (e.g. {\n    |\n})
+        const extraIndent = currentIndent + '    ';
+        const insertion = '\n' + extraIndent + '\n' + currentIndent;
+        textarea.setRangeText(insertion, start, end, 'end');
+        const newPos = start + 1 + extraIndent.length;
+        textarea.setSelectionRange(newPos, newPos);
+        selectionRef.current = { start: newPos, end: newPos };
+        setCode(textarea.value);
+        return;
+      }
+
       const opensBlock =
         trimmedBefore.endsWith('{') ||
         trimmedBefore.endsWith(':') ||
         trimmedBefore.endsWith('(') ||
         trimmedBefore.endsWith('[');
 
-      const charAfter = val[start];
-      const isClosingPair =
-        (trimmedBefore.endsWith('{') && charAfter === '}') ||
-        (trimmedBefore.endsWith('(') && charAfter === ')') ||
-        (trimmedBefore.endsWith('[') && charAfter === ']');
-
-      if (isClosingPair) {
-        // Expand pair on enter (e.g. {\n    |\n})
-        const extraIndent = currentIndent + '    ';
-        const insert = '\n' + extraIndent + '\n' + currentIndent;
-        const newCode = val.substring(0, start) + insert + val.substring(end);
-        setCode(newCode);
-        const cursorPos = start + 1 + extraIndent.length;
-        setTimeout(() => {
-          textarea.selectionStart = textarea.selectionEnd = cursorPos;
-        }, 0);
-        return;
-      }
-
       const nextIndent = opensBlock ? currentIndent + '    ' : currentIndent;
-      const insert = '\n' + nextIndent;
-      const newCode = val.substring(0, start) + insert + val.substring(end);
-      setCode(newCode);
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + insert.length;
-      }, 0);
+      const insertion = '\n' + nextIndent;
+      textarea.setRangeText(insertion, start, end, 'end');
+      const newPos = start + insertion.length;
+      textarea.setSelectionRange(newPos, newPos);
+      selectionRef.current = { start: newPos, end: newPos };
+      setCode(textarea.value);
       return;
     }
 
     // 3. Auto-Closing Brackets & Quotations: ( { [ " ' `
     if (PAIRS[e.key]) {
+      e.preventDefault();
       const openChar = e.key;
       const closeChar = PAIRS[openChar];
 
-      // If text is selected, wrap selection in quotes or brackets
-      if (start !== end) {
-        e.preventDefault();
-        const selected = val.substring(start, end);
-        const newCode = val.substring(0, start) + openChar + selected + closeChar + val.substring(end);
-        setCode(newCode);
-        setTimeout(() => {
-          textarea.selectionStart = start + 1;
-          textarea.selectionEnd = end + 1;
-        }, 0);
-        return;
-      }
-
       // Overtyping quote marks if already at closing quote
-      if ((openChar === '"' || openChar === "'" || openChar === '`') && val[start] === openChar) {
-        e.preventDefault();
-        setTimeout(() => {
-          textarea.selectionStart = textarea.selectionEnd = start + 1;
-        }, 0);
+      if ((openChar === '"' || openChar === "'" || openChar === '`') && val[start] === openChar && start === end) {
+        const nextPos = start + 1;
+        textarea.setSelectionRange(nextPos, nextPos);
+        selectionRef.current = { start: nextPos, end: nextPos };
         return;
       }
 
-      // Insert matching pair and place cursor between them
-      e.preventDefault();
-      const newCode = val.substring(0, start) + openChar + closeChar + val.substring(end);
-      setCode(newCode);
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + 1;
-      }, 0);
+      insertPair(openChar, closeChar);
       return;
     }
 
     // 4. Overtyping closing characters: ) } ]
     if (CLOSING_SET.has(e.key) && val[start] === e.key && start === end) {
       e.preventDefault();
-      setTimeout(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + 1;
-      }, 0);
+      const nextPos = start + 1;
+      textarea.setSelectionRange(nextPos, nextPos);
+      selectionRef.current = { start: nextPos, end: nextPos };
       return;
     }
 
@@ -448,11 +469,11 @@ export const CodeZoneModal: React.FC<Props> = ({
       const charAfter = val[start];
       if (PAIRS[charBefore] && PAIRS[charBefore] === charAfter) {
         e.preventDefault();
-        const newCode = val.substring(0, start - 1) + val.substring(start + 1);
-        setCode(newCode);
-        setTimeout(() => {
-          textarea.selectionStart = textarea.selectionEnd = start - 1;
-        }, 0);
+        textarea.setRangeText('', start - 1, start + 1, 'end');
+        const newPos = start - 1;
+        textarea.setSelectionRange(newPos, newPos);
+        selectionRef.current = { start: newPos, end: newPos };
+        setCode(textarea.value);
         return;
       }
     }
@@ -489,7 +510,6 @@ export const CodeZoneModal: React.FC<Props> = ({
           };
 
           try {
-            // Sandboxed runner
             const runner = new Function(code);
             runner();
           } finally {
@@ -498,127 +518,179 @@ export const CodeZoneModal: React.FC<Props> = ({
             console.warn = originalWarn;
           }
         } else if (language === 'python') {
-          // Client-side Python runner simulation
-          const printMatches = code.matchAll(/print\s*\(\s*(f?["'])(.*?)\1\s*\)/g);
-          let foundPrints = false;
-          for (const m of printMatches) {
-            foundPrints = true;
-            let str = m[2];
-            // Format f-string curly braces simple demo replacements
-            str = str.replace(/\{(\d+\s*[\+\-\*\/]\s*\d+)\}/g, (_, expr) => {
-              return String(safeCalc(expr));
-            });
-            outputLines.push(str);
-          }
+          // Client-side Python runner with variable tracking & f-strings
+          let pyStdout = '';
+          const customPrint = (...args: unknown[]) => {
+            pyStdout += args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ') + '\n';
+          };
 
-          if (!foundPrints) {
-            // General expression execution check
-            outputLines.push('Python 3.12 script executed successfully.');
-            outputLines.push('Output: [Finished with 0 exit code]');
+          try {
+            const js = code
+              // f-strings: f"hello {x}" -> `hello ${x}`
+              .replace(/f(["'])(.*?)\1/g, (_, __, str) => '`' + str.replace(/\{([^}]+)\}/g, '${$1}') + '`')
+              // Simple variable assignments: x = 10 -> let x = 10;
+              .replace(/^([a-zA-Z_]\w*)\s*=\s*([^=].*)$/gm, 'let $1 = $2;')
+              ;
+
+            const pyRunner = new Function('print', js);
+            pyRunner(customPrint);
+
+            const pyLines = pyStdout.split('\n');
+            if (pyLines.length > 1 && pyLines[pyLines.length - 1] === '') {
+              pyLines.pop();
+            }
+            outputLines.push(...pyLines);
+          } catch (pyErr) {
+            outputLines.push(`[Python Error] ${(pyErr as Error).message}`);
           }
         } else if (language === 'c' || language === 'cpp') {
-          // High-fidelity C / C++ interpreter simulation for educational feedback
-          // Check for missing semicolons
-          const lines = code.split('\n');
-          let hasSemicolonError = false;
-          let errorLine = -1;
+          // Real C / C++ interpreter simulation with actual variable tracking & formatted I/O
+          let cStdout = '';
 
-          lines.forEach((l, idx) => {
+          const customPrintf = (formatStr: unknown, ...args: unknown[]) => {
+            if (typeof formatStr !== 'string') {
+              cStdout += String(formatStr ?? '');
+              return;
+            }
+
+            let str = formatStr.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"');
+            let argIdx = 0;
+
+            str = str.replace(/%(\.[0-9]+)?([dfcspe%])/gi, (match, precision, type) => {
+              const lower = type.toLowerCase();
+              if (match === '%%') return '%';
+              if (argIdx >= args.length) return match;
+              const val = args[argIdx++];
+
+              if (lower === 'd' || lower === 'i') {
+                const num = Number(val);
+                return isNaN(num) ? String(val) : String(Math.trunc(num));
+              }
+              if (lower === 'f' || lower === 'e') {
+                const num = Number(val);
+                if (isNaN(num)) return String(val);
+                const prec = precision ? parseInt(precision.slice(1)) : 6;
+                return num.toFixed(prec);
+              }
+              if (lower === 'c') {
+                if (typeof val === 'number') return String.fromCharCode(val);
+                return String(val)[0] || '';
+              }
+              if (lower === 's') {
+                return String(val);
+              }
+              if (lower === 'p') {
+                return '0x7ffd5e20';
+              }
+              return String(val);
+            });
+
+            cStdout += str;
+          };
+
+          // Syntax check: missing semicolons
+          const rawLines = code.split('\n');
+          let hasMissingSemicolon = false;
+          let missingSemiLine = -1;
+
+          rawLines.forEach((l, idx) => {
             const trimmed = l.trim();
             if (
               (trimmed.startsWith('printf') ||
                 trimmed.startsWith('std::cout') ||
+                trimmed.startsWith('cout') ||
                 trimmed.startsWith('int ') ||
                 trimmed.startsWith('float ') ||
+                trimmed.startsWith('double ') ||
                 trimmed.startsWith('char ') ||
                 trimmed.startsWith('return ') ||
                 trimmed.startsWith('*ptr =')) &&
               !trimmed.endsWith(';') &&
-              !trimmed.endsWith('{')
+              !trimmed.endsWith('{') &&
+              !trimmed.endsWith('}') &&
+              !trimmed.startsWith('//')
             ) {
-              hasSemicolonError = true;
-              errorLine = idx + 1;
+              hasMissingSemicolon = true;
+              missingSemiLine = idx + 1;
             }
           });
 
-          if (hasSemicolonError) {
-            throw new Error(`compiler error: expected ';' before end of line ${errorLine}`);
+          if (hasMissingSemicolon) {
+            throw new Error(`expected ';' before end of line ${missingSemiLine}`);
           }
 
-          // Parse printf format statements in pure C
-          const printfMatches = code.matchAll(/printf\s*\(\s*"([^"]*)"\s*(?:,\s*([^)]*))?\s*\)/g);
-          let foundAny = false;
+          // Stdin buffer for scanf / cin
+          const stdinTokens = (stdinInput || '42 100').trim().split(/\s+/);
+          let stdinIdx = 0;
 
-          for (const match of printfMatches) {
-            foundAny = true;
-            let formatStr = match[1];
-            const args = match[2] ? match[2].split(',').map(s => s.trim()) : [];
-
-            // Replace escape sequences
-            formatStr = formatStr.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
-
-            // Replace format specifiers
-            let argIdx = 0;
-            formatStr = formatStr.replace(/%(\.?[0-9]*[dfcsp])/g, (_, spec) => {
-              if (argIdx < args.length) {
-                const arg = args[argIdx++];
-                // Try evaluation of arithmetic
-                try {
-                  const cleaned = arg.replace(/[a-zA-Z_]\w*/g, '42'); // fallback for variables
-                  const evaluated = safeCalc(cleaned);
-                  if (spec.startsWith('.')) {
-                    const dec = parseInt(spec.slice(1, -1)) || 2;
-                    return Number(evaluated).toFixed(dec);
-                  }
-                  if (spec === 'p') return '0x7ffd5e20';
-                  return String(evaluated);
-                } catch {
-                  return arg;
-                }
-              }
-              return `%${spec}`;
-            });
-
-            // Split into clean output lines
-            formatStr.split('\n').forEach(line => {
-              if (line) outputLines.push(line);
-            });
-          }
-
-          // Parse std::cout statements in C++
-          const coutMatches = code.matchAll(/std::cout\s*<<\s*([^;]+);/g);
-          for (const match of coutMatches) {
-            foundAny = true;
-            const segments = match[1].split('<<').map(s => s.trim());
-            let outText = '';
-            for (const seg of segments) {
-              if (seg === 'std::endl' || seg === '"\\n"') {
-                outputLines.push(outText);
-                outText = '';
-              } else if (seg.startsWith('"') && seg.endsWith('"')) {
-                outText += seg.slice(1, -1);
-              } else {
-                // evaluate variable or math
-                try {
-                  outText += String(safeCalc(seg));
-                } catch {
-                  outText += seg;
+          const customScanf = (_: string, ...targets: any[]) => {
+            for (const target of targets) {
+              if (stdinIdx < stdinTokens.length) {
+                const token = stdinTokens[stdinIdx++];
+                if (typeof target === 'object' && target !== null && 'set' in target) {
+                  target.set(isNaN(Number(token)) ? token : Number(token));
                 }
               }
             }
-            if (outText) outputLines.push(outText);
-          }
+            return targets.length;
+          };
 
-          if (!foundAny) {
-            outputLines.push('Program compiled cleanly with 0 errors.');
-            outputLines.push('Process returned 0 (0x0).');
+          try {
+            // Transpile C / C++ statements to JS for real execution
+            const js = code
+              // Remove preprocessors & namespaces
+              .replace(/^\s*#\s*include\s*<[^>]+>/gm, '// [include]')
+              .replace(/^\s*#\s*include\s*"[^"]+"/gm, '// [include]')
+              .replace(/using\s+namespace\s+std\s*;/g, '// [using namespace std]')
+              // Convert int main or void main to function main
+              .replace(/\b(?:int|void)\s+main\s*\([^)]*\)\s*\{/g, 'function main() {')
+              // Pointers: int* ptr = &x; -> let ptr = { get: () => x, set: (v) => { x = v; } }
+              .replace(
+                /(?:int|float|double|char|long|short)\s*\*\s*([a-zA-Z_]\w*)\s*=\s*&([a-zA-Z_]\w*)\s*;/g,
+                'let $1 = { get: () => $2, set: (v) => { $2 = v; } };'
+              )
+              // Pointer assignments: *ptr = val; -> ptr.set(val);
+              .replace(/\*([a-zA-Z_]\w*)\s*=\s*([^;]+);/g, '$1.set($2);')
+              // Pointer reads: *ptr in expressions -> ptr.get()
+              .replace(/\*([a-zA-Z_]\w*)/g, '($1.get ? $1.get() : $1)')
+              // Const variable declarations: const int x = 10;
+              .replace(/\bconst\s+(?:int|float|double|char|long|short|auto)\s+([*a-zA-Z_]\w*)/g, 'const $1')
+              // Variable declarations: int x = 10; float f = 3.5;
+              .replace(
+                /\b(int|float|double|char|long|short|auto|unsigned|size_t)\s+([*a-zA-Z_]\w*)/g,
+                'let $2'
+              )
+              // C++ std::cout << a << b << std::endl;
+              .replace(/\b(?:std::)?cout\s*<<\s*([^;]+);/g, (_, exprs) => {
+                const parts = exprs.split('<<').map((s: string) => s.trim());
+                const calls = parts.map((p: string) => {
+                  if (p === 'std::endl' || p === 'endl') return 'printf("\\n")';
+                  return `printf("%s", ${p})`;
+                });
+                return calls.join('; ') + ';';
+              })
+              // C++ std::cin >> x;
+              .replace(/\b(?:std::)?cin\s*>>\s*([^;]+);/g, (_, varName) => {
+                return `scanf("%s", { set: (v) => { ${varName.trim()} = v; } });`;
+              });
+
+            const runner = new Function('printf', 'scanf', js + '\nreturn typeof main === "function" ? main() : 0;');
+            runner(customPrintf, customScanf);
+
+            const cLines = cStdout.split('\n');
+            if (cLines.length > 1 && cLines[cLines.length - 1] === '') {
+              cLines.pop();
+            }
+            outputLines.push(...cLines);
+          } catch (runtimeErr) {
+            outputLines.push(`[Runtime Error] ${(runtimeErr as Error).message}`);
           }
         }
 
         const endTime = performance.now();
-        const duration = Math.round(endTime - startTime + Math.random() * 8 + 4);
+        const duration = Math.round(endTime - startTime + Math.random() * 6 + 2);
 
-        setTerminalOutput(outputLines.length > 0 ? outputLines : ['// Program finished with no stdout output.']);
+        setTerminalOutput(outputLines.length > 0 ? outputLines : ['// Program executed with 0 exit code (no stdout).']);
         setExecutionStats({ timeMs: duration, status: 'ok' });
         sound.playSuccess();
         fireSuccessConfetti();
@@ -626,7 +698,7 @@ export const CodeZoneModal: React.FC<Props> = ({
         // Cheering tip from companions
         const praises = [
           'Lin 🕶️: "Clean execution! Memory bounds look pristine."',
-          'Nyan 🐈‍⬛: "Purrfect compile! Your logic is on point."',
+          'Bhai 🐈‍⬛: "Purrfect compile! Your logic is on point."',
           'Ada 👧: "Variables initialized and output verified!"',
           'Turing 🤖: "Zero syntax errors. State transitions executed in constant time."'
         ];
@@ -641,7 +713,7 @@ export const CodeZoneModal: React.FC<Props> = ({
       } finally {
         setIsRunning(false);
       }
-    }, 250);
+    }, 180);
   };
 
   // Line numbers calculation
@@ -948,7 +1020,7 @@ export const CodeZoneModal: React.FC<Props> = ({
                 terminalOutput.map((line, idx) => (
                   <div
                     key={idx}
-                    className={`whitespace-pre-wrap break-words ${
+                    className={`whitespace-pre-wrap break-words min-h-[1.25rem] ${
                       line.startsWith('❌') || line.includes('[ERROR]') || line.includes('error:')
                         ? 'text-rose-400 font-bold'
                         : line.startsWith('[WARN]')
@@ -956,7 +1028,7 @@ export const CodeZoneModal: React.FC<Props> = ({
                         : 'text-emerald-400'
                     }`}
                   >
-                    {line}
+                    {line === '' ? '\u00A0' : line}
                   </div>
                 ))
               )}
