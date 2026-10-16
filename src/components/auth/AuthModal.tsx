@@ -138,7 +138,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h3 className="text-base font-black tracking-tight leading-none">
-                {state.authUser ? 'Your Account & Cloud Profile' : 'CoderBhai Cloud Account'}
+                {state.authUser ? 'Your Account & Cloud Profile' : 'ByteSized Cloud Account'}
               </h3>
               <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
                 {state.authUser ? 'Synced with Supabase Cloud' : 'Save your XP, streak & notes across devices'}
@@ -249,7 +249,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 className="w-full py-2.5 rounded-xl text-xs font-black text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Sign Out of CoderBhai</span>
+                <span>Sign Out of ByteSized</span>
               </button>
             </div>
           </div>
@@ -340,7 +340,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                       type="text"
                       value={displayName}
                       onChange={e => setDisplayName(e.target.value)}
-                      placeholder="e.g. CoderBhai"
+                      placeholder="e.g. ByteSized"
                       className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-brand-primary"
                     />
                   </div>
@@ -391,7 +391,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 ) : tab === 'register' ? (
                   <span>Create Account & Save Progress</span>
                 ) : (
-                  <span>Log In to CoderBhai</span>
+                  <span>Log In to ByteSized</span>
                 )}
               </button>
             </form>

@@ -5,8 +5,8 @@ import { sound } from '../utils/audio';
 import { supabase, isEduEmail } from '../lib/supabase';
 import { loginUser, registerUser, logoutUser, fetchUserProfile, saveUserProfile } from '../services/authService';
 
-const STORAGE_KEY = 'coderbhai_user_v1';
-const LEGACY_STORAGE_KEY = 'codelingo_user_v1';
+const STORAGE_KEY = 'bytesized_user_v1';
+const LEGACY_STORAGE_KEYS = ['coderbhai_user_v1', 'codelingo_user_v1'];
 
 const INITIAL_QUESTS: Quest[] = [
   {
@@ -130,7 +130,16 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<UserState>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      let stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) {
+        for (const legacyKey of LEGACY_STORAGE_KEYS) {
+          const oldVal = localStorage.getItem(legacyKey);
+          if (oldVal) {
+            stored = oldVal;
+            break;
+          }
+        }
+      }
       if (stored) {
         const parsed = JSON.parse(stored);
         // Normalize old duolingo emerald theme to fresh midnight theme

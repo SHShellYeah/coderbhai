@@ -2744,7 +2744,7 @@ export const COURSES: Record<CourseId, Course> = {
                 "codeLines": [
                   "#include <iostream>",
                   "int main() {",
-                  "    std::cout << \"Starting CoderBhai!\" << std::endl;",
+                  "    std::cout << \"Starting ByteSized!\" << std::endl;",
                   "    std::cout << \"Ready to learn\" // Missing semicolon!",
                   "    return 0;",
                   "}"

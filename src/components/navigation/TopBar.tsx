@@ -89,11 +89,11 @@ export const TopBar: React.FC<Props> = ({
           <div
             onClick={() => sound.playMeow()}
             className="flex items-center gap-1.5 sm:gap-2 select-none cursor-pointer group"
-            title="CoderBhai - Click Bhai to hear a meow!"
+            title="ByteSized - Click Byte to hear a meow!"
           >
             <CatFace size="sm" mood="happy" className="transform group-hover:scale-110 transition-transform" />
             <span className="hidden md:inline font-black text-xl sm:text-2xl tracking-tight text-brand-primary">
-              CoderBhai
+              ByteSized
             </span>
           </div>
 

@@ -90,7 +90,7 @@ export const TRANSLATIONS = {
     practiceRefillHearts: 'Practice to refill hearts',
 
     // Settings Modal
-    personalizeTitle: 'Personalize CoderBhai',
+    personalizeTitle: 'Personalize ByteSized',
     personalizeSubtitle: 'Aesthetics, Sound & Language',
     languageSectionTitle: 'Language / ভাষা',
     languageSectionSubtitle: 'Choose your preferred language',
@@ -189,7 +189,7 @@ export const TRANSLATIONS = {
     practiceRefillHearts: 'অনুশীলন করে হার্ট বাড়ান',
 
     // Settings Modal
-    personalizeTitle: 'কোডারভাই কাস্টমাইজেশন',
+    personalizeTitle: 'ByteSized কাস্টমাইজেশন',
     personalizeSubtitle: 'থিম, সাউন্ড ও ভাষা নির্বাচন',
     languageSectionTitle: 'ভাষা / Language',
     languageSectionSubtitle: 'আপনার পছন্দের ভাষা নির্বাচন করুন',

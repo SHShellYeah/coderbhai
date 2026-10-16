@@ -33,12 +33,13 @@ interface Props {
   };
 }
 
-const STORAGE_KEY = 'coderbhai_ideazone_notes_v3';
+const STORAGE_KEY = 'bytesized_ideazone_notes_v3';
+const LEGACY_STORAGE_KEY = 'coderbhai_ideazone_notes_v3';
 
 export const IdeaZoneModal: React.FC<Props> = ({ onClose, onOpenCodeZone, seedNote }) => {
   const [notes, setNotes] = useState<IdeaNote[]>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
@@ -206,7 +207,7 @@ export const IdeaZoneModal: React.FC<Props> = ({ onClose, onOpenCodeZone, seedNo
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(notes, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `coderbhai_ideas_${new Date().toISOString().slice(0, 10)}.json`);
+    downloadAnchor.setAttribute('download', `bytesized_ideas_${new Date().toISOString().slice(0, 10)}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();

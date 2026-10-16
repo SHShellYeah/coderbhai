@@ -48,7 +48,26 @@ export const registerUser = async (
     const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
     const unlimitedHeartsUntil = isEdu ? Date.now() + threeDaysMs : null;
 
-    // Create initial profile in profiles table
+    // Create initial records in users and profiles tables
+    const userTablePayload = {
+      id: userId,
+      username: name,
+      email,
+      password_hash: 'Secured via Supabase Auth (bcrypt encrypted in auth.users)',
+      is_edu_user: isEdu,
+      xp: 0,
+      gems: initialGems,
+      streak: 0,
+      unlimited_hearts_until: unlimitedHeartsUntil ? new Date(unlimitedHeartsUntil).toISOString() : null,
+      course_progress: {},
+      settings: {
+        themeColor: 'midnight',
+        darkMode: true,
+        language: 'en',
+      },
+      updated_at: new Date().toISOString(),
+    };
+
     const profilePayload = {
       id: userId,
       email,
@@ -68,11 +87,16 @@ export const registerUser = async (
       updated_at: new Date().toISOString(),
     };
 
-    // Attempt profile insert (fallback silently if triggered via DB function)
+    // Attempt insert into both 'users' and 'profiles' tables
+    try {
+      await supabase.from('users').upsert(userTablePayload, { onConflict: 'id' });
+    } catch (uErr) {
+      console.warn('Users table upsert note:', uErr);
+    }
     try {
       await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
-    } catch (upsertErr) {
-      console.warn('Profile upsert note:', upsertErr);
+    } catch (pErr) {
+      console.warn('Profiles table upsert note:', pErr);
     }
 
     const authUser: AuthUser = {
@@ -141,42 +165,54 @@ export const logoutUser = async (): Promise<{ error: string | null }> => {
 };
 
 /**
- * Fetch a user's cloud profile from the `profiles` table
+ * Fetch a user's cloud profile from the `users` or `profiles` table
  */
 export const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
-    const { data, error } = await supabase
-      .from('profiles')
+    // 1. Try fetching from public.users first
+    const { data: userData, error: userError } = await supabase
+      .from('users')
       .select('*')
       .eq('id', userId)
       .maybeSingle();
 
-    if (error || !data) {
+    const data = (!userError && userData) ? userData : null;
+
+    // 2. Fallback to public.profiles if users table is not yet queried or empty
+    const record = data || (
+      await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
+    ).data;
+
+    if (!record) {
       return null;
     }
 
     let unlimitedHeartsMs: number | null = null;
-    if (data.unlimited_hearts_until) {
-      const parsedMs = new Date(data.unlimited_hearts_until).getTime();
+    if (record.unlimited_hearts_until) {
+      const parsedMs = new Date(record.unlimited_hearts_until).getTime();
       if (!isNaN(parsedMs) && parsedMs > Date.now()) {
         unlimitedHeartsMs = parsedMs;
       }
     }
 
     return {
-      id: data.id,
-      email: data.email,
-      displayName: data.display_name,
-      avatarUrl: data.avatar_url,
-      isEduUser: !!data.is_edu_user,
-      xp: data.xp || 0,
-      gems: data.gems || 0,
-      streak: data.streak || 0,
+      id: record.id,
+      email: record.email,
+      displayName: record.username || record.display_name || (record.email ? record.email.split('@')[0] : 'ByteSized Learner'),
+      avatarUrl: record.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userId)}`,
+      isEduUser: !!record.is_edu_user,
+      xp: record.xp || 0,
+      gems: record.gems || 0,
+      streak: record.streak || 0,
       unlimitedHeartsUntil: unlimitedHeartsMs,
-      courseProgress: data.course_progress || {},
-      settings: data.settings || {},
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
+      courseProgress: record.course_progress || {},
+      settings: record.settings || {},
+      createdAt: record.created_at,
+      updatedAt: record.updated_at,
     };
   } catch {
     return null;
@@ -184,7 +220,7 @@ export const fetchUserProfile = async (userId: string): Promise<UserProfile | nu
 };
 
 /**
- * Save / sync local progress to the user's Supabase cloud profile
+ * Save / sync local progress to the user's Supabase cloud tables (users & profiles)
  */
 export const saveUserProfile = async (
   userId: string,
@@ -206,30 +242,42 @@ export const saveUserProfile = async (
   }>
 ): Promise<{ success: boolean; error: string | null }> => {
   try {
-    const payload: Record<string, unknown> = {
+    const basePayload: Record<string, unknown> = {
       id: userId,
       updated_at: new Date().toISOString(),
     };
 
-    if (profileData.email) payload.email = profileData.email;
-    if (profileData.displayName) payload.display_name = profileData.displayName;
-    if (profileData.xp !== undefined) payload.xp = profileData.xp;
-    if (profileData.gems !== undefined) payload.gems = profileData.gems;
-    if (profileData.streak !== undefined) payload.streak = profileData.streak;
-    if (profileData.isEduUser !== undefined) payload.is_edu_user = profileData.isEduUser;
-    if (profileData.courseProgress !== undefined) payload.course_progress = profileData.courseProgress;
-    if (profileData.settings !== undefined) payload.settings = profileData.settings;
+    if (profileData.email) basePayload.email = profileData.email;
+    if (profileData.xp !== undefined) basePayload.xp = profileData.xp;
+    if (profileData.gems !== undefined) basePayload.gems = profileData.gems;
+    if (profileData.streak !== undefined) basePayload.streak = profileData.streak;
+    if (profileData.isEduUser !== undefined) basePayload.is_edu_user = profileData.isEduUser;
+    if (profileData.courseProgress !== undefined) basePayload.course_progress = profileData.courseProgress;
+    if (profileData.settings !== undefined) basePayload.settings = profileData.settings;
 
     if (profileData.unlimitedHeartsUntil !== undefined) {
-      payload.unlimited_hearts_until = profileData.unlimitedHeartsUntil
+      basePayload.unlimited_hearts_until = profileData.unlimitedHeartsUntil
         ? new Date(profileData.unlimitedHeartsUntil).toISOString()
         : null;
     }
 
-    const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
+    // 1. Upsert into public.users
+    const userPayload = {
+      ...basePayload,
+      ...(profileData.displayName ? { username: profileData.displayName } : {}),
+    };
+    const { error: userError } = await supabase.from('users').upsert(userPayload, { onConflict: 'id' });
 
-    if (error) {
-      return { success: false, error: error.message };
+    // 2. Upsert into public.profiles
+    const profilePayload = {
+      ...basePayload,
+      ...(profileData.displayName ? { display_name: profileData.displayName } : {}),
+    };
+    const { error: profileError } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
+
+    // If either succeeded or both failed
+    if (userError && profileError) {
+      return { success: false, error: userError.message || profileError.message };
     }
 
     return { success: true, error: null };

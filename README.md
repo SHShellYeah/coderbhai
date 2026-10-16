@@ -1,7 +1,7 @@
-# 🐈‍⬛ CoderBhai
+# 🐈‍⬛ ByteSized
 
 > **Duolingo-style gamified computer science and code-learning web application.**
-> Master Pure C, Modern C++, Python, OOP, Data Structures, and Algorithms through bite-sized, tactile lessons with **Bhai the Black Cat** mascot mentor!
+> Master Pure C, Modern C++, Python, OOP, Data Structures, and Algorithms through bite-sized, tactile lessons with **Byte the Cat** mascot mentor!
 
 ---
 

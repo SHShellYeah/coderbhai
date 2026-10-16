@@ -61,7 +61,7 @@ const STARTER_TEMPLATES: Record<CodeLanguage, Record<string, string>> = {
     'Hello World': `#include <stdio.h>
 
 int main(void) {
-    printf("Hello, CoderBhai!\\n");
+    printf("Hello, ByteSized!\\n");
     printf("Mastering Pure C line by line!\\n");
     return 0;
 }`,
@@ -150,7 +150,7 @@ int main() {
   },
 
   python: {
-    'Hello World & F-Strings': `name = "CoderBhai"
+    'Hello World & F-Strings': `name = "ByteSized"
 streak = 5
 print(f"Welcome to {name}!")
 print(f"Current Streak: {streak} days on fire 🔥")
@@ -291,6 +291,8 @@ export const CodeZoneModal: React.FC<Props> = ({
   const handleLaunchInNewTab = () => {
     sound.playClick();
     try {
+      localStorage.setItem('bytesized_standalone_codezone_code', code);
+      localStorage.setItem('bytesized_standalone_codezone_lang', language);
       localStorage.setItem('coderbhai_standalone_codezone_code', code);
       localStorage.setItem('coderbhai_standalone_codezone_lang', language);
     } catch {
@@ -824,7 +826,7 @@ export const CodeZoneModal: React.FC<Props> = ({
                   ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 font-bold text-xs'
                   : 'text-slate-300 hover:text-white bg-slate-800 hover:bg-rose-500/20 hover:text-rose-400 sm:bg-transparent border border-slate-700/80 sm:border-transparent'
               }`}
-              title={isStandalone ? 'Return to CoderBhai learning app' : 'Close CodeZone'}
+              title={isStandalone ? 'Return to ByteSized learning app' : 'Close CodeZone'}
               aria-label="Close CodeZone"
             >
               {isStandalone ? (

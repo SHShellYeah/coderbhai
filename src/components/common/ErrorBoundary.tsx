@@ -21,10 +21,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('CoderBhai ErrorBoundary caught:', error, errorInfo);
+    console.error('ByteSized ErrorBoundary caught:', error, errorInfo);
   }
 
   private handleReset = () => {
+    localStorage.removeItem('bytesized_user_v1');
     localStorage.removeItem('coderbhai_user_v1');
     localStorage.removeItem('codelingo_user_v1');
     window.location.reload();

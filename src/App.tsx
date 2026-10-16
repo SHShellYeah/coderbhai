@@ -289,9 +289,14 @@ export const App: React.FC = () => {
     new URLSearchParams(window.location.search).get('mode') === 'codezone';
 
   if (isStandaloneCodeZone) {
-    const initialCode = localStorage.getItem('coderbhai_standalone_codezone_code') || undefined;
+    const initialCode =
+      localStorage.getItem('bytesized_standalone_codezone_code') ||
+      localStorage.getItem('coderbhai_standalone_codezone_code') ||
+      undefined;
     const initialLanguage =
-      (localStorage.getItem('coderbhai_standalone_codezone_lang') as CodeLanguage) || 'c';
+      (localStorage.getItem('bytesized_standalone_codezone_lang') as CodeLanguage) ||
+      (localStorage.getItem('coderbhai_standalone_codezone_lang') as CodeLanguage) ||
+      'c';
 
     return (
       <ErrorBoundary>

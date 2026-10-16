@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Credentials for CoderBhai Supabase Project
+// Credentials for ByteSized Supabase Project
 const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL || 'https://hbqipluxclqycegirqqs.supabase.co';
 const SUPABASE_ANON_KEY =

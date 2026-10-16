@@ -807,7 +807,7 @@ const TEACHING_INTRO_TRANSLATIONS_BN: Record<string, Partial<TeachingIntro>> = {
           { token: 'int', explanation: 'Integer type: পূর্ণসংখ্যা (যেমন: 42, -5, 0)। মেমোরিতে ৪ বাইট নেয়।' },
           { token: 'double', explanation: 'Double floating-point: দশমিক সংখ্যা (যেমন: 3.14, 9.99)। মেমোরিতে ৮ বাইট নেয়।' },
           { token: 'char', explanation: 'Character type: একক ক্যারেক্টার বা বর্ণ (যেমন: \'A\', \'z\')।' },
-          { token: 'std::string', explanation: 'String object: টেক্সট বা স্ট্রিং (যেমন: "CoderBhai")।' }
+          { token: 'std::string', explanation: 'String object: টেক্সট বা স্ট্রিং (যেমন: "ByteSized")।' }
         ]
       }
     ]
