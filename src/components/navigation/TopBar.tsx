@@ -17,16 +17,26 @@ import {
   Sparkles,
   RotateCcw,
   Palette,
-  Languages
+  Languages,
+  Terminal,
+  Lightbulb
 } from 'lucide-react';
 
 interface Props {
   onOpenPractice: () => void;
   onOpenPlacement: () => void;
   onOpenSettings: () => void;
+  onOpenIdeaZone?: () => void;
+  onOpenCodeZone?: () => void;
 }
 
-export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpenSettings }) => {
+export const TopBar: React.FC<Props> = ({
+  onOpenPractice,
+  onOpenPlacement,
+  onOpenSettings,
+  onOpenIdeaZone,
+  onOpenCodeZone
+}) => {
   const { state, setActiveCourse, toggleSound, toggleDarkMode, toggleLanguage, refillHearts } = useGame();
   const t = useTranslation(state.language);
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
@@ -162,6 +172,39 @@ export const TopBar: React.FC<Props> = ({ onOpenPractice, onOpenPlacement, onOpe
                   </button>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* Quick IdeaZone & CodeZone Launches */}
+          <div className="flex items-center gap-1 sm:gap-1.5 ml-0.5 sm:ml-1">
+            {onOpenIdeaZone && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  onOpenIdeaZone();
+                }}
+                className="btn-3d flex items-center gap-1 sm:gap-1.5 px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-xs font-black transition-all cursor-pointer"
+                title="IdeaZone - Notepad & Brainstorming Vault"
+              >
+                <Lightbulb className="w-3.5 h-3.5 text-amber-500 fill-amber-500/20" />
+                <span className="hidden md:inline">{t.ideaZone || 'IdeaZone'}</span>
+              </button>
+            )}
+
+            {onOpenCodeZone && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  onOpenCodeZone();
+                }}
+                className="btn-3d flex items-center gap-1 sm:gap-1.5 px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-black transition-all cursor-pointer"
+                title="CodeZone - Live Coding Environment"
+              >
+                <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="hidden md:inline">{t.codeZone || 'CodeZone'}</span>
+              </button>
             )}
           </div>
         </div>

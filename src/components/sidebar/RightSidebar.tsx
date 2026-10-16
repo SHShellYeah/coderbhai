@@ -15,13 +15,17 @@ import {
   ChevronRight,
   Palette,
   Moon,
-  Sun
+  Sun,
+  Terminal,
+  Code2
 } from 'lucide-react';
 
 interface Props {
   onOpenPractice: () => void;
   onOpenPlacement: () => void;
   onOpenSettings?: () => void;
+  onOpenIdeaZone?: () => void;
+  onOpenCodeZone?: () => void;
   filter?: 'all' | 'practice' | 'quests' | 'leaderboard' | 'settings';
 }
 
@@ -29,6 +33,8 @@ export const RightSidebar: React.FC<Props> = ({
   onOpenPractice,
   onOpenPlacement,
   onOpenSettings,
+  onOpenIdeaZone,
+  onOpenCodeZone,
   filter = 'all',
 }) => {
   const { state, toggleDarkMode } = useGame();
@@ -59,6 +65,76 @@ export const RightSidebar: React.FC<Props> = ({
 
   return (
     <aside className="w-full lg:w-80 flex flex-col gap-5 py-4 lg:py-6 px-3 sm:px-4">
+      {/* Dev Hub: IdeaZone & CodeZone */}
+      {(filter === 'all' || filter === 'practice') && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#111827] border-2 border-slate-200 dark:border-slate-800 shadow-sm text-left flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-emerald-500 text-white flex items-center justify-center font-black shadow-sm text-sm">
+                ⚡
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-800 dark:text-slate-100 leading-tight">
+                  Developer Hub
+                </h4>
+                <span className="text-[11px] font-semibold text-slate-400">
+                  Idea Vault & Playground
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mt-0.5">
+            {onOpenIdeaZone && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  onOpenIdeaZone();
+                }}
+                className="btn-3d flex flex-col p-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center justify-between mb-1.5 w-full">
+                  <div className="w-7 h-7 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                    <Lightbulb className="w-4 h-4 fill-white" />
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-amber-500 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100">
+                  {t.ideaZone || 'IdeaZone'}
+                </span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-tight mt-0.5">
+                  Notes & Vault
+                </span>
+              </button>
+            )}
+
+            {onOpenCodeZone && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  onOpenCodeZone();
+                }}
+                className="btn-3d flex flex-col p-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-left transition-all cursor-pointer group"
+              >
+                <div className="flex items-center justify-between mb-1.5 w-full">
+                  <div className="w-7 h-7 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-sm">
+                    <Terminal className="w-4 h-4" />
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-emerald-500 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100">
+                  {t.codeZone || 'CodeZone'}
+                </span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-tight mt-0.5">
+                  Live Compiler
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {/* Settings / Appearance Card (on mobile settings view) */}
       {filter === 'settings' && (
         <div className="p-5 rounded-3xl bg-white dark:bg-[#111827] border-2 border-slate-200 dark:border-slate-800 shadow-sm text-left flex flex-col gap-4">

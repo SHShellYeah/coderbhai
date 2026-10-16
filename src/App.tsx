@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
 import { useTranslation } from './data/translations';
-import { LessonNode } from './types';
+import { LessonNode, CodeLanguage } from './types';
 import { TopBar } from './components/navigation/TopBar';
 import { WindingPath } from './components/path/WindingPath';
 import { RightSidebar } from './components/sidebar/RightSidebar';
@@ -9,8 +9,10 @@ import { LessonModal } from './components/lesson/LessonModal';
 import { PracticeModal } from './components/practice/PracticeModal';
 import { PlacementModal } from './components/placement/PlacementModal';
 import { ThemeCustomizerModal } from './components/settings/ThemeCustomizerModal';
+import { IdeaZoneModal } from './components/ideazone/IdeaZoneModal';
+import { CodeZoneModal } from './components/codezone/CodeZoneModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { Map, Trophy, Target, RotateCcw, Settings } from 'lucide-react';
+import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal } from 'lucide-react';
 
 const MainApp: React.FC = () => {
   const { state } = useGame();
@@ -19,6 +21,15 @@ const MainApp: React.FC = () => {
   const [isPracticeOpen, setIsPracticeOpen] = useState<boolean>(false);
   const [isPlacementOpen, setIsPlacementOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isIdeaZoneOpen, setIsIdeaZoneOpen] = useState<boolean>(false);
+  const [isCodeZoneOpen, setIsCodeZoneOpen] = useState<boolean>(false);
+  const [codeZoneSnippet, setCodeZoneSnippet] = useState<{ code: string; language: CodeLanguage } | undefined>();
+  const [ideaZoneSeedNote, setIdeaZoneSeedNote] = useState<{
+    title: string;
+    content: string;
+    codeSnippet?: string;
+    codeLanguage?: CodeLanguage;
+  } | undefined>();
   const [mobileTab, setMobileTab] = useState<'learn' | 'practice' | 'quests' | 'leaderboard' | 'settings'>('learn');
 
   // Trigger placement flow if active course hasn't had onboarding yet
@@ -36,6 +47,14 @@ const MainApp: React.FC = () => {
         onOpenPractice={() => setIsPracticeOpen(true)}
         onOpenPlacement={() => setIsPlacementOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenIdeaZone={() => {
+          setIdeaZoneSeedNote(undefined);
+          setIsIdeaZoneOpen(true);
+        }}
+        onOpenCodeZone={() => {
+          setCodeZoneSnippet(undefined);
+          setIsCodeZoneOpen(true);
+        }}
       />
 
       {/* Main Content Area */}
@@ -102,6 +121,28 @@ const MainApp: React.FC = () => {
             <Settings className="w-3.5 h-3.5" />
             {t.themes}
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIdeaZoneSeedNote(undefined);
+              setIsIdeaZoneOpen(true);
+            }}
+            className="flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+          >
+            <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+            {t.ideaZone || 'IdeaZone'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setCodeZoneSnippet(undefined);
+              setIsCodeZoneOpen(true);
+            }}
+            className="flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+          >
+            <Terminal className="w-3.5 h-3.5 text-emerald-500" />
+            {t.codeZone || 'CodeZone'}
+          </button>
         </div>
 
         {/* Learning Path (The Winding Map) */}
@@ -126,6 +167,14 @@ const MainApp: React.FC = () => {
             onOpenPractice={() => setIsPracticeOpen(true)}
             onOpenPlacement={() => setIsPlacementOpen(true)}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenIdeaZone={() => {
+              setIdeaZoneSeedNote(undefined);
+              setIsIdeaZoneOpen(true);
+            }}
+            onOpenCodeZone={() => {
+              setCodeZoneSnippet(undefined);
+              setIsCodeZoneOpen(true);
+            }}
             filter={mobileTab === 'learn' ? 'all' : mobileTab}
           />
         </div>
@@ -173,6 +222,48 @@ const MainApp: React.FC = () => {
       {/* Aesthetics & Sound Customizer Modal */}
       {isSettingsOpen && (
         <ThemeCustomizerModal onClose={() => setIsSettingsOpen(false)} />
+      )}
+
+      {/* IdeaZone Note Pad & Idea Vault Modal */}
+      {isIdeaZoneOpen && (
+        <IdeaZoneModal
+          seedNote={ideaZoneSeedNote}
+          onClose={() => {
+            setIsIdeaZoneOpen(false);
+            setIdeaZoneSeedNote(undefined);
+          }}
+          onOpenCodeZone={(snippet, lang) => {
+            setIsIdeaZoneOpen(false);
+            if (snippet) {
+              setCodeZoneSnippet({ code: snippet, language: lang || 'c' });
+            } else {
+              setCodeZoneSnippet(undefined);
+            }
+            setIsCodeZoneOpen(true);
+          }}
+        />
+      )}
+
+      {/* CodeZone Live Interactive Coding Environment Modal */}
+      {isCodeZoneOpen && (
+        <CodeZoneModal
+          initialCode={codeZoneSnippet?.code}
+          initialLanguage={codeZoneSnippet?.language}
+          onClose={() => {
+            setIsCodeZoneOpen(false);
+            setCodeZoneSnippet(undefined);
+          }}
+          onSaveToIdeaZone={(code, language) => {
+            setIsCodeZoneOpen(false);
+            setIdeaZoneSeedNote({
+              title: `Snippet (${language.toUpperCase()}) - ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+              content: 'Saved directly from CodeZone playground.',
+              codeSnippet: code,
+              codeLanguage: language
+            });
+            setIsIdeaZoneOpen(true);
+          }}
+        />
       )}
     </div>
   );

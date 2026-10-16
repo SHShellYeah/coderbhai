@@ -9,6 +9,10 @@ export const TRANSLATIONS = {
     rankings: 'Ranks',
     themes: 'Themes',
     settings: 'Settings',
+    ideaZone: 'IdeaZone',
+    codeZone: 'CodeZone',
+    ideaZoneDesc: 'Scratchpad & Ideas Vault',
+    codeZoneDesc: 'Live Coding Playground',
 
     // TopBar
     switchTrack: 'Switch Track',
@@ -104,6 +108,10 @@ export const TRANSLATIONS = {
     rankings: 'র‌্যাঙ্ক',
     themes: 'থিম',
     settings: 'সেটিংস',
+    ideaZone: 'আইডিয়া জোন',
+    codeZone: 'কোড জোন',
+    ideaZoneDesc: 'নোটপ্যাড ও আইডিয়া ভল্ট',
+    codeZoneDesc: 'লাইভ কোডিং প্লেগ্রাউন্ড',
 
     // TopBar
     switchTrack: 'কোর্স পরিবর্তন',

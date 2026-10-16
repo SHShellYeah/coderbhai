@@ -174,3 +174,21 @@ export interface UserState {
   language: Language;
   quests: Quest[];
 }
+
+export type IdeaCategory = 'all' | 'idea' | 'dsa' | 'bug' | 'snippet' | 'general';
+
+export interface IdeaNote {
+  id: string;
+  title: string;
+  content: string;
+  category: 'idea' | 'dsa' | 'bug' | 'snippet' | 'general';
+  codeSnippet?: string;
+  codeLanguage?: string;
+  pinned?: boolean;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CodeLanguage = 'c' | 'cpp' | 'python' | 'javascript';
+
