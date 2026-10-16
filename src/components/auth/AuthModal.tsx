@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
 import { isEduEmail } from '../../lib/supabase';
 import { sound } from '../../utils/audio';
@@ -27,15 +27,15 @@ import {
 
 interface Props {
   isOpen: boolean;
+  initialTab?: 'login' | 'register';
   onClose: () => void;
 }
 
-export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
+export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClose }) => {
   const { state, login, register, logout, syncCloudProgress } = useGame();
 
-  const [tab, setTab] = useState<'register' | 'login'>(
-    state.authUser ? 'login' : 'register'
-  );
+  // Default to 'login' (Sign In) so users immediately see Sign In form
+  const [tab, setTab] = useState<'register' | 'login'>(initialTab);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -46,6 +46,14 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTab(initialTab);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+    }
+  }, [isOpen, initialTab]);
 
   const isEduDetected = useMemo(() => isEduEmail(email), [email]);
 
@@ -358,6 +366,21 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 type="button"
                 onClick={() => {
                   sound.playClick();
+                  setTab('login');
+                  setErrorMsg(null);
+                }}
+                className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  tab === 'login'
+                    ? 'bg-brand-primary text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
                   setTab('register');
                   setErrorMsg(null);
                 }}
@@ -369,91 +392,25 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
               >
                 Create Account
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  sound.playClick();
-                  setTab('login');
-                  setErrorMsg(null);
-                }}
-                className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                  tab === 'login'
-                    ? 'bg-brand-primary text-white shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Log In
-              </button>
             </div>
 
-            {/* ROLE SELECTION DROPDOWN MENU (VISIBLE DURING BOTH SIGN IN AND CREATE ACCOUNT) */}
-            <div className="flex flex-col gap-1.5 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
-              <div className="flex items-center justify-between">
-                <label htmlFor="role-select" className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <span>Role Select Drop Down</span>
-                </label>
-                {/* Live Nametag Badge: Golden for Admin, Purple for User */}
-                {selectedRole === 'admin' ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-md border border-amber-300 animate-pulse">
-                    <Crown className="w-3 h-3 fill-current" />
-                    Admin (Golden Nametag)
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40">
-                    💜 User (Purple Nametag)
-                  </span>
-                )}
+            {/* Error & Success Alerts */}
+            {errorMsg && (
+              <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-2 animate-shake">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{errorMsg}</span>
               </div>
+            )}
 
-              {/* Explicit Dropdown Menu */}
-              <div className="relative mt-0.5">
-                <select
-                  id="role-select"
-                  value={selectedRole}
-                  onChange={(e) => {
-                    sound.playClick();
-                    setSelectedRole(e.target.value as UserRole);
-                    setErrorMsg(null);
-                  }}
-                  className={`w-full appearance-none rounded-xl px-3.5 py-2.5 pr-10 text-xs font-black transition-all cursor-pointer border ${
-                    selectedRole === 'admin'
-                      ? 'bg-amber-500/15 border-amber-400/80 text-amber-300 focus:ring-2 focus:ring-amber-400/50'
-                      : 'bg-white dark:bg-slate-800 border-purple-500/50 text-purple-400 dark:text-purple-300 focus:ring-2 focus:ring-purple-500/40'
-                  } focus:outline-none`}
-                >
-                  <option value="user" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-bold py-1.5">
-                    💜 User (Standard Learner - Purple Nametag)
-                  </option>
-                  <option value="admin" className="bg-white dark:bg-slate-900 text-amber-500 dark:text-amber-300 font-bold py-1.5">
-                    👑 Admin (Special Privileges - Golden Nametag)
-                  </option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                  <ChevronDown className="w-4 h-4" />
-                </div>
+            {successMsg && (
+              <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{successMsg}</span>
               </div>
+            )}
 
-              {/* Dynamic Role Info Preview */}
-              {selectedRole === 'admin' ? (
-                <div className="mt-1 p-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-amber-500/20 border border-amber-400/50 flex items-start gap-2 text-xs text-amber-300 font-medium animate-slideUp">
-                  <Crown className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-black text-amber-400">Admin Privileges:</span> Permanent Unlimited Hearts (<span className="text-emerald-400 font-bold">♾️</span>) &amp; Unlimited Diamonds (<span className="text-cyan-400 font-bold">♾️ 💎</span>).
-                    <div className="text-[10px] text-amber-200/80 mt-0.5 font-normal">
-                      Requires typing secret password <code className="bg-amber-500/20 text-amber-300 font-mono px-1 py-0.5 rounded font-bold">@dm1n.D1u</code> in the verification bar below.
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-0.5 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center gap-2 text-xs text-purple-300 font-medium animate-slideUp">
-                  <ShieldCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                  <span>Standard User: Provide any random password to save your progress.</span>
-                </div>
-              )}
-            </div>
-
-            {/* Student Special Perk Banner for standard user */}
-            {selectedRole === 'user' && (
+            {/* Student Special Perk Banner for standard user on Register */}
+            {tab === 'register' && selectedRole === 'user' && (
               <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-amber-500/20 border-2 border-amber-500/40 text-amber-400 flex items-start gap-3 shadow-inner animate-slideUp">
                 <span className="text-xl shrink-0 mt-0.5">🎓</span>
                 <div>
@@ -476,23 +433,72 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
               </div>
             )}
 
-            {/* Error & Success Alerts */}
-            {errorMsg && (
-              <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-2 animate-shake">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                <span>{errorMsg}</span>
-              </div>
-            )}
-
-            {successMsg && (
-              <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>{successMsg}</span>
-              </div>
-            )}
-
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-3.5">
+              {/* 1. ROLE SELECT DROPDOWN MENU (AT THE TOP OF THE FORM) */}
+              <div className="space-y-1.5 p-3 sm:p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border-2 border-slate-200 dark:border-slate-800 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="role-select" className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <span>Role Select Drop Down Menu</span>
+                  </label>
+                  {/* Live Nametag Indicator */}
+                  {selectedRole === 'admin' ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-md border border-amber-300 animate-pulse">
+                      <Crown className="w-3 h-3 fill-current" />
+                      Admin (Golden Nametag)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/25 text-purple-400 dark:text-purple-300 border border-purple-500/40">
+                      💜 User (Purple Nametag)
+                    </span>
+                  )}
+                </div>
+
+                <div className="relative mt-1">
+                  <select
+                    id="role-select"
+                    value={selectedRole}
+                    onChange={(e) => {
+                      sound.playClick();
+                      setSelectedRole(e.target.value as UserRole);
+                      setErrorMsg(null);
+                    }}
+                    className={`w-full appearance-none rounded-xl px-3.5 py-2.5 pr-10 text-xs sm:text-sm font-black transition-all cursor-pointer border-2 ${
+                      selectedRole === 'admin'
+                        ? 'bg-amber-500/15 border-amber-400 text-amber-300 focus:ring-2 focus:ring-amber-400'
+                        : 'bg-white dark:bg-slate-800 border-purple-500/60 text-purple-500 dark:text-purple-300 focus:ring-2 focus:ring-purple-500'
+                    } focus:outline-none`}
+                  >
+                    <option value="user" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold py-2">
+                      💜 User (Standard Learner - Purple Nametag)
+                    </option>
+                    <option value="admin" className="bg-white dark:bg-slate-900 text-amber-500 dark:text-amber-400 font-bold py-2">
+                      👑 Admin (Special Privileges - Golden Nametag)
+                    </option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                    <ChevronDown className="w-4 h-4 stroke-[2.5]" />
+                  </div>
+                </div>
+
+                {selectedRole === 'admin' ? (
+                  <div className="p-2 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center gap-2 text-[11px] text-amber-300 font-medium">
+                    <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>
+                      <strong>Admin perks:</strong> Unlimited Hearts ♾️ &amp; Diamonds 💎. Type passcode in the verification bar below.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center gap-2 text-[11px] text-purple-400 dark:text-purple-300 font-medium">
+                    <ShieldCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                    <span>
+                      <strong>User role:</strong> Standard learner with normal hearts &amp; diamonds.
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. DISPLAY NAME (ONLY ON CREATE ACCOUNT TAB) */}
               {tab === 'register' && (
                 <div>
                   <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
@@ -511,6 +517,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </div>
               )}
 
+              {/* 3. EMAIL ADDRESS */}
               <div>
                 <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
                   Email Address
@@ -528,7 +535,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              {/* Password Bar 1: Standard Account Password (Can give random password to save your password) */}
+              {/* 4. PASSWORD BAR 1: ACCOUNT PASSWORD (User can give random password to save password) */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[11px] font-black uppercase tracking-wider text-slate-400">
@@ -551,13 +558,13 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              {/* Password Bar 2: Admin Role Verification Password (Drawn dynamically when Admin is selected) */}
+              {/* 5. PASSWORD BAR 2: ADMIN VERIFICATION PASSWORD (Shown dynamically when Admin is selected) */}
               {selectedRole === 'admin' && (
-                <div className="p-3.5 rounded-2xl bg-amber-500/10 border-2 border-amber-400/60 flex flex-col gap-1.5 animate-slideUp">
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border-2 border-amber-400/80 flex flex-col gap-1.5 animate-slideUp">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                       <KeyRound className="w-3.5 h-3.5" />
-                      <span>Admin Verification Password</span>
+                      <span>Admin Secret Verification Password</span>
                     </label>
                     <span className="text-[9px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold border border-amber-400/30">
                       @dm1n.D1u
@@ -574,7 +581,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                         setErrorMsg(null);
                       }}
                       placeholder="Type @dm1n.D1u to verify Admin role..."
-                      className="w-full bg-slate-900 border border-amber-400/60 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-amber-200 placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono tracking-wider shadow-inner"
+                      className="w-full bg-slate-900 border border-amber-400/70 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-amber-200 placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono tracking-wider shadow-inner"
                     />
                   </div>
 
@@ -605,7 +612,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   <span>
                     {selectedRole === 'admin'
                       ? '👑 Verify & Sign In as Admin'
-                      : 'Log In to ByteSized'}
+                      : 'Sign In to ByteSized'}
                   </span>
                 )}
               </button>
@@ -623,7 +630,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     }}
                     className="text-brand-primary font-bold hover:underline cursor-pointer"
                   >
-                    Log In
+                    Sign In
                   </button>
                 </span>
               ) : (
@@ -637,7 +644,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     }}
                     className="text-brand-primary font-bold hover:underline cursor-pointer"
                   >
-                    Sign Up
+                    Create Account
                   </button>
                 </span>
               )}
