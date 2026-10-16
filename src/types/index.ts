@@ -157,6 +157,35 @@ export type SoundPack = 'duolingo' | 'retro-8bit' | 'arcade-synth';
 export type ThemeColor = 'midnight' | 'cyberpunk' | 'sunset' | 'emerald-synth' | 'emerald' | 'obsidian';
 export type Language = 'en' | 'bn';
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  displayName?: string;
+  avatarUrl?: string;
+  isEduUser?: boolean;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  displayName?: string;
+  avatarUrl?: string;
+  isEduUser: boolean;
+  xp: number;
+  gems: number;
+  streak: number;
+  unlimitedHeartsUntil?: number | null;
+  courseProgress?: Record<CourseId, CourseProgress>;
+  settings?: {
+    themeColor?: ThemeColor;
+    darkMode?: boolean;
+    language?: Language;
+    soundEnabled?: boolean;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface UserState {
   activeCourseId: CourseId;
   courseProgress: Record<CourseId, CourseProgress>;
@@ -166,6 +195,8 @@ export interface UserState {
   xp: number;
   hearts: number;
   maxHearts: number;
+  unlimitedHeartsUntil?: number | null; // Timestamp ms for .edu unlimited hearts perk
+  authUser?: AuthUser | null;
   mistakes: Question[];
   soundEnabled: boolean;
   soundPack: SoundPack;

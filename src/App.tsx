@@ -11,6 +11,7 @@ import { PlacementModal } from './components/placement/PlacementModal';
 import { ThemeCustomizerModal } from './components/settings/ThemeCustomizerModal';
 import { IdeaZoneModal } from './components/ideazone/IdeaZoneModal';
 import { CodeZoneModal } from './components/codezone/CodeZoneModal';
+import { AuthModal } from './components/auth/AuthModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal } from 'lucide-react';
 
@@ -23,6 +24,7 @@ const MainApp: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isIdeaZoneOpen, setIsIdeaZoneOpen] = useState<boolean>(false);
   const [isCodeZoneOpen, setIsCodeZoneOpen] = useState<boolean>(false);
+  const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
   const [codeZoneSnippet, setCodeZoneSnippet] = useState<{ code: string; language: CodeLanguage } | undefined>();
   const [ideaZoneSeedNote, setIdeaZoneSeedNote] = useState<{
     title: string;
@@ -55,6 +57,7 @@ const MainApp: React.FC = () => {
           setCodeZoneSnippet(undefined);
           setIsCodeZoneOpen(true);
         }}
+        onOpenAuth={() => setIsAuthOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -175,6 +178,7 @@ const MainApp: React.FC = () => {
               setCodeZoneSnippet(undefined);
               setIsCodeZoneOpen(true);
             }}
+            onOpenAuth={() => setIsAuthOpen(true)}
             filter={mobileTab === 'learn' ? 'all' : mobileTab}
           />
         </div>
@@ -269,6 +273,12 @@ const MainApp: React.FC = () => {
           }}
         />
       )}
+
+      {/* Supabase User Account, Cloud Sync & Student .EDU Perks Modal */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+      />
     </div>
   );
 };

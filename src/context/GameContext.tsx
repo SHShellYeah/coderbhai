@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
-import { CourseId, CourseProgress, Question, Quest, UserState, Language } from '../types';
+import { CourseId, CourseProgress, Question, Quest, UserState, Language, AuthUser } from '../types';
 import { COURSES } from '../data/courses';
 import { sound } from '../utils/audio';
+import { supabase, isEduEmail } from '../lib/supabase';
+import { loginUser, registerUser, logoutUser, fetchUserProfile, saveUserProfile } from '../services/authService';
 
 const STORAGE_KEY = 'coderbhai_user_v1';
 const LEGACY_STORAGE_KEY = 'codelingo_user_v1';
@@ -87,6 +89,8 @@ const DEFAULT_USER_STATE: UserState = {
   xp: 180,
   hearts: 5,
   maxHearts: 5,
+  unlimitedHeartsUntil: null,
+  authUser: null,
   mistakes: [],
   soundEnabled: true,
   soundPack: 'duolingo',
@@ -115,6 +119,10 @@ interface GameContextType {
   resetProgress: () => void;
   addGems: (amount: number) => void;
   addXp: (amount: number) => void;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (email: string, password: string, displayName?: string) => Promise<{ success: boolean; isEduBonus?: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  syncCloudProgress: () => Promise<void>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -179,6 +187,100 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sound.setMuted(!state.soundEnabled);
   }, [state.soundEnabled]);
 
+  // Listen to Supabase Auth State Changes & load initial session
+  useEffect(() => {
+    // 1. Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const u = session.user;
+        const isEdu = isEduEmail(u.email || '');
+        const authUser: AuthUser = {
+          id: u.id,
+          email: u.email || '',
+          displayName: u.user_metadata?.display_name || u.email?.split('@')[0],
+          avatarUrl: u.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.id)}`,
+          isEduUser: isEdu,
+        };
+        setState(prev => ({ ...prev, authUser }));
+        // Load cloud profile
+        fetchUserProfile(u.id).then(profile => {
+          if (profile) {
+            setState(prev => ({
+              ...prev,
+              xp: Math.max(prev.xp, profile.xp),
+              gems: Math.max(prev.gems, profile.gems),
+              streak: Math.max(prev.streak, profile.streak),
+              unlimitedHeartsUntil: profile.unlimitedHeartsUntil || prev.unlimitedHeartsUntil,
+              courseProgress: {
+                ...prev.courseProgress,
+                ...profile.courseProgress,
+              },
+            }));
+          }
+        });
+      }
+    });
+
+    // 2. Auth state subscription
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        const u = session.user;
+        const isEdu = isEduEmail(u.email || '');
+        const authUser: AuthUser = {
+          id: u.id,
+          email: u.email || '',
+          displayName: u.user_metadata?.display_name || u.email?.split('@')[0],
+          avatarUrl: u.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.id)}`,
+          isEduUser: isEdu,
+        };
+        setState(prev => ({ ...prev, authUser }));
+        const profile = await fetchUserProfile(u.id);
+        if (profile) {
+          setState(prev => ({
+            ...prev,
+            xp: Math.max(prev.xp, profile.xp),
+            gems: Math.max(prev.gems, profile.gems),
+            streak: Math.max(prev.streak, profile.streak),
+            unlimitedHeartsUntil: profile.unlimitedHeartsUntil || prev.unlimitedHeartsUntil,
+            courseProgress: {
+              ...prev.courseProgress,
+              ...profile.courseProgress,
+            },
+          }));
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setState(prev => ({ ...prev, authUser: null }));
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Sync to cloud when state changes and user is authenticated (debounced 1.5s)
+  useEffect(() => {
+    if (!state.authUser?.id) return;
+    const timer = setTimeout(() => {
+      saveUserProfile(state.authUser!.id, {
+        xp: state.xp,
+        gems: state.gems,
+        streak: state.streak,
+        isEduUser: !!state.authUser!.isEduUser,
+        unlimitedHeartsUntil: state.unlimitedHeartsUntil,
+        courseProgress: state.courseProgress,
+        settings: {
+          themeColor: state.themeColor,
+          darkMode: state.darkMode,
+          language: state.language,
+          soundEnabled: state.soundEnabled,
+        },
+      });
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [state.xp, state.gems, state.streak, state.courseProgress, state.unlimitedHeartsUntil, state.authUser]);
+
   const setActiveCourse = (courseId: CourseId) => {
     sound.playClick();
     setState(prev => ({ ...prev, activeCourseId: courseId }));
@@ -187,6 +289,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deductHeart = (): boolean => {
     let stillAlive = true;
     setState(prev => {
+      // Unlimited hearts perk active (e.g. from .edu accounts)
+      if (prev.unlimitedHeartsUntil && Date.now() < prev.unlimitedHeartsUntil) {
+        return prev;
+      }
       const newHearts = Math.max(0, prev.hearts - 1);
       stillAlive = newHearts > 0;
       return {
@@ -414,6 +520,97 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({ ...prev, xp: prev.xp + amount }));
   };
 
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const res = await loginUser(email, password);
+    if (res.error) {
+      return { success: false, error: res.error };
+    }
+    if (res.user) {
+      setState(prev => ({ ...prev, authUser: res.user }));
+      const profile = await fetchUserProfile(res.user.id);
+      if (profile) {
+        setState(prev => ({
+          ...prev,
+          xp: Math.max(prev.xp, profile.xp),
+          gems: Math.max(prev.gems, profile.gems),
+          streak: Math.max(prev.streak, profile.streak),
+          unlimitedHeartsUntil: profile.unlimitedHeartsUntil || prev.unlimitedHeartsUntil,
+          courseProgress: {
+            ...prev.courseProgress,
+            ...profile.courseProgress,
+          },
+        }));
+      }
+    }
+    return { success: true };
+  };
+
+  const register = async (
+    email: string,
+    password: string,
+    displayName?: string
+  ): Promise<{ success: boolean; isEduBonus?: boolean; error?: string }> => {
+    const res = await registerUser(email, password, displayName);
+    if (res.error) {
+      return { success: false, error: res.error };
+    }
+    if (res.user) {
+      const isEdu = !!res.isEduBonusGranted;
+      const bonusGems = isEdu ? 200 : 0;
+      const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+      const bonusHeartsUntil = isEdu ? Date.now() + threeDaysMs : null;
+
+      setState(prev => ({
+        ...prev,
+        authUser: res.user,
+        gems: prev.gems + bonusGems,
+        unlimitedHeartsUntil: bonusHeartsUntil || prev.unlimitedHeartsUntil,
+      }));
+
+      // Immediately save cloud profile with current local progress + student perks
+      await saveUserProfile(res.user.id, {
+        email: res.user.email,
+        displayName: res.user.displayName,
+        xp: state.xp,
+        gems: state.gems + bonusGems,
+        streak: state.streak,
+        isEduUser: isEdu,
+        unlimitedHeartsUntil: bonusHeartsUntil,
+        courseProgress: state.courseProgress,
+        settings: {
+          themeColor: state.themeColor,
+          darkMode: state.darkMode,
+          language: state.language,
+          soundEnabled: state.soundEnabled,
+        },
+      });
+    }
+    return { success: true, isEduBonus: res.isEduBonusGranted };
+  };
+
+  const logout = async (): Promise<void> => {
+    await logoutUser();
+    setState(prev => ({ ...prev, authUser: null }));
+  };
+
+  const syncCloudProgress = async (): Promise<void> => {
+    if (!state.authUser?.id) return;
+    await saveUserProfile(state.authUser.id, {
+      xp: state.xp,
+      gems: state.gems,
+      streak: state.streak,
+      isEduUser: !!state.authUser.isEduUser,
+      unlimitedHeartsUntil: state.unlimitedHeartsUntil,
+      courseProgress: state.courseProgress,
+      settings: {
+        themeColor: state.themeColor,
+        darkMode: state.darkMode,
+        language: state.language,
+        soundEnabled: state.soundEnabled,
+      },
+    });
+  };
+
   const value = useMemo(
     () => ({
       state,
@@ -434,6 +631,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       resetProgress,
       addGems,
       addXp,
+      login,
+      register,
+      logout,
+      syncCloudProgress,
     }),
     [state]
   );

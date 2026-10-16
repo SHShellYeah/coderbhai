@@ -19,7 +19,10 @@ import {
   Palette,
   Languages,
   Terminal,
-  Lightbulb
+  Lightbulb,
+  GraduationCap,
+  User,
+  Cloud
 } from 'lucide-react';
 
 interface Props {
@@ -28,6 +31,7 @@ interface Props {
   onOpenSettings: () => void;
   onOpenIdeaZone?: () => void;
   onOpenCodeZone?: () => void;
+  onOpenAuth?: () => void;
 }
 
 export const TopBar: React.FC<Props> = ({
@@ -35,7 +39,8 @@ export const TopBar: React.FC<Props> = ({
   onOpenPlacement,
   onOpenSettings,
   onOpenIdeaZone,
-  onOpenCodeZone
+  onOpenCodeZone,
+  onOpenAuth,
 }) => {
   const { state, setActiveCourse, toggleSound, toggleDarkMode, toggleLanguage, refillHearts } = useGame();
   const t = useTranslation(state.language);
@@ -220,7 +225,7 @@ export const TopBar: React.FC<Props> = ({
             <span>{state.streak}</span>
           </div>
 
-          {/* Hearts / Lives (❤️ max 5) */}
+          {/* Hearts / Lives (❤️ max 5 or ♾️ if unlimited) */}
           <div className="relative" ref={heartRef}>
             <button
               type="button"
@@ -228,15 +233,27 @@ export const TopBar: React.FC<Props> = ({
                 sound.playClick();
                 setHeartDropdownOpen(!heartDropdownOpen);
               }}
-              className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-rose-500/10 dark:bg-rose-500/20 text-brand-rose font-black text-xs sm:text-sm cursor-pointer hover:brightness-95 transition-all"
-              title={`${t.heartsRemaining} (${t.refill})`}
+              className={`flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl ${
+                state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil
+                  ? 'bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30'
+                  : 'bg-rose-500/10 dark:bg-rose-500/20 text-brand-rose'
+              } font-black text-xs sm:text-sm cursor-pointer hover:brightness-95 transition-all`}
+              title={
+                state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil
+                  ? 'Unlimited Hearts Active (.EDU Student Perk)'
+                  : `${t.heartsRemaining} (${t.refill})`
+              }
             >
               <Heart
-                className={`w-3.5 sm:w-4.5 h-3.5 sm:h-4.5 fill-brand-rose stroke-brand-rose ${
-                  state.hearts <= 1 ? 'animate-bounce' : ''
-                }`}
+                className={`w-3.5 sm:w-4.5 h-3.5 sm:h-4.5 ${
+                  state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil
+                    ? 'fill-amber-500 stroke-amber-500 animate-pulse'
+                    : 'fill-brand-rose stroke-brand-rose'
+                } ${state.hearts <= 1 && !(state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil) ? 'animate-bounce' : ''}`}
               />
-              <span>{state.hearts}</span>
+              <span>
+                {state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil ? '♾️' : state.hearts}
+              </span>
             </button>
 
             {/* Backdrop for mobile */}
@@ -251,22 +268,38 @@ export const TopBar: React.FC<Props> = ({
             {heartDropdownOpen && (
               <div className="fixed sm:absolute top-16 sm:top-full left-3 sm:left-auto right-3 sm:right-0 mt-1 sm:mt-2 max-w-sm sm:w-64 mx-auto sm:mx-0 rounded-2xl bg-white dark:bg-[#111827] border-2 border-slate-200 dark:border-slate-800 shadow-2xl p-4 z-50 animate-pop text-center">
                 <div className="flex items-center justify-center gap-1 mb-2">
-                  {Array.from({ length: state.maxHearts }).map((_, i) => (
-                    <Heart
-                      key={i}
-                      className={`w-5 h-5 sm:w-6 sm:h-6 ${
-                        i < state.hearts
-                          ? 'fill-brand-rose text-brand-rose'
-                          : 'text-slate-300 dark:text-slate-700'
-                      }`}
-                    />
-                  ))}
+                  {state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil ? (
+                    <div className="flex items-center gap-1.5 text-2xl font-black text-amber-500 animate-bounceShort">
+                      <span>💖</span>
+                      <span>♾️</span>
+                    </div>
+                  ) : (
+                    Array.from({ length: state.maxHearts }).map((_, i) => (
+                      <Heart
+                        key={i}
+                        className={`w-5 h-5 sm:w-6 sm:h-6 ${
+                          i < state.hearts
+                            ? 'fill-brand-rose text-brand-rose'
+                            : 'text-slate-300 dark:text-slate-700'
+                        }`}
+                      />
+                    ))
+                  )}
                 </div>
-                <h4 className="text-base font-black text-slate-800 dark:text-slate-100">
-                  {state.hearts} / {state.maxHearts} {t.hearts}
+                <h4 className="text-base font-black text-slate-800 dark:text-slate-100 flex items-center justify-center gap-1.5">
+                  {state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil ? (
+                    <span className="text-amber-500 font-extrabold flex items-center gap-1">
+                      <Sparkles className="w-4 h-4 fill-current" />
+                      Unlimited Hearts Active!
+                    </span>
+                  ) : (
+                    `${state.hearts} / ${state.maxHearts} ${t.hearts}`
+                  )}
                 </h4>
                 <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 mb-3">
-                  {t.heartsDesc}
+                  {state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil
+                    ? 'Your .edu student perk gives you infinite hearts for 3 days!'
+                    : t.heartsDesc}
                 </p>
 
                 <div className="flex flex-col gap-2">
@@ -378,6 +411,50 @@ export const TopBar: React.FC<Props> = ({
               <VolumeX className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-slate-400" />
             )}
           </button>
+
+          {/* Account / Sign In Button */}
+          {onOpenAuth && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onOpenAuth();
+              }}
+              className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                state.authUser
+                  ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 shadow-sm'
+                  : 'bg-gradient-to-r from-brand-primary via-cyan-600 to-brand-primary hover:brightness-110 text-white shadow-md'
+              }`}
+              title={
+                state.authUser
+                  ? `Account: ${state.authUser.displayName || state.authUser.email} (Cloud Synced)`
+                  : 'Create account or Log In to save progress (.edu emails get 200 Diamonds free!)'
+              }
+            >
+              {state.authUser ? (
+                <>
+                  <div className="relative">
+                    <img
+                      src={state.authUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.authUser.id}`}
+                      alt="Avatar"
+                      className="w-4 h-4 sm:w-5 sm:h-5 rounded-lg bg-slate-900 border border-brand-primary"
+                    />
+                    {state.authUser.isEduUser && (
+                      <span className="absolute -top-1 -right-1 text-[8px]" title=".EDU Student Verified">🎓</span>
+                    )}
+                  </div>
+                  <span className="hidden md:inline font-bold text-xs truncate max-w-[80px]">
+                    {state.authUser.displayName || state.authUser.email.split('@')[0]}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span className="font-extrabold text-[11px] sm:text-xs">Sign In</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </header>

@@ -17,7 +17,10 @@ import {
   Moon,
   Sun,
   Terminal,
-  Code2
+  Code2,
+  GraduationCap,
+  User,
+  Cloud
 } from 'lucide-react';
 
 interface Props {
@@ -26,6 +29,7 @@ interface Props {
   onOpenSettings?: () => void;
   onOpenIdeaZone?: () => void;
   onOpenCodeZone?: () => void;
+  onOpenAuth?: () => void;
   filter?: 'all' | 'practice' | 'quests' | 'leaderboard' | 'settings';
 }
 
@@ -35,6 +39,7 @@ export const RightSidebar: React.FC<Props> = ({
   onOpenSettings,
   onOpenIdeaZone,
   onOpenCodeZone,
+  onOpenAuth,
   filter = 'all',
 }) => {
   const { state, toggleDarkMode } = useGame();
@@ -65,6 +70,79 @@ export const RightSidebar: React.FC<Props> = ({
 
   return (
     <aside className="w-full lg:w-80 flex flex-col gap-5 py-4 lg:py-6 px-3 sm:px-4">
+      {/* Cloud Account & Student .EDU Perks Card */}
+      {onOpenAuth && (filter === 'all' || filter === 'practice' || filter === 'settings') && (
+        <div className="relative overflow-hidden p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-amber-500/10 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-slate-900/40 border-2 border-indigo-500/20 dark:border-indigo-500/30 shadow-sm text-left flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black shadow-md shadow-indigo-500/20">
+                {state.authUser ? <User className="w-5 h-5" /> : <GraduationCap className="w-5 h-5" />}
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-sm font-black text-slate-800 dark:text-slate-100 leading-tight truncate">
+                  {state.authUser ? (state.authUser.displayName || state.authUser.email?.split('@')[0]) : 'Student & Cloud Pass'}
+                </h4>
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  {state.authUser ? (
+                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
+                      <Cloud className="w-3 h-3" /> Cloud Synced
+                    </span>
+                  ) : (
+                    <span>Backup progress anywhere</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            {state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 animate-pulse">
+                ♾️ Unlimited
+              </span>
+            )}
+          </div>
+
+          {!state.authUser ? (
+            <div className="p-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-indigo-500/20 flex flex-col gap-1.5">
+              <div className="flex items-center gap-1.5 text-xs font-black text-indigo-600 dark:text-indigo-400">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>🎓 .EDU Student Perk</span>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+                Register with your school <span className="font-mono font-bold text-indigo-600 dark:text-indigo-300">.edu</span> email to get <span className="font-black text-amber-500">+200 Diamonds 💎</span> &amp; <span className="font-black text-rose-500">Unlimited Hearts ❤️</span> for 3 days!
+              </p>
+            </div>
+          ) : (
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+              Connected as <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">{state.authUser.email}</span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              onOpenAuth();
+            }}
+            className={`btn-3d w-full py-2.5 px-3 rounded-2xl text-xs font-black uppercase flex items-center justify-center gap-2 cursor-pointer ${
+              state.authUser
+                ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-b-2 border-slate-300 dark:border-slate-900'
+                : 'btn-3d-indigo text-white'
+            }`}
+          >
+            {state.authUser ? (
+              <>
+                <User className="w-3.5 h-3.5" />
+                <span>Manage Profile &amp; Cloud</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Sign In / Claim .EDU Perks</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Dev Hub: IdeaZone & CodeZone */}
       {(filter === 'all' || filter === 'practice') && (
         <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#111827] border-2 border-slate-200 dark:border-slate-800 shadow-sm text-left flex flex-col gap-3">
