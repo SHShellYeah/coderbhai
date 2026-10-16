@@ -180,6 +180,17 @@ export const loginUser = async (
       } catch {
         // ignore
       }
+    } else if (requestedRole === 'user') {
+      resolvedRole = 'user';
+      try {
+        await saveUserProfile(user.id, {
+          role: 'user',
+          gems: 100,
+          unlimitedHeartsUntil: null,
+        });
+      } catch {
+        // ignore
+      }
     }
 
     const authUser: AuthUser = {

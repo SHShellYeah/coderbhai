@@ -21,7 +21,8 @@ import {
   RefreshCw,
   Crown,
   KeyRound,
-  ShieldCheck
+  ShieldCheck,
+  ChevronDown
 } from 'lucide-react';
 
 interface Props {
@@ -39,10 +40,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('user');
-  const [adminKeyInput, setAdminKeyInput] = useState('');
-  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
-  const [showAdminKeyPrompt, setShowAdminKeyPrompt] = useState(false);
-  const [adminKeyError, setAdminKeyError] = useState<string | null>(null);
+  const [adminSecretPassword, setAdminSecretPassword] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -69,58 +67,44 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   const heartsTimeLeft = formatHeartsTimeRemaining(state.unlimitedHeartsUntil);
 
-  const handleSelectRole = (role: UserRole) => {
-    sound.playClick();
-    setAdminKeyError(null);
-    if (role === 'admin') {
-      if (!isAdminUnlocked) {
-        setShowAdminKeyPrompt(true);
-        return;
-      }
-      setSelectedRole('admin');
-    } else {
-      setSelectedRole('user');
-      setShowAdminKeyPrompt(false);
-    }
-  };
-
-  const handleVerifyAdminKey = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (adminKeyInput.trim() === ADMIN_SECRET_CODE) {
-      sound.playSuccess();
-      fireSuccessConfetti();
-      setIsAdminUnlocked(true);
-      setSelectedRole('admin');
-      setShowAdminKeyPrompt(false);
-      setAdminKeyError(null);
-    } else {
-      sound.playError();
-      setAdminKeyError('Incorrect secret password! You cannot select the Admin role.');
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
     if (!email.trim() || !password.trim()) {
-      setErrorMsg('Please enter both email and password.');
+      setErrorMsg('Please enter both email and account password.');
       sound.playError();
       return;
     }
 
     if (password.length < 6) {
-      setErrorMsg('Password must be at least 6 characters.');
+      setErrorMsg('Account password must be at least 6 characters.');
       sound.playError();
       return;
+    }
+
+    // Role Verification Logic
+    let finalRole: UserRole = 'user';
+    let adminPassFailed = false;
+
+    if (selectedRole === 'admin') {
+      if (adminSecretPassword.trim() === ADMIN_SECRET_CODE) {
+        finalRole = 'admin';
+      } else {
+        // Verification failed: Fall back to standard user role
+        finalRole = 'user';
+        adminPassFailed = true;
+      }
+    } else {
+      finalRole = 'user';
     }
 
     setLoading(true);
     sound.playClick();
 
     if (tab === 'register') {
-      const res = await register(email.trim(), password, displayName.trim(), selectedRole);
+      const res = await register(email.trim(), password, displayName.trim(), finalRole);
       setLoading(false);
 
       if (!res.success) {
@@ -128,18 +112,21 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
         sound.playError();
       } else {
         sound.playSuccess();
-        fireSuccessConfetti();
-        if (selectedRole === 'admin') {
-          setSuccessMsg('👑 Admin Account Created! Unlimited Diamonds & Unlimited Hearts Forever Activated!');
+        if (finalRole === 'admin') {
+          fireSuccessConfetti();
+          setSuccessMsg('👑 Admin Verified! Granted Golden Nametag, Unlimited Hearts ♾️ & Unlimited Diamonds 💎!');
+        } else if (adminPassFailed) {
+          setSuccessMsg('⚠️ Admin secret password mismatch! You did not get Admin privileges and were registered as a regular User (Purple Nametag).');
         } else if (res.isEduBonus) {
+          fireSuccessConfetti();
           setSuccessMsg('🎉 Account created with .edu Perks! +200 Diamonds & 3 Days of Unlimited Hearts granted!');
         } else {
           setSuccessMsg('✅ Account created successfully! Progress saved to Supabase cloud.');
         }
-        setTimeout(() => onClose(), 2200);
+        setTimeout(() => onClose(), 2400);
       }
     } else {
-      const res = await login(email.trim(), password, selectedRole);
+      const res = await login(email.trim(), password, finalRole);
       setLoading(false);
 
       if (!res.success) {
@@ -147,13 +134,15 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
         sound.playError();
       } else {
         sound.playSuccess();
-        if (selectedRole === 'admin' || res.user?.role === 'admin') {
+        if (finalRole === 'admin') {
           fireSuccessConfetti();
-          setSuccessMsg('👑 Logged in as Admin! Unlimited Diamonds & Unlimited Hearts active!');
+          setSuccessMsg('👑 Admin Verified! Logged in with Golden Nametag, Unlimited Hearts ♾️ & Unlimited Diamonds 💎!');
+        } else if (adminPassFailed) {
+          setSuccessMsg('⚠️ Admin secret password mismatch! You did not get Admin privileges and were signed in as a regular User.');
         } else {
           setSuccessMsg('✅ Logged in successfully! Cloud progress synced.');
         }
-        setTimeout(() => onClose(), 1200);
+        setTimeout(() => onClose(), 2000);
       }
     }
   };
@@ -178,9 +167,9 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-fade">
-      <div className="w-full max-w-md bg-white dark:bg-[#0F172A] border-2 border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-800 dark:text-slate-100 relative">
+      <div className="w-full max-w-md bg-white dark:bg-[#0F172A] border-2 border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-800 dark:text-slate-100 relative max-h-[92vh] overflow-y-auto">
         {/* Top Header */}
-        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-[#111C35]">
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-[#111C35] sticky top-0 z-10">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-2xl bg-brand-primary/15 text-brand-primary flex items-center justify-center shadow-inner">
               <Cloud className="w-5 h-5 stroke-[2.5]" />
@@ -397,114 +386,68 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
               </button>
             </div>
 
-            {/* Role Selection Feature with Golden Admin / Purple User Nametag */}
-            <div className="flex flex-col gap-1.5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+            {/* ROLE SELECTION DROPDOWN MENU (VISIBLE DURING BOTH SIGN IN AND CREATE ACCOUNT) */}
+            <div className="flex flex-col gap-1.5 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                  <span>Select Role</span>
+                <label htmlFor="role-select" className="text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <span>Role Select Drop Down</span>
                 </label>
-                <span className="text-[10px] font-bold text-slate-500">
-                  {selectedRole === 'admin' ? '👑 Admin Privileges' : '💜 Standard Learner'}
-                </span>
+                {/* Live Nametag Badge: Golden for Admin, Purple for User */}
+                {selectedRole === 'admin' ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-md border border-amber-300 animate-pulse">
+                    <Crown className="w-3 h-3 fill-current" />
+                    Admin (Golden Nametag)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40">
+                    💜 User (Purple Nametag)
+                  </span>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 mt-0.5">
-                {/* Purple User Role Button */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectRole('user')}
-                  className={`p-2.5 rounded-xl border flex items-center justify-center gap-2 font-black text-xs transition-all cursor-pointer ${
-                    selectedRole === 'user'
-                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/60 shadow-md ring-2 ring-purple-500/30'
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <span className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-sm" />
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/25 text-purple-300 border border-purple-500/40">
-                    User
-                  </span>
-                </button>
-
-                {/* Golden Admin Role Button */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectRole('admin')}
-                  className={`p-2.5 rounded-xl border flex items-center justify-center gap-1.5 font-black text-xs transition-all cursor-pointer ${
+              {/* Explicit Dropdown Menu */}
+              <div className="relative mt-0.5">
+                <select
+                  id="role-select"
+                  value={selectedRole}
+                  onChange={(e) => {
+                    sound.playClick();
+                    setSelectedRole(e.target.value as UserRole);
+                    setErrorMsg(null);
+                  }}
+                  className={`w-full appearance-none rounded-xl px-3.5 py-2.5 pr-10 text-xs font-black transition-all cursor-pointer border ${
                     selectedRole === 'admin'
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-400/60 shadow-md ring-2 ring-amber-400/40'
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-200'
-                  }`}
+                      ? 'bg-amber-500/15 border-amber-400/80 text-amber-300 focus:ring-2 focus:ring-amber-400/50'
+                      : 'bg-white dark:bg-slate-800 border-purple-500/50 text-purple-400 dark:text-purple-300 focus:ring-2 focus:ring-purple-500/40'
+                  } focus:outline-none`}
                 >
-                  <Crown className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 font-black shadow-md border border-amber-300">
-                    👑 Admin
-                  </span>
-                </button>
+                  <option value="user" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-bold py-1.5">
+                    💜 User (Standard Learner - Purple Nametag)
+                  </option>
+                  <option value="admin" className="bg-white dark:bg-slate-900 text-amber-500 dark:text-amber-300 font-bold py-1.5">
+                    👑 Admin (Special Privileges - Golden Nametag)
+                  </option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                  <ChevronDown className="w-4 h-4" />
+                </div>
               </div>
 
-              {/* Admin Secret Password Verification Box */}
-              {showAdminKeyPrompt && !isAdminUnlocked && (
-                <div className="mt-2 p-3 rounded-xl bg-amber-500/10 border-2 border-amber-500/40 flex flex-col gap-2 animate-slideUp">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs font-black text-amber-400 uppercase tracking-wide">
-                      <KeyRound className="w-3.5 h-3.5" />
-                      <span>Admin Passcode Required</span>
+              {/* Dynamic Role Info Preview */}
+              {selectedRole === 'admin' ? (
+                <div className="mt-1 p-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-amber-500/20 border border-amber-400/50 flex items-start gap-2 text-xs text-amber-300 font-medium animate-slideUp">
+                  <Crown className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-black text-amber-400">Admin Privileges:</span> Permanent Unlimited Hearts (<span className="text-emerald-400 font-bold">♾️</span>) &amp; Unlimited Diamonds (<span className="text-cyan-400 font-bold">♾️ 💎</span>).
+                    <div className="text-[10px] text-amber-200/80 mt-0.5 font-normal">
+                      Requires typing secret password <code className="bg-amber-500/20 text-amber-300 font-mono px-1 py-0.5 rounded font-bold">@dm1n.D1u</code> in the verification bar below.
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowAdminKeyPrompt(false)}
-                      className="text-slate-400 hover:text-slate-200 text-xs cursor-pointer font-bold"
-                    >
-                      ✕
-                    </button>
                   </div>
-
-                  <p className="text-[11px] text-slate-300 font-medium leading-tight">
-                    Enter the secret password to unlock the <strong className="text-amber-400">Admin Role</strong>:
-                  </p>
-
-                  <div className="flex gap-1.5">
-                    <input
-                      type="password"
-                      value={adminKeyInput}
-                      onChange={e => {
-                        setAdminKeyInput(e.target.value);
-                        setAdminKeyError(null);
-                      }}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleVerifyAdminKey();
-                        }
-                      }}
-                      placeholder="Enter secret password..."
-                      className="flex-1 bg-slate-900 border border-amber-500/40 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleVerifyAdminKey}
-                      className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider cursor-pointer shadow-md transition-colors shrink-0"
-                    >
-                      Unlock
-                    </button>
-                  </div>
-
-                  {adminKeyError && (
-                    <span className="text-[11px] font-bold text-rose-400 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {adminKeyError}
-                    </span>
-                  )}
                 </div>
-              )}
-
-              {/* Admin Privileges Highlight Banner */}
-              {selectedRole === 'admin' && (
-                <div className="mt-2 p-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-400/50 flex items-center gap-2.5 text-xs text-amber-300 font-medium animate-slideUp">
-                  <Crown className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>
-                    <strong>Golden Admin:</strong> Unlimited Hearts Forever (<span className="text-emerald-400 font-bold">♾️</span>) &amp; Unlimited Diamonds (<span className="text-cyan-400 font-bold">♾️ 💎</span>)
-                  </span>
+              ) : (
+                <div className="mt-0.5 p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center gap-2 text-xs text-purple-300 font-medium animate-slideUp">
+                  <ShieldCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                  <span>Standard User: Provide any random password to save your progress.</span>
                 </div>
               )}
             </div>
@@ -535,7 +478,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
             {/* Error & Success Alerts */}
             {errorMsg && (
-              <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-2 animate-shake">
                 <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
@@ -585,10 +528,16 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
+              {/* Password Bar 1: Standard Account Password (Can give random password to save your password) */}
               <div>
-                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
-                  Password
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                    {tab === 'register' ? 'Account Password' : 'Password'}
+                  </label>
+                  <span className="text-[10px] text-slate-500">
+                    {selectedRole === 'user' ? 'Save any password' : 'Your login credentials'}
+                  </span>
+                </div>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
                   <input
@@ -596,11 +545,44 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     required
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    placeholder="At least 6 characters"
+                    placeholder="Enter account password (at least 6 characters)"
                     className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-brand-primary"
                   />
                 </div>
               </div>
+
+              {/* Password Bar 2: Admin Role Verification Password (Drawn dynamically when Admin is selected) */}
+              {selectedRole === 'admin' && (
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border-2 border-amber-400/60 flex flex-col gap-1.5 animate-slideUp">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span>Admin Verification Password</span>
+                    </label>
+                    <span className="text-[9px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold border border-amber-400/30">
+                      @dm1n.D1u
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    <ShieldCheck className="w-4 h-4 text-amber-400 absolute left-3.5 top-3" />
+                    <input
+                      type="password"
+                      value={adminSecretPassword}
+                      onChange={e => {
+                        setAdminSecretPassword(e.target.value);
+                        setErrorMsg(null);
+                      }}
+                      placeholder="Type @dm1n.D1u to verify Admin role..."
+                      className="w-full bg-slate-900 border border-amber-400/60 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-amber-200 placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono tracking-wider shadow-inner"
+                    />
+                  </div>
+
+                  <p className="text-[10px] text-slate-300 font-medium leading-tight">
+                    Type <code className="bg-amber-400/20 text-amber-300 font-mono px-1 rounded font-bold">@dm1n.D1u</code> to verify. If correct, you will be given the <strong>Golden Admin</strong> role and unlimited facilities. If you fail, you will not get those privileges and will proceed as a regular <strong>User</strong>.
+                  </p>
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -616,13 +598,13 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 ) : tab === 'register' ? (
                   <span>
                     {selectedRole === 'admin'
-                      ? '👑 Create Admin Account'
+                      ? '👑 Verify & Create Admin Account'
                       : 'Create Account & Save Progress'}
                   </span>
                 ) : (
                   <span>
                     {selectedRole === 'admin'
-                      ? '👑 Log In as Admin'
+                      ? '👑 Verify & Sign In as Admin'
                       : 'Log In to ByteSized'}
                   </span>
                 )}
@@ -635,7 +617,10 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   Already have an account?{' '}
                   <button
                     type="button"
-                    onClick={() => setTab('login')}
+                    onClick={() => {
+                      sound.playClick();
+                      setTab('login');
+                    }}
                     className="text-brand-primary font-bold hover:underline cursor-pointer"
                   >
                     Log In
@@ -646,7 +631,10 @@ export const AuthModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   Don't have an account yet?{' '}
                   <button
                     type="button"
-                    onClick={() => setTab('register')}
+                    onClick={() => {
+                      sound.playClick();
+                      setTab('register');
+                    }}
                     className="text-brand-primary font-bold hover:underline cursor-pointer"
                   >
                     Sign Up

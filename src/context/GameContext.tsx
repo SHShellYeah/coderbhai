@@ -547,27 +547,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: res.error };
     }
     if (res.user) {
-      const userRole = res.user.role || requestedRole || 'user';
+      const userRole = requestedRole || res.user.role || 'user';
       const isAdmin = userRole === 'admin';
       setState(prev => ({
         ...prev,
-        authUser: res.user,
+        authUser: res.user ? { ...res.user, role: userRole } : null,
         role: userRole,
-        gems: isAdmin ? 999999 : prev.gems,
-        unlimitedHeartsUntil: isAdmin ? Number.MAX_SAFE_INTEGER : prev.unlimitedHeartsUntil,
+        gems: isAdmin ? 999999 : (prev.gems >= 999999 ? 100 : prev.gems),
+        unlimitedHeartsUntil: isAdmin ? Number.MAX_SAFE_INTEGER : (prev.role === 'admin' ? null : prev.unlimitedHeartsUntil),
       }));
       const profile = await fetchUserProfile(res.user.id);
       if (profile) {
         setState(prev => {
-          const effectiveRole = profile.role || userRole;
+          const effectiveRole = requestedRole || profile.role || userRole;
           const isProfAdmin = effectiveRole === 'admin';
           return {
             ...prev,
             role: effectiveRole,
             xp: Math.max(prev.xp, profile.xp),
-            gems: isProfAdmin ? 999999 : Math.max(prev.gems, profile.gems),
+            gems: isProfAdmin ? 999999 : (profile.gems >= 999999 ? 100 : Math.max(prev.gems, profile.gems)),
             streak: Math.max(prev.streak, profile.streak),
-            unlimitedHeartsUntil: isProfAdmin ? Number.MAX_SAFE_INTEGER : (profile.unlimitedHeartsUntil || prev.unlimitedHeartsUntil),
+            unlimitedHeartsUntil: isProfAdmin ? Number.MAX_SAFE_INTEGER : (effectiveRole === 'user' ? null : (profile.unlimitedHeartsUntil || prev.unlimitedHeartsUntil)),
             courseProgress: {
               ...prev.courseProgress,
               ...profile.courseProgress,
