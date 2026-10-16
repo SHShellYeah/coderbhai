@@ -150,18 +150,18 @@ export const RightSidebar: React.FC<Props> = ({
             className={`btn-3d w-full py-2.5 px-3 rounded-2xl text-xs font-black uppercase flex items-center justify-center gap-2 cursor-pointer ${
               state.authUser
                 ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-b-2 border-slate-300 dark:border-slate-900'
-                : 'btn-3d-indigo text-white'
+                : 'bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:brightness-110 text-white shadow-md border-b-2 border-indigo-800'
             }`}
           >
             {state.authUser ? (
               <>
                 <User className="w-3.5 h-3.5" />
-                <span>Manage Profile &amp; Cloud</span>
+                <span>Manage Profile &amp; Role</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Sign In / Claim .EDU Perks</span>
+                <Crown className="w-3.5 h-3.5 text-amber-300" />
+                <span>Sign In (User or Admin Role)</span>
               </>
             )}
           </button>

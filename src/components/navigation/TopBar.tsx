@@ -437,15 +437,15 @@ export const TopBar: React.FC<Props> = ({
                 sound.playClick();
                 onOpenAuth();
               }}
-              className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
                 state.authUser
                   ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 shadow-sm'
-                  : 'bg-gradient-to-r from-brand-primary via-cyan-600 to-brand-primary hover:brightness-110 text-white shadow-md'
+                  : 'bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:brightness-110 text-white shadow-md'
               }`}
               title={
                 state.authUser
-                  ? `Account: ${state.authUser.displayName || state.authUser.email} (Cloud Synced)`
-                  : 'Create account or Log In to save progress (.edu emails get 200 Diamonds free!)'
+                  ? `Account: ${state.authUser.displayName || state.authUser.email} (Role: ${state.role || state.authUser.role})`
+                  : 'Sign In: Select User or Admin role with secret passcode verification'
               }
             >
               {state.authUser ? (
@@ -464,19 +464,19 @@ export const TopBar: React.FC<Props> = ({
                     {state.authUser.displayName || state.authUser.email.split('@')[0]}
                   </span>
                   {isAdmin ? (
-                    <span className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-sm border border-amber-300">
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-sm border border-amber-300">
                       👑 Admin
                     </span>
                   ) : (
-                    <span className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40">
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40">
                       User
                     </span>
                   )}
                 </>
               ) : (
                 <>
-                  <GraduationCap className="w-3.5 h-3.5" />
-                  <span className="font-extrabold text-[11px] sm:text-xs">Sign In</span>
+                  <Crown className="w-3.5 h-3.5 text-amber-300" />
+                  <span className="font-extrabold text-[11px] sm:text-xs">Sign In (Role Select)</span>
                 </>
               )}
             </button>
