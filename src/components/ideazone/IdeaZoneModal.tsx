@@ -33,58 +33,7 @@ interface Props {
   };
 }
 
-const STORAGE_KEY = 'coderbhai_ideazone_notes_v2';
-
-const DEFAULT_NOTES: IdeaNote[] = [
-  {
-    id: 'note-1',
-    title: '🚀 Building a Fast CLI Shell in Pure C',
-    content: 'Plan: Use <stdio.h>, malloc(), and free() to build a minimal command parser. Remember: in C, argv is an array of pointers (char* argv[]), and strings must terminate with \\0! Lin recommends testing buffer bounds with sizeof().',
-    category: 'idea',
-    codeSnippet: `#include <stdio.h>
-#include <string.h>
-
-int main(int argc, char* argv[]) {
-    printf("CoderBhai Shell initialized. Arguments: %d\\n", argc);
-    return 0;
-}`,
-    codeLanguage: 'c',
-    pinned: true,
-    tags: ['project-idea', 'pure-c', 'system-tool'],
-    createdAt: '2026-10-16T12:00:00.000Z',
-    updatedAt: '2026-10-16T12:00:00.000Z',
-  },
-  {
-    id: 'note-2',
-    title: '🧠 Memory Address Mental Model (& vs *)',
-    content: "Lin's Golden Rule of RAM:\n• &variable = The address on the envelope (where the box lives in RAM).\n• int* ptr = The pointer variable holding that address.\n• *ptr = Opening the front door to read or change the furniture inside!",
-    category: 'dsa',
-    codeSnippet: `int x = 42;
-int* ptr = &x; // stores address of x
-*ptr = 99;     // updates x to 99!
-printf("x is now %d\\n", x);`,
-    codeLanguage: 'c',
-    pinned: true,
-    tags: ['mental-model', 'pointers', 'cs-foundations'],
-    createdAt: '2026-10-16T12:30:00.000Z',
-    updatedAt: '2026-10-16T12:30:00.000Z',
-  },
-  {
-    id: 'note-3',
-    title: '🐛 Classic C scanf & Bug to Never Repeat',
-    content: 'Always pass &variable to scanf() for primitive types! If you forget &, scanf treats the uninitialized variable as an address and crashes with a Segmentation Fault.',
-    category: 'bug',
-    codeSnippet: `int score = 0;
-printf("Enter score: ");
-scanf("%d", &score); // Never forget &!
-printf("Saved score: %d\\n", score);`,
-    codeLanguage: 'c',
-    pinned: false,
-    tags: ['bug-tracker', 'scanf', 'debugging'],
-    createdAt: '2026-10-16T13:00:00.000Z',
-    updatedAt: '2026-10-16T13:00:00.000Z',
-  }
-];
+const STORAGE_KEY = 'coderbhai_ideazone_notes_v3';
 
 export const IdeaZoneModal: React.FC<Props> = ({ onClose, onOpenCodeZone, seedNote }) => {
   const [notes, setNotes] = useState<IdeaNote[]>(() => {
@@ -92,14 +41,14 @@ export const IdeaZoneModal: React.FC<Props> = ({ onClose, onOpenCodeZone, seedNo
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
     } catch {
       // fallback
     }
-    return DEFAULT_NOTES;
+    return [];
   });
 
   const [activeNoteId, setActiveNoteId] = useState<string>(() => notes[0]?.id || '');
@@ -210,26 +159,13 @@ export const IdeaZoneModal: React.FC<Props> = ({ onClose, onOpenCodeZone, seedNo
   const handleDeleteNote = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     sound.playClick();
-    if (notes.length <= 1) {
-      // Keep at least one empty note
-      const freshNote: IdeaNote = {
-        id: `note-${Date.now()}`,
-        title: 'Untitled Idea',
-        content: '',
-        category: 'idea',
-        tags: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setNotes([freshNote]);
-      setActiveNoteId(freshNote.id);
-      return;
-    }
-    setNotes(prev => prev.filter(n => n.id !== id));
-    if (activeNoteId === id) {
-      const remaining = notes.filter(n => n.id !== id);
-      setActiveNoteId(remaining[0]?.id || '');
-    }
+    setNotes(prev => {
+      const remaining = prev.filter(n => n.id !== id);
+      if (activeNoteId === id) {
+        setActiveNoteId(remaining[0]?.id || '');
+      }
+      return remaining;
+    });
   };
 
   // Add tag
@@ -409,14 +345,16 @@ export const IdeaZoneModal: React.FC<Props> = ({ onClose, onOpenCodeZone, seedNo
           <div className="w-full md:w-80 border-r-0 md:border-r border-b md:border-b-0 border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0B101C] overflow-y-auto shrink-0 max-h-48 md:max-h-none p-2 space-y-1.5">
             {filteredNotes.length === 0 ? (
               <div className="p-6 text-center text-slate-400 flex flex-col items-center gap-2">
-                <FileText className="w-8 h-8 opacity-40" />
-                <span className="text-xs font-bold">No matching ideas found</span>
+                <FileText className="w-8 h-8 opacity-40 text-amber-500" />
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                  {notes.length === 0 ? 'Notepad is empty' : 'No matching ideas'}
+                </span>
                 <button
                   type="button"
                   onClick={handleCreateNote}
                   className="text-xs text-amber-500 font-black hover:underline cursor-pointer"
                 >
-                  Create one now!
+                  + Write an Idea
                 </button>
               </div>
             ) : (
@@ -664,11 +602,25 @@ export const IdeaZoneModal: React.FC<Props> = ({ onClose, onOpenCodeZone, seedNo
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400">
-              <Lightbulb className="w-12 h-12 text-amber-500/40 mb-2" />
-              <h3 className="text-sm font-black text-slate-700 dark:text-slate-300">
-                No note selected
+              <div className="w-16 h-16 rounded-3xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-3 shadow-inner">
+                <Lightbulb className="w-8 h-8 fill-amber-500/20" />
+              </div>
+              <h3 className="text-base font-black text-slate-800 dark:text-slate-100">
+                {notes.length === 0 ? 'Your IdeaZone is clean & empty' : 'No note selected'}
               </h3>
-              <p className="text-xs mt-1">Select an idea from the left or create a new one!</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mb-4">
+                {notes.length === 0
+                  ? 'Write down ideas, tricky algorithms, bug fixes, or snippets. They will automatically save here.'
+                  : 'Select an idea from the list or create a fresh one.'}
+              </p>
+              <button
+                type="button"
+                onClick={handleCreateNote}
+                className="btn-3d btn-3d-gold px-4 py-2.5 rounded-xl text-xs font-black uppercase flex items-center gap-2 cursor-pointer shadow-md text-amber-950"
+              >
+                <Plus className="w-4 h-4" />
+                Write Your First Idea
+              </button>
             </div>
           )}
         </div>
