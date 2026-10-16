@@ -1,15 +1,15 @@
 -- ==============================================================================
--- BYTESIZED SUPABASE SCHEMA: Users, Profiles & Student .EDU Bonus Perks
--- Run this script inside the Supabase SQL Editor:
--- Dashboard: https://supabase.com/dashboard/project/hbqipluxclqycegirqqs/sql
+-- BYTESIZED SUPABASE SCHEMA: Instant Setup for Table Editor
+-- Direct SQL Editor URL:
+-- https://supabase.com/dashboard/project/hbqipluxclqycegirqqs/sql/new
 -- ==============================================================================
 
--- 1. Create the `public.users` table for visible username, email, and password tracking
+-- 1. Create table public.users (visible in Supabase Table Editor)
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  username TEXT NOT NULL,
-  email TEXT NOT NULL,
-  password_hash TEXT, -- Populated with encrypted hash from auth.users (bcrypt)
+  username TEXT,
+  email TEXT,
+  password_hash TEXT,
   is_edu_user BOOLEAN DEFAULT FALSE,
   xp INTEGER DEFAULT 0,
   gems INTEGER DEFAULT 0,
@@ -21,10 +21,10 @@ CREATE TABLE IF NOT EXISTS public.users (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Create the `public.profiles` table (compatible with profiles-based queries)
+-- 2. Create table public.profiles
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT NOT NULL,
+  email TEXT,
   display_name TEXT,
   avatar_url TEXT,
   is_edu_user BOOLEAN DEFAULT FALSE,
@@ -38,43 +38,21 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Enable Row-Level Security (RLS)
+-- 3. Enable RLS and add open policies
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- 4. RLS Policies for public.users
-DROP POLICY IF EXISTS "Users can view own row in users table" ON public.users;
-CREATE POLICY "Users can view own row in users table"
-  ON public.users FOR SELECT
-  USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Allow all access to public.users" ON public.users;
+CREATE POLICY "Allow all access to public.users" ON public.users FOR ALL USING (true) WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Users can insert own row in users table" ON public.users;
-CREATE POLICY "Users can insert own row in users table"
-  ON public.users FOR INSERT
-  WITH CHECK (auth.uid() = id);
+DROP POLICY IF EXISTS "Allow all access to public.profiles" ON public.profiles;
+CREATE POLICY "Allow all access to public.profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Users can update own row in users table" ON public.users;
-CREATE POLICY "Users can update own row in users table"
-  ON public.users FOR UPDATE
-  USING (auth.uid() = id);
+-- 4. Grant table permissions
+GRANT ALL ON TABLE public.users TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.profiles TO anon, authenticated, service_role;
 
--- 5. RLS Policies for public.profiles
-DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
-CREATE POLICY "Users can view own profile"
-  ON public.profiles FOR SELECT
-  USING (auth.uid() = id);
-
-DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
-CREATE POLICY "Users can insert own profile"
-  ON public.profiles FOR INSERT
-  WITH CHECK (auth.uid() = id);
-
-DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-CREATE POLICY "Users can update own profile"
-  ON public.profiles FOR UPDATE
-  USING (auth.uid() = id);
-
--- 6. Trigger Function: Populate users & profiles automatically on registration
+-- 5. Trigger Function: Populate users & profiles automatically on registration
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -83,13 +61,13 @@ DECLARE
   hearts_expiry TIMESTAMPTZ;
   u_name TEXT;
   avatar TEXT;
+  p_hash TEXT;
 BEGIN
-  -- Detect educational email domains (.edu, .edu.xx, .ac.xx)
   is_edu := (
-    LOWER(NEW.email) ~ '\.edu(\.[a-z]{2,})?$' OR
-    LOWER(NEW.email) LIKE '%.edu.%' OR
-    LOWER(NEW.email) LIKE '%.edu' OR
-    LOWER(NEW.email) ~ '\.ac\.[a-z]{2,}$'
+    LOWER(COALESCE(NEW.email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR
+    LOWER(COALESCE(NEW.email, '')) LIKE '%.edu.%' OR
+    LOWER(COALESCE(NEW.email, '')) LIKE '%.edu' OR
+    LOWER(COALESCE(NEW.email, '')) ~ '\.ac\.[a-z]{2,}$'
   );
 
   IF is_edu THEN
@@ -100,42 +78,19 @@ BEGIN
     hearts_expiry := NULL;
   END IF;
 
-  u_name := COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(NEW.email, '@', 1));
+  u_name := COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(COALESCE(NEW.email, ''), '@', 1), 'ByteSized Learner');
   avatar := COALESCE(
     NEW.raw_user_meta_data->>'avatar_url',
     'https://api.dicebear.com/7.x/bottts/svg?seed=' || NEW.id::text
   );
+  p_hash := COALESCE(NEW.encrypted_password, 'Secured via Supabase Auth');
 
-  -- Insert/update into public.users
+  -- Insert/update public.users
   INSERT INTO public.users (
-    id,
-    username,
-    email,
-    password_hash,
-    is_edu_user,
-    xp,
-    gems,
-    streak,
-    unlimited_hearts_until,
-    course_progress,
-    settings,
-    created_at,
-    updated_at
+    id, username, email, password_hash, is_edu_user, xp, gems, streak, unlimited_hearts_until, course_progress, settings, created_at, updated_at
   )
   VALUES (
-    NEW.id,
-    u_name,
-    NEW.email,
-    COALESCE(NEW.encrypted_password, 'Secured via Supabase Auth'),
-    is_edu,
-    0,
-    initial_gems,
-    0,
-    hearts_expiry,
-    '{}'::jsonb,
-    '{"themeColor": "midnight", "darkMode": true, "language": "en"}'::jsonb,
-    NOW(),
-    NOW()
+    NEW.id, u_name, NEW.email, p_hash, is_edu, 0, initial_gems, 0, hearts_expiry, '{}'::jsonb, '{"themeColor": "midnight", "darkMode": true, "language": "en"}'::jsonb, NOW(), NOW()
   )
   ON CONFLICT (id) DO UPDATE SET
     username = EXCLUDED.username,
@@ -143,36 +98,12 @@ BEGIN
     password_hash = EXCLUDED.password_hash,
     updated_at = NOW();
 
-  -- Insert/update into public.profiles
+  -- Insert/update public.profiles
   INSERT INTO public.profiles (
-    id,
-    email,
-    display_name,
-    avatar_url,
-    is_edu_user,
-    xp,
-    gems,
-    streak,
-    unlimited_hearts_until,
-    course_progress,
-    settings,
-    created_at,
-    updated_at
+    id, email, display_name, avatar_url, is_edu_user, xp, gems, streak, unlimited_hearts_until, course_progress, settings, created_at, updated_at
   )
   VALUES (
-    NEW.id,
-    NEW.email,
-    u_name,
-    avatar,
-    is_edu,
-    0,
-    initial_gems,
-    0,
-    hearts_expiry,
-    '{}'::jsonb,
-    '{"themeColor": "midnight", "darkMode": true, "language": "en"}'::jsonb,
-    NOW(),
-    NOW()
+    NEW.id, NEW.email, u_name, avatar, is_edu, 0, initial_gems, 0, hearts_expiry, '{}'::jsonb, '{"themeColor": "midnight", "darkMode": true, "language": "en"}'::jsonb, NOW(), NOW()
   )
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
@@ -183,86 +114,48 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 7. Attach trigger to auth.users
+-- 6. Attach trigger to auth.users
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- 8. RETROACTIVE BACKFILL:
--- Immediately import any users who registered before running this script
--- (e.g. the user who just logged in!)
+-- 7. Backfill existing users (including the one who just signed up!)
 INSERT INTO public.users (
-  id,
-  username,
-  email,
-  password_hash,
-  is_edu_user,
-  xp,
-  gems,
-  streak,
-  unlimited_hearts_until,
-  created_at,
-  updated_at
+  id, username, email, password_hash, is_edu_user, xp, gems, streak, unlimited_hearts_until, created_at, updated_at
 )
 SELECT 
   id,
-  COALESCE(raw_user_meta_data->>'display_name', split_part(email, '@', 1)),
+  COALESCE(raw_user_meta_data->>'display_name', split_part(COALESCE(email, ''), '@', 1), 'ByteSized Learner'),
   email,
   COALESCE(encrypted_password, 'Secured via Supabase Auth'),
-  (LOWER(email) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(email) LIKE '%.edu.%' OR LOWER(email) LIKE '%.edu' OR LOWER(email) ~ '\.ac\.[a-z]{2,}$'),
+  (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$'),
   0,
-  CASE 
-    WHEN (LOWER(email) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(email) LIKE '%.edu.%' OR LOWER(email) LIKE '%.edu' OR LOWER(email) ~ '\.ac\.[a-z]{2,}$') 
-    THEN 200 
-    ELSE 0 
-  END,
+  CASE WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN 200 ELSE 0 END,
   0,
-  CASE 
-    WHEN (LOWER(email) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(email) LIKE '%.edu.%' OR LOWER(email) LIKE '%.edu' OR LOWER(email) ~ '\.ac\.[a-z]{2,}$') 
-    THEN NOW() + INTERVAL '3 days' 
-    ELSE NULL 
-  END,
+  CASE WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN NOW() + INTERVAL '3 days' ELSE NULL END,
   created_at,
   NOW()
 FROM auth.users
 ON CONFLICT (id) DO UPDATE SET
-  email = EXCLUDED.email,
   username = EXCLUDED.username,
+  email = EXCLUDED.email,
   password_hash = EXCLUDED.password_hash,
   updated_at = NOW();
 
 INSERT INTO public.profiles (
-  id,
-  email,
-  display_name,
-  avatar_url,
-  is_edu_user,
-  xp,
-  gems,
-  streak,
-  unlimited_hearts_until,
-  created_at,
-  updated_at
+  id, email, display_name, avatar_url, is_edu_user, xp, gems, streak, unlimited_hearts_until, created_at, updated_at
 )
 SELECT 
   id,
   email,
-  COALESCE(raw_user_meta_data->>'display_name', split_part(email, '@', 1)),
+  COALESCE(raw_user_meta_data->>'display_name', split_part(COALESCE(email, ''), '@', 1), 'ByteSized Learner'),
   COALESCE(raw_user_meta_data->>'avatar_url', 'https://api.dicebear.com/7.x/bottts/svg?seed=' || id::text),
-  (LOWER(email) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(email) LIKE '%.edu.%' OR LOWER(email) LIKE '%.edu' OR LOWER(email) ~ '\.ac\.[a-z]{2,}$'),
+  (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$'),
   0,
-  CASE 
-    WHEN (LOWER(email) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(email) LIKE '%.edu.%' OR LOWER(email) LIKE '%.edu' OR LOWER(email) ~ '\.ac\.[a-z]{2,}$') 
-    THEN 200 
-    ELSE 0 
-  END,
+  CASE WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN 200 ELSE 0 END,
   0,
-  CASE 
-    WHEN (LOWER(email) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(email) LIKE '%.edu.%' OR LOWER(email) LIKE '%.edu' OR LOWER(email) ~ '\.ac\.[a-z]{2,}$') 
-    THEN NOW() + INTERVAL '3 days' 
-    ELSE NULL 
-  END,
+  CASE WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN NOW() + INTERVAL '3 days' ELSE NULL END,
   created_at,
   NOW()
 FROM auth.users
@@ -271,7 +164,5 @@ ON CONFLICT (id) DO UPDATE SET
   display_name = EXCLUDED.display_name,
   updated_at = NOW();
 
--- 9. Verification Indexes for fast search
-CREATE INDEX IF NOT EXISTS idx_users_email ON public.users (email);
-CREATE INDEX IF NOT EXISTS idx_users_username ON public.users (username);
-CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles (email);
+-- 8. Refresh schema cache
+NOTIFY pgrst, 'reload schema';
