@@ -1,5 +1,7 @@
 import { supabase, isEduEmail } from '../lib/supabase';
-import { AuthUser, UserProfile, CourseId, CourseProgress, ThemeColor, Language } from '../types';
+import { AuthUser, UserProfile, CourseId, CourseProgress, ThemeColor, Language, UserRole } from '../types';
+
+export const ADMIN_SECRET_CODE = '@dm1n.D1u';
 
 export interface AuthResponse {
   user: AuthUser | null;
@@ -9,6 +11,7 @@ export interface AuthResponse {
 
 /**
  * Register a new user with Supabase Auth.
+ * If the user chooses role='admin' with the secret password, they get unlimited hearts forever and unlimited diamonds.
  * If the user signs up with a .edu email address, they automatically receive:
  * - 200 Free Diamonds (Gems)
  * - 3 Days of Unlimited Hearts
@@ -16,7 +19,8 @@ export interface AuthResponse {
 export const registerUser = async (
   email: string,
   password: string,
-  displayName?: string
+  displayName?: string,
+  role: UserRole = 'user'
 ): Promise<AuthResponse> => {
   try {
     const isEdu = isEduEmail(email);
@@ -28,6 +32,7 @@ export const registerUser = async (
         data: {
           display_name: displayName || email.split('@')[0],
           is_edu_user: isEdu,
+          role,
         },
       },
     });
@@ -43,10 +48,13 @@ export const registerUser = async (
     const userId = authData.user.id;
     const name = displayName || email.split('@')[0];
 
-    // Compute perks: 200 Gems and 3 days of unlimited hearts for .edu emails
-    const initialGems = isEdu ? 200 : 0;
+    // Compute perks: Admin gets unlimited diamonds (999,999) and unlimited hearts forever
+    const isAdmin = role === 'admin';
+    const initialGems = isAdmin ? 999999 : (isEdu ? 200 : 0);
     const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
-    const unlimitedHeartsUntil = isEdu ? Date.now() + threeDaysMs : null;
+    const unlimitedHeartsUntil = isAdmin
+      ? new Date('2099-12-31T23:59:59Z').getTime()
+      : (isEdu ? Date.now() + threeDaysMs : null);
 
     // Create initial records in users and profiles tables
     const userTablePayload = {
@@ -55,6 +63,7 @@ export const registerUser = async (
       email,
       password_hash: 'Secured via Supabase Auth (bcrypt encrypted in auth.users)',
       is_edu_user: isEdu,
+      role,
       xp: 0,
       gems: initialGems,
       streak: 0,
@@ -74,6 +83,7 @@ export const registerUser = async (
       display_name: name,
       avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userId)}`,
       is_edu_user: isEdu,
+      role,
       xp: 0,
       gems: initialGems,
       streak: 0,
@@ -105,12 +115,13 @@ export const registerUser = async (
       displayName: name,
       avatarUrl: profilePayload.avatar_url,
       isEduUser: isEdu,
+      role,
     };
 
     return {
       user: authUser,
       error: null,
-      isEduBonusGranted: isEdu,
+      isEduBonusGranted: isEdu || isAdmin,
     };
   } catch (err) {
     return { user: null, error: (err as Error).message || 'An unexpected error occurred.' };
@@ -120,7 +131,11 @@ export const registerUser = async (
 /**
  * Log in an existing user with Supabase Auth
  */
-export const loginUser = async (email: string, password: string): Promise<AuthResponse> => {
+export const loginUser = async (
+  email: string,
+  password: string,
+  requestedRole?: UserRole
+): Promise<AuthResponse> => {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -138,12 +153,42 @@ export const loginUser = async (email: string, password: string): Promise<AuthRe
     const user = data.user;
     const isEdu = isEduEmail(user.email || '');
 
+    // Fetch existing profile to determine role
+    let resolvedRole: UserRole = (user.user_metadata?.role as UserRole) || requestedRole || 'user';
+    try {
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (dbUser?.role) {
+        resolvedRole = dbUser.role as UserRole;
+      }
+    } catch {
+      // fallback
+    }
+
+    if (requestedRole === 'admin') {
+      resolvedRole = 'admin';
+      try {
+        await saveUserProfile(user.id, {
+          role: 'admin',
+          gems: 999999,
+          unlimitedHeartsUntil: new Date('2099-12-31T23:59:59Z').getTime(),
+        });
+      } catch {
+        // ignore
+      }
+    }
+
     const authUser: AuthUser = {
       id: user.id,
       email: user.email || email,
       displayName: user.user_metadata?.display_name || email.split('@')[0],
       avatarUrl: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.id)}`,
       isEduUser: isEdu,
+      role: resolvedRole,
     };
 
     return { user: authUser, error: null };
@@ -191,13 +236,20 @@ export const fetchUserProfile = async (userId: string): Promise<UserProfile | nu
       return null;
     }
 
+    const role: UserRole = (record.role as UserRole) || 'user';
+    const isAdmin = role === 'admin';
+
     let unlimitedHeartsMs: number | null = null;
-    if (record.unlimited_hearts_until) {
+    if (isAdmin) {
+      unlimitedHeartsMs = Number.MAX_SAFE_INTEGER;
+    } else if (record.unlimited_hearts_until) {
       const parsedMs = new Date(record.unlimited_hearts_until).getTime();
       if (!isNaN(parsedMs) && parsedMs > Date.now()) {
         unlimitedHeartsMs = parsedMs;
       }
     }
+
+    const gemsCount = isAdmin ? 999999 : (record.gems || 0);
 
     return {
       id: record.id,
@@ -205,8 +257,9 @@ export const fetchUserProfile = async (userId: string): Promise<UserProfile | nu
       displayName: record.username || record.display_name || (record.email ? record.email.split('@')[0] : 'ByteSized Learner'),
       avatarUrl: record.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userId)}`,
       isEduUser: !!record.is_edu_user,
+      role,
       xp: record.xp || 0,
-      gems: record.gems || 0,
+      gems: gemsCount,
       streak: record.streak || 0,
       unlimitedHeartsUntil: unlimitedHeartsMs,
       courseProgress: record.course_progress || {},
@@ -227,6 +280,7 @@ export const saveUserProfile = async (
   profileData: Partial<{
     email: string;
     displayName: string;
+    role: UserRole;
     xp: number;
     gems: number;
     streak: number;
@@ -248,6 +302,7 @@ export const saveUserProfile = async (
     };
 
     if (profileData.email) basePayload.email = profileData.email;
+    if (profileData.role !== undefined) basePayload.role = profileData.role;
     if (profileData.xp !== undefined) basePayload.xp = profileData.xp;
     if (profileData.gems !== undefined) basePayload.gems = profileData.gems;
     if (profileData.streak !== undefined) basePayload.streak = profileData.streak;
@@ -255,7 +310,10 @@ export const saveUserProfile = async (
     if (profileData.courseProgress !== undefined) basePayload.course_progress = profileData.courseProgress;
     if (profileData.settings !== undefined) basePayload.settings = profileData.settings;
 
-    if (profileData.unlimitedHeartsUntil !== undefined) {
+    if (profileData.role === 'admin') {
+      basePayload.gems = 999999;
+      basePayload.unlimited_hearts_until = new Date('2099-12-31T23:59:59Z').toISOString();
+    } else if (profileData.unlimitedHeartsUntil !== undefined) {
       basePayload.unlimited_hearts_until = profileData.unlimitedHeartsUntil
         ? new Date(profileData.unlimitedHeartsUntil).toISOString()
         : null;
@@ -295,12 +353,27 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
     if (!session || !session.user) return null;
 
     const user = session.user;
+    let userRole: UserRole = (user.user_metadata?.role as UserRole) || 'user';
+    try {
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (dbUser?.role) {
+        userRole = dbUser.role as UserRole;
+      }
+    } catch {
+      // ignore
+    }
+
     return {
       id: user.id,
       email: user.email || '',
-      displayName: user.user_metadata?.display_name || user.email?.split('@')[0] || 'Coder',
+      displayName: user.user_metadata?.display_name || user.email?.split('@')[0] || 'ByteSized Learner',
       avatarUrl: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.id)}`,
       isEduUser: isEduEmail(user.email || ''),
+      role: userRole,
     };
   } catch {
     return null;

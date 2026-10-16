@@ -20,7 +20,8 @@ import {
   Code2,
   GraduationCap,
   User,
-  Cloud
+  Cloud,
+  Crown
 } from 'lucide-react';
 
 interface Props {
@@ -44,6 +45,7 @@ export const RightSidebar: React.FC<Props> = ({
 }) => {
   const { state, toggleDarkMode } = useGame();
   const t = useTranslation(state.language);
+  const isAdmin = state.role === 'admin' || state.authUser?.role === 'admin';
 
   const mockLeaderboard = [
     { rank: 1, name: 'Linus T.', xp: 620, avatar: '🐧', isUser: false },
@@ -75,15 +77,34 @@ export const RightSidebar: React.FC<Props> = ({
         <div className="relative overflow-hidden p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-amber-500/10 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-slate-900/40 border-2 border-indigo-500/20 dark:border-indigo-500/30 shadow-sm text-left flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black shadow-md shadow-indigo-500/20">
-                {state.authUser ? <User className="w-5 h-5" /> : <GraduationCap className="w-5 h-5" />}
+              <div className={`w-9 h-9 rounded-2xl flex items-center justify-center font-black shadow-md ${
+                isAdmin
+                  ? 'bg-gradient-to-br from-amber-400 to-yellow-500 text-slate-950 shadow-amber-500/30 ring-2 ring-amber-400/50'
+                  : 'bg-indigo-600 text-white shadow-indigo-500/20'
+              }`}>
+                {isAdmin ? <Crown className="w-5 h-5 fill-current" /> : state.authUser ? <User className="w-5 h-5" /> : <GraduationCap className="w-5 h-5" />}
               </div>
               <div className="min-w-0">
-                <h4 className="text-sm font-black text-slate-800 dark:text-slate-100 leading-tight truncate">
-                  {state.authUser ? (state.authUser.displayName || state.authUser.email?.split('@')[0]) : 'Student & Cloud Pass'}
-                </h4>
-                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                  {state.authUser ? (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h4 className="text-sm font-black text-slate-800 dark:text-slate-100 leading-tight truncate">
+                    {state.authUser ? (state.authUser.displayName || state.authUser.email?.split('@')[0]) : 'Student & Cloud Pass'}
+                  </h4>
+                  {isAdmin ? (
+                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 border border-amber-300">
+                      👑 Admin
+                    </span>
+                  ) : state.authUser ? (
+                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40">
+                      User
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
+                  {isAdmin ? (
+                    <span className="text-amber-500 dark:text-amber-400 font-bold flex items-center gap-1">
+                      👑 Unlimited 💖 &amp; 💎
+                    </span>
+                  ) : state.authUser ? (
                     <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
                       <Cloud className="w-3 h-3" /> Cloud Synced
                     </span>
@@ -93,11 +114,15 @@ export const RightSidebar: React.FC<Props> = ({
                 </div>
               </div>
             </div>
-            {state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil && (
+            {isAdmin ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400/20 text-amber-300 border border-amber-400/40 animate-pulse">
+                👑 ♾️ Unlimited
+              </span>
+            ) : state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil ? (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 animate-pulse">
                 ♾️ Unlimited
               </span>
-            )}
+            ) : null}
           </div>
 
           {!state.authUser ? (
@@ -402,7 +427,20 @@ export const RightSidebar: React.FC<Props> = ({
                   <span className="flex items-center justify-center">
                     {user.isUser ? <CatFace size="xs" mood="happy" /> : <span className="text-lg">{user.avatar}</span>}
                   </span>
-                  <span className="text-xs md:text-sm">{user.name}</span>
+                  <span className="text-xs md:text-sm flex items-center gap-1.5">
+                    <span>{user.name}</span>
+                    {user.isUser && (
+                      isAdmin ? (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 border border-amber-300">
+                          👑 Admin
+                        </span>
+                      ) : (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase bg-purple-500/20 text-purple-400 border border-purple-500/40">
+                          User
+                        </span>
+                      )
+                    )}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1 font-mono text-xs font-extrabold text-amber-500">
                   <Zap className="w-3 h-3 fill-current" />

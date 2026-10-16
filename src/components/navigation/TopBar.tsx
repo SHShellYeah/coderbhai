@@ -22,7 +22,8 @@ import {
   Lightbulb,
   GraduationCap,
   User,
-  Cloud
+  Cloud,
+  Crown
 } from 'lucide-react';
 
 interface Props {
@@ -44,6 +45,7 @@ export const TopBar: React.FC<Props> = ({
 }) => {
   const { state, setActiveCourse, toggleSound, toggleDarkMode, toggleLanguage, refillHearts } = useGame();
   const t = useTranslation(state.language);
+  const isAdmin = state.role === 'admin' || state.authUser?.role === 'admin';
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
   const [heartDropdownOpen, setHeartDropdownOpen] = useState(false);
 
@@ -234,25 +236,29 @@ export const TopBar: React.FC<Props> = ({
                 setHeartDropdownOpen(!heartDropdownOpen);
               }}
               className={`flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl ${
-                state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil
+                isAdmin
+                  ? 'bg-amber-400/20 text-amber-300 border border-amber-400/50 shadow-sm'
+                  : state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil
                   ? 'bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30'
                   : 'bg-rose-500/10 dark:bg-rose-500/20 text-brand-rose'
               } font-black text-xs sm:text-sm cursor-pointer hover:brightness-95 transition-all`}
               title={
-                state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil
+                isAdmin
+                  ? '👑 Admin Privileges: Unlimited Hearts Forever'
+                  : state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil
                   ? 'Unlimited Hearts Active (.EDU Student Perk)'
                   : `${t.heartsRemaining} (${t.refill})`
               }
             >
               <Heart
                 className={`w-3.5 sm:w-4.5 h-3.5 sm:h-4.5 ${
-                  state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil
-                    ? 'fill-amber-500 stroke-amber-500 animate-pulse'
+                  isAdmin || (state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil)
+                    ? 'fill-amber-400 stroke-amber-400 animate-pulse'
                     : 'fill-brand-rose stroke-brand-rose'
-                } ${state.hearts <= 1 && !(state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil) ? 'animate-bounce' : ''}`}
+                } ${state.hearts <= 1 && !isAdmin && !(state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil) ? 'animate-bounce' : ''}`}
               />
               <span>
-                {state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil ? '♾️' : state.hearts}
+                {isAdmin || (state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil) ? '♾️' : state.hearts}
               </span>
             </button>
 
@@ -287,7 +293,12 @@ export const TopBar: React.FC<Props> = ({
                   )}
                 </div>
                 <h4 className="text-base font-black text-slate-800 dark:text-slate-100 flex items-center justify-center gap-1.5">
-                  {state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil ? (
+                  {isAdmin ? (
+                    <span className="text-amber-400 font-extrabold flex items-center gap-1">
+                      <Crown className="w-4 h-4 fill-current" />
+                      Admin Unlimited Hearts Forever!
+                    </span>
+                  ) : state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil ? (
                     <span className="text-amber-500 font-extrabold flex items-center gap-1">
                       <Sparkles className="w-4 h-4 fill-current" />
                       Unlimited Hearts Active!
@@ -297,7 +308,9 @@ export const TopBar: React.FC<Props> = ({
                   )}
                 </h4>
                 <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 mb-3">
-                  {state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil
+                  {isAdmin
+                    ? 'As an Admin, your hearts never deplete.'
+                    : state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil
                     ? 'Your .edu student perk gives you infinite hearts for 3 days!'
                     : t.heartsDesc}
                 </p>
@@ -337,11 +350,15 @@ export const TopBar: React.FC<Props> = ({
 
           {/* Gems (💎) - Desktop only */}
           <div
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl bg-sky-500/10 dark:bg-sky-500/20 text-brand-accent font-black text-xs sm:text-sm"
-            title={`${state.gems} ${t.gems}`}
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl ${
+              isAdmin
+                ? 'bg-gradient-to-r from-amber-400/20 via-yellow-400/20 to-amber-500/20 text-amber-300 border border-amber-400/40 shadow-sm'
+                : 'bg-sky-500/10 dark:bg-sky-500/20 text-brand-accent'
+            } font-black text-xs sm:text-sm`}
+            title={isAdmin ? '👑 Admin Unlimited Diamonds' : `${state.gems} ${t.gems}`}
           >
             <span>💎</span>
-            <span>{state.gems}</span>
+            <span>{isAdmin ? '♾️ Unlimited' : state.gems}</span>
           </div>
 
           {/* XP (⚡) - Desktop only */}
@@ -446,6 +463,15 @@ export const TopBar: React.FC<Props> = ({
                   <span className="hidden md:inline font-bold text-xs truncate max-w-[80px]">
                     {state.authUser.displayName || state.authUser.email.split('@')[0]}
                   </span>
+                  {isAdmin ? (
+                    <span className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-sm border border-amber-300">
+                      👑 Admin
+                    </span>
+                  ) : (
+                    <span className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40">
+                      User
+                    </span>
+                  )}
                 </>
               ) : (
                 <>

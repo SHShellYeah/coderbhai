@@ -1,5 +1,5 @@
 -- ==============================================================================
--- BYTESIZED SUPABASE SCHEMA: Instant Setup for Table Editor
+-- BYTESIZED SUPABASE SCHEMA: Tables, Roles, and Admin/Student Perks
 -- Direct SQL Editor URL:
 -- https://supabase.com/dashboard/project/hbqipluxclqycegirqqs/sql/new
 -- ==============================================================================
@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   username TEXT,
   email TEXT,
   password_hash TEXT,
+  role TEXT DEFAULT 'user', -- 'user' (purple) or 'admin' (golden)
   is_edu_user BOOLEAN DEFAULT FALSE,
   xp INTEGER DEFAULT 0,
   gems INTEGER DEFAULT 0,
@@ -21,12 +22,16 @@ CREATE TABLE IF NOT EXISTS public.users (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure role column exists if table was already created earlier
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
+
 -- 2. Create table public.profiles
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT,
   display_name TEXT,
   avatar_url TEXT,
+  role TEXT DEFAULT 'user',
   is_edu_user BOOLEAN DEFAULT FALSE,
   xp INTEGER DEFAULT 0,
   gems INTEGER DEFAULT 0,
@@ -37,6 +42,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure role column exists in profiles
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
 
 -- 3. Enable RLS and add open policies
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
@@ -57,6 +65,7 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
   is_edu BOOLEAN;
+  u_role TEXT;
   initial_gems INTEGER;
   hearts_expiry TIMESTAMPTZ;
   u_name TEXT;
@@ -70,7 +79,16 @@ BEGIN
     LOWER(COALESCE(NEW.email, '')) ~ '\.ac\.[a-z]{2,}$'
   );
 
-  IF is_edu THEN
+  u_role := COALESCE(NEW.raw_user_meta_data->>'role', 'user');
+
+  -- Role Privileges:
+  -- Admin gets Unlimited Diamonds (999,999) & Unlimited Hearts forever
+  -- .EDU User gets 200 Free Diamonds & 3 Days of Unlimited Hearts
+  -- Standard User gets normal starter amounts
+  IF u_role = 'admin' THEN
+    initial_gems := 999999;
+    hearts_expiry := '2099-12-31 23:59:59+00'::timestamptz;
+  ELSIF is_edu THEN
     initial_gems := 200;
     hearts_expiry := NOW() + INTERVAL '3 days';
   ELSE
@@ -87,27 +105,33 @@ BEGIN
 
   -- Insert/update public.users
   INSERT INTO public.users (
-    id, username, email, password_hash, is_edu_user, xp, gems, streak, unlimited_hearts_until, course_progress, settings, created_at, updated_at
+    id, username, email, password_hash, role, is_edu_user, xp, gems, streak, unlimited_hearts_until, course_progress, settings, created_at, updated_at
   )
   VALUES (
-    NEW.id, u_name, NEW.email, p_hash, is_edu, 0, initial_gems, 0, hearts_expiry, '{}'::jsonb, '{"themeColor": "midnight", "darkMode": true, "language": "en"}'::jsonb, NOW(), NOW()
+    NEW.id, u_name, NEW.email, p_hash, u_role, is_edu, 0, initial_gems, 0, hearts_expiry, '{}'::jsonb, '{"themeColor": "midnight", "darkMode": true, "language": "en"}'::jsonb, NOW(), NOW()
   )
   ON CONFLICT (id) DO UPDATE SET
     username = EXCLUDED.username,
     email = EXCLUDED.email,
     password_hash = EXCLUDED.password_hash,
+    role = EXCLUDED.role,
+    gems = EXCLUDED.gems,
+    unlimited_hearts_until = EXCLUDED.unlimited_hearts_until,
     updated_at = NOW();
 
   -- Insert/update public.profiles
   INSERT INTO public.profiles (
-    id, email, display_name, avatar_url, is_edu_user, xp, gems, streak, unlimited_hearts_until, course_progress, settings, created_at, updated_at
+    id, email, display_name, avatar_url, role, is_edu_user, xp, gems, streak, unlimited_hearts_until, course_progress, settings, created_at, updated_at
   )
   VALUES (
-    NEW.id, NEW.email, u_name, avatar, is_edu, 0, initial_gems, 0, hearts_expiry, '{}'::jsonb, '{"themeColor": "midnight", "darkMode": true, "language": "en"}'::jsonb, NOW(), NOW()
+    NEW.id, NEW.email, u_name, avatar, u_role, is_edu, 0, initial_gems, 0, hearts_expiry, '{}'::jsonb, '{"themeColor": "midnight", "darkMode": true, "language": "en"}'::jsonb, NOW(), NOW()
   )
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
     display_name = EXCLUDED.display_name,
+    role = EXCLUDED.role,
+    gems = EXCLUDED.gems,
+    unlimited_hearts_until = EXCLUDED.unlimited_hearts_until,
     updated_at = NOW();
 
   RETURN NEW;
@@ -120,20 +144,29 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- 7. Backfill existing users (including the one who just signed up!)
+-- 7. Backfill existing users
 INSERT INTO public.users (
-  id, username, email, password_hash, is_edu_user, xp, gems, streak, unlimited_hearts_until, created_at, updated_at
+  id, username, email, password_hash, role, is_edu_user, xp, gems, streak, unlimited_hearts_until, created_at, updated_at
 )
 SELECT 
   id,
   COALESCE(raw_user_meta_data->>'display_name', split_part(COALESCE(email, ''), '@', 1), 'ByteSized Learner'),
   email,
   COALESCE(encrypted_password, 'Secured via Supabase Auth'),
+  COALESCE(raw_user_meta_data->>'role', 'user'),
   (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$'),
   0,
-  CASE WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN 200 ELSE 0 END,
+  CASE 
+    WHEN (raw_user_meta_data->>'role' = 'admin') THEN 999999
+    WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN 200 
+    ELSE 0 
+  END,
   0,
-  CASE WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN NOW() + INTERVAL '3 days' ELSE NULL END,
+  CASE 
+    WHEN (raw_user_meta_data->>'role' = 'admin') THEN '2099-12-31 23:59:59+00'::timestamptz
+    WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN NOW() + INTERVAL '3 days' 
+    ELSE NULL 
+  END,
   created_at,
   NOW()
 FROM auth.users
@@ -141,27 +174,38 @@ ON CONFLICT (id) DO UPDATE SET
   username = EXCLUDED.username,
   email = EXCLUDED.email,
   password_hash = EXCLUDED.password_hash,
+  role = EXCLUDED.role,
   updated_at = NOW();
 
 INSERT INTO public.profiles (
-  id, email, display_name, avatar_url, is_edu_user, xp, gems, streak, unlimited_hearts_until, created_at, updated_at
+  id, email, display_name, avatar_url, role, is_edu_user, xp, gems, streak, unlimited_hearts_until, created_at, updated_at
 )
 SELECT 
   id,
   email,
   COALESCE(raw_user_meta_data->>'display_name', split_part(COALESCE(email, ''), '@', 1), 'ByteSized Learner'),
   COALESCE(raw_user_meta_data->>'avatar_url', 'https://api.dicebear.com/7.x/bottts/svg?seed=' || id::text),
+  COALESCE(raw_user_meta_data->>'role', 'user'),
   (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$'),
   0,
-  CASE WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN 200 ELSE 0 END,
+  CASE 
+    WHEN (raw_user_meta_data->>'role' = 'admin') THEN 999999
+    WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN 200 
+    ELSE 0 
+  END,
   0,
-  CASE WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN NOW() + INTERVAL '3 days' ELSE NULL END,
+  CASE 
+    WHEN (raw_user_meta_data->>'role' = 'admin') THEN '2099-12-31 23:59:59+00'::timestamptz
+    WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN NOW() + INTERVAL '3 days' 
+    ELSE NULL 
+  END,
   created_at,
   NOW()
 FROM auth.users
 ON CONFLICT (id) DO UPDATE SET
   email = EXCLUDED.email,
   display_name = EXCLUDED.display_name,
+  role = EXCLUDED.role,
   updated_at = NOW();
 
 -- 8. Refresh schema cache

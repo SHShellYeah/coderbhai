@@ -157,12 +157,15 @@ export type SoundPack = 'duolingo' | 'retro-8bit' | 'arcade-synth';
 export type ThemeColor = 'midnight' | 'cyberpunk' | 'sunset' | 'emerald-synth' | 'emerald' | 'obsidian';
 export type Language = 'en' | 'bn';
 
+export type UserRole = 'user' | 'admin';
+
 export interface AuthUser {
   id: string;
   email: string;
   displayName?: string;
   avatarUrl?: string;
   isEduUser?: boolean;
+  role?: UserRole;
 }
 
 export interface UserProfile {
@@ -171,6 +174,7 @@ export interface UserProfile {
   displayName?: string;
   avatarUrl?: string;
   isEduUser: boolean;
+  role: UserRole;
   xp: number;
   gems: number;
   streak: number;
@@ -197,6 +201,7 @@ export interface UserState {
   maxHearts: number;
   unlimitedHeartsUntil?: number | null; // Timestamp ms for .edu unlimited hearts perk
   authUser?: AuthUser | null;
+  role?: UserRole;
   mistakes: Question[];
   soundEnabled: boolean;
   soundPack: SoundPack;
