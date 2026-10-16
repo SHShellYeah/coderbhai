@@ -254,3 +254,75 @@
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
   animation: sweepShine 2.5s infinite;
 }
+
+/* ==========================================================================
+   CodeZone High-Fidelity IDE & Syntax Highlighting
+   ========================================================================== */
+.codezone-pre,
+.codezone-textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+  font-size: 13px !important;
+  line-height: 24px !important;
+  letter-spacing: 0px !important;
+  tab-size: 4 !important;
+  -moz-tab-size: 4 !important;
+}
+
+.codezone-pre .token.comment,
+.codezone-pre .token.prolog,
+.codezone-pre .token.doctype,
+.codezone-pre .token.cdata {
+  color: #64748b !important;
+  font-style: italic !important;
+}
+
+.codezone-pre .token.punctuation {
+  color: #94a3b8 !important;
+}
+
+.codezone-pre .token.property,
+.codezone-pre .token.tag,
+.codezone-pre .token.boolean,
+.codezone-pre .token.number,
+.codezone-pre .token.constant,
+.codezone-pre .token.symbol {
+  color: #fb923c !important;
+}
+
+.codezone-pre .token.selector,
+.codezone-pre .token.attr-name,
+.codezone-pre .token.string,
+.codezone-pre .token.char,
+.codezone-pre .token.builtin,
+.codezone-pre .token.inserted {
+  color: #34d399 !important;
+}
+
+.codezone-pre .token.operator,
+.codezone-pre .token.entity,
+.codezone-pre .token.url {
+  color: #f43f5e !important;
+}
+
+.codezone-pre .token.atrule,
+.codezone-pre .token.attr-value,
+.codezone-pre .token.keyword {
+  color: #c084fc !important;
+  font-weight: 700 !important;
+}
+
+.codezone-pre .token.function,
+.codezone-pre .token.class-name {
+  color: #facc15 !important;
+}
+
+.codezone-pre .token.macro,
+.codezone-pre .token.directive,
+.codezone-pre .token.directive-hash {
+  color: #f472b6 !important;
+  font-weight: 700 !important;
+}
+
+.codezone-pre .token.variable {
+  color: #38bdf8 !important;
+}

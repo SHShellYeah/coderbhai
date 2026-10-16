@@ -270,6 +270,33 @@ const MainApp: React.FC = () => {
 };
 
 export const App: React.FC = () => {
+  const isStandaloneCodeZone =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('mode') === 'codezone';
+
+  if (isStandaloneCodeZone) {
+    const initialCode = localStorage.getItem('coderbhai_standalone_codezone_code') || undefined;
+    const initialLanguage =
+      (localStorage.getItem('coderbhai_standalone_codezone_lang') as CodeLanguage) || 'c';
+
+    return (
+      <ErrorBoundary>
+        <GameProvider>
+          <div className="w-screen h-screen overflow-hidden bg-[#0B0F19]">
+            <CodeZoneModal
+              isStandalone={true}
+              initialCode={initialCode}
+              initialLanguage={initialLanguage}
+              onClose={() => {
+                window.location.href = window.location.origin + window.location.pathname;
+              }}
+            />
+          </div>
+        </GameProvider>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <GameProvider>

@@ -1,4 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-c';
+import 'prismjs/components/prism-cpp';
+import 'prismjs/components/prism-python';
 import { CodeLanguage } from '../../types';
 import { sound } from '../../utils/audio';
 import { fireSuccessConfetti } from '../../utils/confetti';
@@ -21,15 +25,27 @@ import {
   Trash2,
   ChevronDown,
   ArrowRight,
-  Keyboard
+  Keyboard,
+  ExternalLink
 } from 'lucide-react';
 
 interface Props {
   initialCode?: string;
   initialLanguage?: CodeLanguage;
+  isStandalone?: boolean;
   onClose: () => void;
   onSaveToIdeaZone?: (code: string, language: CodeLanguage) => void;
 }
+
+const PAIRS: Record<string, string> = {
+  '(': ')',
+  '{': '}',
+  '[': ']',
+  '"': '"',
+  "'": "'",
+  '`': '`',
+};
+const CLOSING_SET = new Set([')', '}', ']', '"', "'", '`']);
 
 // Helper for safe client-side math and token evaluation without direct eval
 const safeCalc = (expr: string): unknown => {
@@ -177,6 +193,7 @@ console.log("Class Average:", average.toFixed(1));
 export const CodeZoneModal: React.FC<Props> = ({
   initialCode,
   initialLanguage = 'c',
+  isStandalone = false,
   onClose,
   onSaveToIdeaZone,
 }) => {
@@ -195,6 +212,44 @@ export const CodeZoneModal: React.FC<Props> = ({
   const [mascotWisdom, setMascotWisdom] = useState<string | null>(null);
 
   const editorTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const preRef = useRef<HTMLPreElement>(null);
+  const gutterRef = useRef<HTMLDivElement>(null);
+
+  // Synchronize scroll between textarea, pre highlight layer, and line number gutter
+  const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    const { scrollTop, scrollLeft } = e.currentTarget;
+    if (preRef.current) {
+      preRef.current.scrollTop = scrollTop;
+      preRef.current.scrollLeft = scrollLeft;
+    }
+    if (gutterRef.current) {
+      gutterRef.current.scrollTop = scrollTop;
+    }
+  };
+
+  // Syntax highlighting HTML layer via Prism
+  const highlightedHtml = useMemo(() => {
+    let langGrammar = Prism.languages.c;
+    let langId = 'c';
+    if (language === 'cpp') {
+      langGrammar = Prism.languages.cpp || Prism.languages.c;
+      langId = 'cpp';
+    } else if (language === 'python') {
+      langGrammar = Prism.languages.python;
+      langId = 'python';
+    } else if (language === 'javascript') {
+      langGrammar = Prism.languages.javascript;
+      langId = 'javascript';
+    }
+
+    try {
+      const rawHtml = Prism.highlight(code, langGrammar, langId);
+      // Ensure trailing empty lines expand the pre height so it matches textarea
+      return code.endsWith('\n') ? rawHtml + '\n ' : rawHtml;
+    } catch {
+      return code;
+    }
+  }, [code, language]);
 
   // Switch template when language changes
   const handleLanguageChange = (newLang: CodeLanguage) => {
@@ -222,30 +277,184 @@ export const CodeZoneModal: React.FC<Props> = ({
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  // Handle Tab key in textarea
+  // Launch standalone editor in another tab
+  const handleLaunchInNewTab = () => {
+    sound.playClick();
+    try {
+      localStorage.setItem('coderbhai_standalone_codezone_code', code);
+      localStorage.setItem('coderbhai_standalone_codezone_lang', language);
+    } catch {
+      // ignore
+    }
+    const url = `${window.location.origin}${window.location.pathname}?mode=codezone`;
+    window.open(url, '_blank');
+  };
+
+  // Advanced Developer Keydown Handling: Auto-indent, Auto-closing brackets & quotes, Over-typing, Backspace pairs, Tab
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const textarea = editorTextareaRef.current;
+    if (!textarea) return;
+
+    // Ctrl+Enter or Cmd+Enter to Run
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       handleRunCode();
       return;
     }
 
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const val = textarea.value;
+
+    // 1. Tab & Shift+Tab handling
     if (e.key === 'Tab') {
       e.preventDefault();
-      const textarea = editorTextareaRef.current;
-      if (!textarea) return;
+      if (e.shiftKey) {
+        // Outdent lines
+        const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+        const lineEnd = val.indexOf('\n', end);
+        const effectiveEnd = lineEnd === -1 ? val.length : lineEnd;
+        const selectedBlock = val.substring(lineStart, effectiveEnd);
+        const outdented = selectedBlock.replace(/^ {1,4}/gm, '');
+        const newCode = val.substring(0, lineStart) + outdented + val.substring(effectiveEnd);
+        setCode(newCode);
+        const diff = selectedBlock.length - outdented.length;
+        setTimeout(() => {
+          textarea.selectionStart = Math.max(lineStart, start - diff);
+          textarea.selectionEnd = Math.max(lineStart, end - diff);
+        }, 0);
+        return;
+      }
 
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const value = textarea.value;
+      if (start !== end) {
+        // Indent multiple selected lines
+        const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+        const lineEnd = val.indexOf('\n', end);
+        const effectiveEnd = lineEnd === -1 ? val.length : lineEnd;
+        const selectedBlock = val.substring(lineStart, effectiveEnd);
+        const indented = selectedBlock.replace(/^/gm, '    ');
+        const newCode = val.substring(0, lineStart) + indented + val.substring(effectiveEnd);
+        setCode(newCode);
+        const added = indented.length - selectedBlock.length;
+        setTimeout(() => {
+          textarea.selectionStart = start + 4;
+          textarea.selectionEnd = end + added;
+        }, 0);
+        return;
+      }
 
-      // 4 spaces indentation
+      // Single cursor Tab: 4 spaces
       const indentation = '    ';
-      setCode(value.substring(0, start) + indentation + value.substring(end));
-
+      const newCode = val.substring(0, start) + indentation + val.substring(end);
+      setCode(newCode);
       setTimeout(() => {
         textarea.selectionStart = textarea.selectionEnd = start + indentation.length;
       }, 0);
+      return;
+    }
+
+    // 2. Auto-Indentation on Enter
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+      const lineBeforeCursor = val.substring(lineStart, start);
+      const indentMatch = lineBeforeCursor.match(/^[ \t]*/);
+      const currentIndent = indentMatch ? indentMatch[0] : '';
+      const trimmedBefore = lineBeforeCursor.trim();
+      const opensBlock =
+        trimmedBefore.endsWith('{') ||
+        trimmedBefore.endsWith(':') ||
+        trimmedBefore.endsWith('(') ||
+        trimmedBefore.endsWith('[');
+
+      const charAfter = val[start];
+      const isClosingPair =
+        (trimmedBefore.endsWith('{') && charAfter === '}') ||
+        (trimmedBefore.endsWith('(') && charAfter === ')') ||
+        (trimmedBefore.endsWith('[') && charAfter === ']');
+
+      if (isClosingPair) {
+        // Expand pair on enter (e.g. {\n    |\n})
+        const extraIndent = currentIndent + '    ';
+        const insert = '\n' + extraIndent + '\n' + currentIndent;
+        const newCode = val.substring(0, start) + insert + val.substring(end);
+        setCode(newCode);
+        const cursorPos = start + 1 + extraIndent.length;
+        setTimeout(() => {
+          textarea.selectionStart = textarea.selectionEnd = cursorPos;
+        }, 0);
+        return;
+      }
+
+      const nextIndent = opensBlock ? currentIndent + '    ' : currentIndent;
+      const insert = '\n' + nextIndent;
+      const newCode = val.substring(0, start) + insert + val.substring(end);
+      setCode(newCode);
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + insert.length;
+      }, 0);
+      return;
+    }
+
+    // 3. Auto-Closing Brackets & Quotations: ( { [ " ' `
+    if (PAIRS[e.key]) {
+      const openChar = e.key;
+      const closeChar = PAIRS[openChar];
+
+      // If text is selected, wrap selection in quotes or brackets
+      if (start !== end) {
+        e.preventDefault();
+        const selected = val.substring(start, end);
+        const newCode = val.substring(0, start) + openChar + selected + closeChar + val.substring(end);
+        setCode(newCode);
+        setTimeout(() => {
+          textarea.selectionStart = start + 1;
+          textarea.selectionEnd = end + 1;
+        }, 0);
+        return;
+      }
+
+      // Overtyping quote marks if already at closing quote
+      if ((openChar === '"' || openChar === "'" || openChar === '`') && val[start] === openChar) {
+        e.preventDefault();
+        setTimeout(() => {
+          textarea.selectionStart = textarea.selectionEnd = start + 1;
+        }, 0);
+        return;
+      }
+
+      // Insert matching pair and place cursor between them
+      e.preventDefault();
+      const newCode = val.substring(0, start) + openChar + closeChar + val.substring(end);
+      setCode(newCode);
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 1;
+      }, 0);
+      return;
+    }
+
+    // 4. Overtyping closing characters: ) } ]
+    if (CLOSING_SET.has(e.key) && val[start] === e.key && start === end) {
+      e.preventDefault();
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 1;
+      }, 0);
+      return;
+    }
+
+    // 5. Backspace pair deletion: if deleting inside an empty pair () {} [] "" '' ``, delete both
+    if (e.key === 'Backspace' && start === end && start > 0) {
+      const charBefore = val[start - 1];
+      const charAfter = val[start];
+      if (PAIRS[charBefore] && PAIRS[charBefore] === charAfter) {
+        e.preventDefault();
+        const newCode = val.substring(0, start - 1) + val.substring(start + 1);
+        setCode(newCode);
+        setTimeout(() => {
+          textarea.selectionStart = textarea.selectionEnd = start - 1;
+        }, 0);
+        return;
+      }
     }
   };
 
@@ -440,8 +649,18 @@ export const CodeZoneModal: React.FC<Props> = ({
   const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md animate-fade">
-      <div className="w-full max-w-6xl h-[94vh] max-h-[880px] bg-[#0B0F19] border-2 border-slate-700/80 rounded-3xl shadow-2xl flex flex-col overflow-hidden text-slate-100">
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center ${
+        isStandalone ? 'p-0 bg-[#0B0F19]' : 'p-2 sm:p-4 bg-black/80 backdrop-blur-md animate-fade'
+      }`}
+    >
+      <div
+        className={`w-full ${
+          isStandalone
+            ? 'h-full max-w-none max-h-none rounded-none border-0'
+            : 'max-w-6xl h-[94vh] max-h-[880px] rounded-3xl border-2 border-slate-700/80 shadow-2xl'
+        } bg-[#0B0F19] flex flex-col overflow-hidden text-slate-100`}
+      >
         {/* Top Control Bar */}
         <div className="px-4 sm:px-6 py-3 border-b border-slate-800 bg-[#101726] flex items-center justify-between gap-3 shrink-0">
           {/* Left: Brand & Live Indicator */}
@@ -457,6 +676,11 @@ export const CodeZoneModal: React.FC<Props> = ({
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                     Live Runner
                   </span>
+                  {isStandalone && (
+                    <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                      Standalone Mode
+                    </span>
+                  )}
                 </h2>
               </div>
               <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
@@ -466,18 +690,32 @@ export const CodeZoneModal: React.FC<Props> = ({
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {/* Run Button */}
             <button
               type="button"
               disabled={isRunning}
               onClick={handleRunCode}
-              className="btn-3d btn-3d-green px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center gap-2 text-white shadow-lg cursor-pointer"
+              className="btn-3d btn-3d-green px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center gap-2 text-white shadow-lg cursor-pointer"
               title="Execute program (Ctrl + Enter)"
             >
               <Play className={`w-4 h-4 fill-current ${isRunning ? 'animate-spin' : ''}`} />
               <span>{isRunning ? 'Running...' : 'Run Code'}</span>
             </button>
+
+            {/* Launch in another tab option */}
+            {!isStandalone && (
+              <button
+                type="button"
+                onClick={handleLaunchInNewTab}
+                className="btn-3d flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-black bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/30 transition-all cursor-pointer"
+                title="Launch just this live coding environment in a separate dedicated browser tab"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Launch in another tab</span>
+                <span className="md:hidden">New Tab</span>
+              </button>
+            )}
 
             {/* Save to IdeaZone */}
             {onSaveToIdeaZone && (
@@ -487,7 +725,7 @@ export const CodeZoneModal: React.FC<Props> = ({
                   sound.playClick();
                   onSaveToIdeaZone(code, language);
                 }}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 transition-all cursor-pointer"
+                className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 transition-all cursor-pointer"
                 title="Save current snippet into IdeaZone"
               >
                 <Lightbulb className="w-3.5 h-3.5 fill-current" />
@@ -498,7 +736,7 @@ export const CodeZoneModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={handleCopyCode}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
               title="Copy code"
             >
               {copiedCode ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
@@ -507,10 +745,21 @@ export const CodeZoneModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              title="Close CodeZone"
+              className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                isStandalone
+                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 px-3 py-1.5 font-bold text-xs'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+              title={isStandalone ? 'Return to CoderBhai learning app' : 'Close CodeZone'}
             >
-              <X className="w-5 h-5" />
+              {isStandalone ? (
+                <>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Back to CoderBhai</span>
+                </>
+              ) : (
+                <X className="w-5 h-5" />
+              )}
             </button>
           </div>
         </div>
@@ -599,24 +848,42 @@ export const CodeZoneModal: React.FC<Props> = ({
           <div className="flex-1 flex flex-col border-r-0 md:border-r border-b md:border-b-0 border-slate-800 bg-[#070B12] min-h-[50%] md:min-h-0 relative">
             <div className="flex-1 flex overflow-hidden">
               {/* Line Numbers Gutter */}
-              <div className="w-12 py-3.5 pr-2 pl-3 select-none text-right font-mono text-xs text-slate-600 bg-[#060910] border-r border-slate-800/80 overflow-hidden leading-relaxed shrink-0">
+              <div
+                ref={gutterRef}
+                className="w-12 py-3.5 pr-2 pl-3 select-none text-right font-mono text-xs text-slate-600 bg-[#060910] border-r border-slate-800/80 overflow-hidden shrink-0"
+              >
                 {lineNumbers.map(n => (
-                  <div key={n} className="leading-6">
+                  <div key={n} className="leading-6 h-6">
                     {n}
                   </div>
                 ))}
               </div>
 
-              {/* Textarea Code Area */}
-              <textarea
-                ref={editorTextareaRef}
-                value={code}
-                onChange={e => setCode(e.target.value)}
-                onKeyDown={handleKeyDown}
-                spellCheck={false}
-                className="flex-1 p-3.5 bg-transparent font-mono text-xs sm:text-sm text-emerald-300 placeholder-slate-600 focus:outline-none resize-none leading-6 overflow-y-auto selection:bg-brand-primary/40 selection:text-white"
-                placeholder="// Type or paste your code here..."
-              />
+              {/* Editor Workspace with Synchronized Syntax Highlighting Overlay */}
+              <div className="relative flex-1 h-full overflow-hidden">
+                {/* Syntax Highlighted Layer (Pre/Code) */}
+                <pre
+                  ref={preRef}
+                  aria-hidden="true"
+                  className="codezone-pre absolute inset-0 w-full h-full p-3.5 bg-transparent pointer-events-none overflow-hidden m-0 border-0 whitespace-pre text-slate-200 select-none z-0"
+                  dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                />
+
+                {/* Interactive Caret Textarea Layer */}
+                <textarea
+                  ref={editorTextareaRef}
+                  value={code}
+                  onChange={e => setCode(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onScroll={handleScroll}
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  className="codezone-textarea absolute inset-0 w-full h-full p-3.5 bg-transparent text-transparent caret-sky-400 outline-none resize-none overflow-auto m-0 border-0 whitespace-pre z-10 selection:bg-sky-500/30 selection:text-transparent"
+                  placeholder="// Type or paste your code here..."
+                />
+              </div>
             </div>
 
             {/* Editor Footer Status */}
