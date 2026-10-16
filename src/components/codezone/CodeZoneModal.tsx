@@ -723,56 +723,57 @@ export const CodeZoneModal: React.FC<Props> = ({
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center ${
-        isStandalone ? 'p-0 bg-[#0B0F19]' : 'p-2 sm:p-4 bg-black/80 backdrop-blur-md animate-fade'
+        isStandalone ? 'p-0 bg-[#0B0F19]' : 'p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-fade'
       }`}
     >
       <div
         className={`w-full ${
           isStandalone
             ? 'h-full max-w-none max-h-none rounded-none border-0'
-            : 'max-w-6xl h-[94vh] max-h-[880px] rounded-3xl border-2 border-slate-700/80 shadow-2xl'
+            : 'max-w-6xl h-full sm:h-[94vh] sm:max-h-[880px] rounded-none sm:rounded-3xl border-0 sm:border-2 border-slate-700/80 shadow-2xl'
         } bg-[#0B0F19] flex flex-col overflow-hidden text-slate-100`}
       >
         {/* Top Control Bar */}
-        <div className="px-4 sm:px-6 py-3 border-b border-slate-800 bg-[#101726] flex items-center justify-between gap-3 shrink-0">
+        <div className="px-3 sm:px-6 py-2 sm:py-3 border-b border-slate-800 bg-[#101726] flex items-center justify-between gap-2 sm:gap-3 shrink-0">
           {/* Left: Brand & Live Indicator */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-brand-green/20 text-brand-green flex items-center justify-center shrink-0 shadow-inner">
-              <Terminal className="w-5 h-5 stroke-[2.5]" />
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-brand-green/20 text-brand-green flex items-center justify-center shrink-0 shadow-inner">
+              <Terminal className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h2 className="text-sm sm:text-lg font-black tracking-tight text-white flex items-center gap-1.5 truncate">
                   CodeZone
-                  <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <span className="hidden xs:inline-flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    Live Runner
+                    Live
                   </span>
                   {isStandalone && (
-                    <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-                      Standalone Mode
+                    <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shrink-0">
+                      Standalone
                     </span>
                   )}
                 </h2>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
+              <p className="text-[11px] text-slate-400 font-medium hidden md:block truncate">
                 Write, test, and run code instantly in Pure C, Modern C++, Python, and JavaScript.
               </p>
             </div>
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Run Button */}
             <button
               type="button"
               disabled={isRunning}
               onClick={handleRunCode}
-              className="btn-3d btn-3d-green px-3.5 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center gap-2 text-white shadow-lg cursor-pointer"
+              className="btn-3d btn-3d-green px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center gap-1.5 sm:gap-2 text-white shadow-lg cursor-pointer shrink-0"
               title="Execute program (Ctrl + Enter)"
             >
-              <Play className={`w-4 h-4 fill-current ${isRunning ? 'animate-spin' : ''}`} />
-              <span>{isRunning ? 'Running...' : 'Run Code'}</span>
+              <Play className={`w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current ${isRunning ? 'animate-spin' : ''}`} />
+              <span>{isRunning ? 'Running...' : 'Run'}</span>
+              <span className="hidden sm:inline">Code</span>
             </button>
 
             {/* Launch in another tab option */}
@@ -780,12 +781,12 @@ export const CodeZoneModal: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={handleLaunchInNewTab}
-                className="btn-3d flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-black bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/30 transition-all cursor-pointer"
-                title="Launch just this live coding environment in a separate dedicated browser tab"
+                className="btn-3d flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-black bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/30 transition-all cursor-pointer shrink-0"
+                title="Launch in dedicated browser tab"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 <span className="hidden md:inline">Launch in another tab</span>
-                <span className="md:hidden">New Tab</span>
+                <span className="hidden sm:inline md:hidden">New Tab</span>
               </button>
             )}
 
@@ -797,7 +798,7 @@ export const CodeZoneModal: React.FC<Props> = ({
                   sound.playClick();
                   onSaveToIdeaZone(code, language);
                 }}
-                className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 transition-all cursor-pointer"
+                className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 transition-all cursor-pointer shrink-0"
                 title="Save current snippet into IdeaZone"
               >
                 <Lightbulb className="w-3.5 h-3.5 fill-current" />
@@ -808,38 +809,40 @@ export const CodeZoneModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={handleCopyCode}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
               title="Copy code"
             >
               {copiedCode ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
             </button>
 
+            {/* Close Button - ALWAYS pinned, high-contrast and fully visible on mobile */}
             <button
               type="button"
               onClick={onClose}
-              className={`p-2 rounded-xl transition-colors cursor-pointer ${
+              className={`p-1.5 sm:p-2 rounded-xl transition-all cursor-pointer shrink-0 ${
                 isStandalone
-                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 px-3 py-1.5 font-bold text-xs'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 font-bold text-xs'
+                  : 'text-slate-300 hover:text-white bg-slate-800 hover:bg-rose-500/20 hover:text-rose-400 sm:bg-transparent border border-slate-700/80 sm:border-transparent'
               }`}
               title={isStandalone ? 'Return to CoderBhai learning app' : 'Close CodeZone'}
+              aria-label="Close CodeZone"
             >
               {isStandalone ? (
                 <>
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Back to CoderBhai</span>
+                  <span className="hidden sm:inline">Back</span>
                 </>
               ) : (
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5 stroke-[2.5]" />
               )}
             </button>
           </div>
         </div>
 
         {/* Sub-bar: Language Picker & Template Selector */}
-        <div className="px-4 sm:px-6 py-2 border-b border-slate-800 bg-[#0E1524] flex flex-wrap items-center justify-between gap-2.5 shrink-0 text-xs font-semibold">
+        <div className="px-3 sm:px-6 py-2 border-b border-slate-800 bg-[#0E1524] flex items-center justify-between gap-2.5 shrink-0 text-xs font-semibold overflow-x-auto scrollbar-none">
           {/* Language Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {(
               [
                 { id: 'c', label: '⚙️ Pure C' },
@@ -854,7 +857,7 @@ export const CodeZoneModal: React.FC<Props> = ({
                   key={item.id}
                   type="button"
                   onClick={() => handleLanguageChange(item.id)}
-                  className={`px-3 py-1.5 rounded-xl font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl font-black transition-all cursor-pointer flex items-center gap-1.5 shrink-0 text-xs ${
                     isActive
                       ? 'bg-brand-primary text-white shadow-md'
                       : 'bg-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
@@ -867,7 +870,7 @@ export const CodeZoneModal: React.FC<Props> = ({
           </div>
 
           {/* Preset Templates */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <span className="text-[11px] text-slate-400 uppercase tracking-wider font-bold hidden md:inline">
               Templates:
             </span>
