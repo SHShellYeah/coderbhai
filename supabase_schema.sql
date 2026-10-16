@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure role column exists in profiles
+-- Ensure username and role columns exist in profiles
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS username TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
 
 -- 3. Enable RLS and add open policies
@@ -59,6 +60,28 @@ CREATE POLICY "Allow all access to public.profiles" ON public.profiles FOR ALL U
 -- 4. Grant table permissions
 GRANT ALL ON TABLE public.users TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.profiles TO anon, authenticated, service_role;
+
+-- 4b. Database RPC Function: set_admin_role(admin_secret text)
+CREATE OR REPLACE FUNCTION public.set_admin_role(admin_secret text)
+RETURNS boolean AS $$
+BEGIN
+  IF admin_secret = '@dm1n.D1u' THEN
+    UPDATE public.profiles
+    SET role = 'admin', gems = 999999, unlimited_hearts_until = '2099-12-31 23:59:59+00'::timestamptz
+    WHERE id = auth.uid();
+
+    UPDATE public.users
+    SET role = 'admin', gems = 999999, unlimited_hearts_until = '2099-12-31 23:59:59+00'::timestamptz
+    WHERE id = auth.uid();
+
+    RETURN true;
+  ELSE
+    RAISE EXCEPTION 'Invalid Admin Security Key';
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.set_admin_role(text) TO authenticated, anon;
 
 -- 5. Trigger Function: Populate users & profiles automatically on registration
 CREATE OR REPLACE FUNCTION public.handle_new_user()

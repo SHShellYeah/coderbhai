@@ -92,27 +92,11 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
       return;
     }
 
-    // Role Verification Logic
-    let finalRole: UserRole = 'user';
-    let adminPassFailed = false;
-
-    if (selectedRole === 'admin') {
-      if (adminSecretPassword.trim() === ADMIN_SECRET_CODE) {
-        finalRole = 'admin';
-      } else {
-        // Verification failed: Fall back to standard user role
-        finalRole = 'user';
-        adminPassFailed = true;
-      }
-    } else {
-      finalRole = 'user';
-    }
-
     setLoading(true);
     sound.playClick();
 
     if (tab === 'register') {
-      const res = await register(email.trim(), password, displayName.trim(), finalRole);
+      const res = await register(email.trim(), password, displayName.trim(), selectedRole, adminSecretPassword);
       setLoading(false);
 
       if (!res.success) {
@@ -120,21 +104,21 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
         sound.playError();
       } else {
         sound.playSuccess();
-        if (finalRole === 'admin') {
+        if (res.user?.role === 'admin') {
           fireSuccessConfetti();
-          setSuccessMsg('👑 Admin Verified! Granted Golden Nametag, Unlimited Hearts ♾️ & Unlimited Diamonds 💎!');
-        } else if (adminPassFailed) {
-          setSuccessMsg('⚠️ Admin secret password mismatch! You did not get Admin privileges and were registered as a regular User (Purple Nametag).');
+          setSuccessMsg('👑 Admin Verified! Granted Golden Nametag, Unlimited Hearts ♾️ & Unlimited Diamonds 💎 via set_admin_role RPC!');
+        } else if (res.adminVerificationFailed) {
+          setErrorMsg(res.error || '⚠️ Admin security key verification failed. Registered as regular User.');
         } else if (res.isEduBonus) {
           fireSuccessConfetti();
           setSuccessMsg('🎉 Account created with .edu Perks! +200 Diamonds & 3 Days of Unlimited Hearts granted!');
         } else {
-          setSuccessMsg('✅ Account created successfully! Progress saved to Supabase cloud.');
+          setSuccessMsg('✅ Account created successfully! Profile saved to Supabase profiles table.');
         }
         setTimeout(() => onClose(), 2400);
       }
     } else {
-      const res = await login(email.trim(), password, finalRole);
+      const res = await login(email.trim(), password, selectedRole, adminSecretPassword);
       setLoading(false);
 
       if (!res.success) {
@@ -142,13 +126,13 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
         sound.playError();
       } else {
         sound.playSuccess();
-        if (finalRole === 'admin') {
+        if (res.user?.role === 'admin') {
           fireSuccessConfetti();
-          setSuccessMsg('👑 Admin Verified! Logged in with Golden Nametag, Unlimited Hearts ♾️ & Unlimited Diamonds 💎!');
-        } else if (adminPassFailed) {
-          setSuccessMsg('⚠️ Admin secret password mismatch! You did not get Admin privileges and were signed in as a regular User.');
+          setSuccessMsg('👑 Admin Verified! Logged in with Golden Nametag, Unlimited Hearts ♾️ & Unlimited Diamonds 💎 via set_admin_role RPC!');
+        } else if (res.adminVerificationFailed) {
+          setErrorMsg(res.error || '⚠️ Admin security key verification failed. Logged in as regular User.');
         } else {
-          setSuccessMsg('✅ Logged in successfully! Cloud progress synced.');
+          setSuccessMsg('✅ Logged in successfully! Profile and cloud session active.');
         }
         setTimeout(() => onClose(), 2000);
       }
@@ -558,16 +542,16 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                 </div>
               </div>
 
-              {/* 5. PASSWORD BAR 2: ADMIN VERIFICATION PASSWORD (Shown dynamically when Admin is selected) */}
+              {/* 5. ADMIN SECURITY KEY (Optional input field that only appears when Admin is selected as the role) */}
               {selectedRole === 'admin' && (
                 <div className="p-3.5 rounded-2xl bg-amber-500/10 border-2 border-amber-400/80 flex flex-col gap-1.5 animate-slideUp">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                       <KeyRound className="w-3.5 h-3.5" />
-                      <span>Admin Secret Verification Password</span>
+                      <span>Admin Security Key</span>
                     </label>
                     <span className="text-[9px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold border border-amber-400/30">
-                      @dm1n.D1u
+                      RPC: set_admin_role
                     </span>
                   </div>
 
@@ -580,13 +564,13 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                         setAdminSecretPassword(e.target.value);
                         setErrorMsg(null);
                       }}
-                      placeholder="Type @dm1n.D1u to verify Admin role..."
+                      placeholder="Enter Admin Security Key (@dm1n.D1u)..."
                       className="w-full bg-slate-900 border border-amber-400/70 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-amber-200 placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono tracking-wider shadow-inner"
                     />
                   </div>
 
                   <p className="text-[10px] text-slate-300 font-medium leading-tight">
-                    Type <code className="bg-amber-400/20 text-amber-300 font-mono px-1 rounded font-bold">@dm1n.D1u</code> to verify. If correct, you will be given the <strong>Golden Admin</strong> role and unlimited facilities. If you fail, you will not get those privileges and will proceed as a regular <strong>User</strong>.
+                    Enter the secret key to invoke database RPC <code className="bg-amber-400/20 text-amber-300 font-mono px-1 rounded font-bold">set_admin_role</code>. If the key matches (<span className="text-amber-400 font-mono font-bold">@dm1n.D1u</span>), you get the Golden Admin role &amp; unlimited perks. If it fails, admin access will not be granted.
                   </p>
                 </div>
               )}

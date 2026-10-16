@@ -119,8 +119,8 @@ interface GameContextType {
   resetProgress: () => void;
   addGems: (amount: number) => void;
   addXp: (amount: number) => void;
-  login: (email: string, password: string, role?: UserRole) => Promise<{ success: boolean; user?: AuthUser; error?: string }>;
-  register: (email: string, password: string, displayName?: string, role?: UserRole) => Promise<{ success: boolean; isEduBonus?: boolean; error?: string }>;
+  login: (email: string, password: string, role?: UserRole, adminSecurityKey?: string) => Promise<{ success: boolean; user?: AuthUser; error?: string; adminVerificationFailed?: boolean }>;
+  register: (email: string, password: string, displayName?: string, role?: UserRole, adminSecurityKey?: string) => Promise<{ success: boolean; user?: AuthUser; isEduBonus?: boolean; error?: string; adminVerificationFailed?: boolean }>;
   logout: () => Promise<void>;
   syncCloudProgress: () => Promise<void>;
 }
@@ -540,14 +540,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (
     email: string,
     password: string,
-    requestedRole?: UserRole
-  ): Promise<{ success: boolean; user?: AuthUser; error?: string }> => {
-    const res = await loginUser(email, password, requestedRole);
-    if (res.error) {
+    requestedRole?: UserRole,
+    adminSecurityKey?: string
+  ): Promise<{ success: boolean; user?: AuthUser; error?: string; adminVerificationFailed?: boolean }> => {
+    const res = await loginUser(email, password, requestedRole, adminSecurityKey);
+    if (res.error && !res.user) {
       return { success: false, error: res.error };
     }
     if (res.user) {
-      const userRole = requestedRole || res.user.role || 'user';
+      const userRole = res.user.role || requestedRole || 'user';
       const isAdmin = userRole === 'admin';
       setState(prev => ({
         ...prev,
@@ -559,7 +560,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const profile = await fetchUserProfile(res.user.id);
       if (profile) {
         setState(prev => {
-          const effectiveRole = requestedRole || profile.role || userRole;
+          const effectiveRole = res.user!.role || requestedRole || profile.role || userRole;
           const isProfAdmin = effectiveRole === 'admin';
           return {
             ...prev,
@@ -576,21 +577,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
     }
-    return { success: true, user: res.user || undefined };
+    return {
+      success: true,
+      user: res.user || undefined,
+      error: res.error || undefined,
+      adminVerificationFailed: res.adminVerificationFailed,
+    };
   };
 
   const register = async (
     email: string,
     password: string,
     displayName?: string,
-    role: UserRole = 'user'
-  ): Promise<{ success: boolean; isEduBonus?: boolean; error?: string }> => {
-    const res = await registerUser(email, password, displayName, role);
-    if (res.error) {
+    role: UserRole = 'user',
+    adminSecurityKey?: string
+  ): Promise<{ success: boolean; user?: AuthUser; isEduBonus?: boolean; error?: string; adminVerificationFailed?: boolean }> => {
+    const res = await registerUser(email, password, displayName, role, adminSecurityKey);
+    if (res.error && !res.user) {
       return { success: false, error: res.error };
     }
     if (res.user) {
-      const isAdmin = role === 'admin';
+      const finalRole = res.user.role || 'user';
+      const isAdmin = finalRole === 'admin';
       const isEdu = !!res.isEduBonusGranted && !isAdmin;
       const bonusGems = isAdmin ? 999999 : (isEdu ? 200 : 0);
       const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
@@ -601,7 +609,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setState(prev => ({
         ...prev,
         authUser: res.user,
-        role,
+        role: finalRole,
         gems: isAdmin ? 999999 : prev.gems + bonusGems,
         unlimitedHeartsUntil: bonusHeartsUntil || prev.unlimitedHeartsUntil,
       }));
@@ -610,7 +618,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await saveUserProfile(res.user.id, {
         email: res.user.email,
         displayName: res.user.displayName,
-        role,
+        role: finalRole,
         xp: state.xp,
         gems: isAdmin ? 999999 : state.gems + bonusGems,
         streak: state.streak,
@@ -625,7 +633,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       });
     }
-    return { success: true, isEduBonus: res.isEduBonusGranted };
+    return {
+      success: true,
+      user: res.user || undefined,
+      isEduBonus: res.isEduBonusGranted,
+      error: res.error || undefined,
+      adminVerificationFailed: res.adminVerificationFailed,
+    };
   };
 
   const logout = async (): Promise<void> => {

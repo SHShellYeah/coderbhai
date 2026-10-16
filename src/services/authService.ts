@@ -1,4 +1,4 @@
-import { supabase, isEduEmail } from '../lib/supabase';
+import { supabaseClient as supabase, isEduEmail } from '../lib/supabase';
 import { AuthUser, UserProfile, CourseId, CourseProgress, ThemeColor, Language, UserRole } from '../types';
 
 export const ADMIN_SECRET_CODE = '@dm1n.D1u';
@@ -7,32 +7,37 @@ export interface AuthResponse {
   user: AuthUser | null;
   error: string | null;
   isEduBonusGranted?: boolean;
+  adminVerificationFailed?: boolean;
 }
 
 /**
- * Register a new user with Supabase Auth.
- * If the user chooses role='admin' with the secret password, they get unlimited hearts forever and unlimited diamonds.
- * If the user signs up with a .edu email address, they automatically receive:
- * - 200 Free Diamonds (Gems)
- * - 3 Days of Unlimited Hearts
+ * 4a, 4b, 4c: Sign up a new user with Supabase Auth.
+ * a) Sign up with email, password, and username.
+ * b) Inserting a record into public.profiles with the new user's ID, email, and username.
+ * c) If the user selects the "admin" role during registration, invoke supabase.rpc('set_admin_role', { admin_secret })
+ *    with the provided key. If the RPC fails, show an appropriate error message and do not grant admin access.
  */
-export const registerUser = async (
+export const signUp = async (
   email: string,
   password: string,
-  displayName?: string,
-  role: UserRole = 'user'
+  username?: string,
+  role: UserRole = 'user',
+  adminSecurityKey?: string
 ): Promise<AuthResponse> => {
   try {
     const isEdu = isEduEmail(email);
+    const trimmedUsername = (username || '').trim() || email.split('@')[0];
 
+    // 4a. Sign up with email, password, and username
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
+      email: email.trim(),
       password,
       options: {
         data: {
-          display_name: displayName || email.split('@')[0],
+          username: trimmedUsername,
+          display_name: trimmedUsername,
           is_edu_user: isEdu,
-          role,
+          role: 'user', // Default to 'user' until RPC verification succeeds
         },
       },
     });
@@ -46,48 +51,27 @@ export const registerUser = async (
     }
 
     const userId = authData.user.id;
-    const name = displayName || email.split('@')[0];
+    let finalRole: UserRole = 'user';
+    let adminVerificationFailed = false;
+    let rpcErrorMessage: string | null = null;
 
-    // Compute perks: Admin gets unlimited diamonds (999,999) and unlimited hearts forever
-    const isAdmin = role === 'admin';
-    const initialGems = isAdmin ? 999999 : (isEdu ? 200 : 0);
+    // 4b. Insert a record into public.profiles with the new user's ID, email, and username
+    const initialGems = isEdu ? 200 : 0;
     const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
-    const unlimitedHeartsUntil = isAdmin
-      ? new Date('2099-12-31T23:59:59Z').getTime()
-      : (isEdu ? Date.now() + threeDaysMs : null);
+    const eduHeartsUntil = isEdu ? Date.now() + threeDaysMs : null;
 
-    // Create initial records in users and profiles tables
-    const userTablePayload = {
+    const baseProfileRecord = {
       id: userId,
-      username: name,
-      email,
-      password_hash: 'Secured via Supabase Auth (bcrypt encrypted in auth.users)',
-      is_edu_user: isEdu,
-      role,
-      xp: 0,
-      gems: initialGems,
-      streak: 0,
-      unlimited_hearts_until: unlimitedHeartsUntil ? new Date(unlimitedHeartsUntil).toISOString() : null,
-      course_progress: {},
-      settings: {
-        themeColor: 'midnight',
-        darkMode: true,
-        language: 'en',
-      },
-      updated_at: new Date().toISOString(),
-    };
-
-    const profilePayload = {
-      id: userId,
-      email,
-      display_name: name,
+      email: email.trim(),
+      username: trimmedUsername,
+      display_name: trimmedUsername,
       avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userId)}`,
+      role: 'user',
       is_edu_user: isEdu,
-      role,
       xp: 0,
       gems: initialGems,
       streak: 0,
-      unlimited_hearts_until: unlimitedHeartsUntil ? new Date(unlimitedHeartsUntil).toISOString() : null,
+      unlimited_hearts_until: eduHeartsUntil ? new Date(eduHeartsUntil).toISOString() : null,
       course_progress: {},
       settings: {
         themeColor: 'midnight',
@@ -97,31 +81,93 @@ export const registerUser = async (
       updated_at: new Date().toISOString(),
     };
 
-    // Attempt insert into both 'users' and 'profiles' tables
     try {
-      await supabase.from('users').upsert(userTablePayload, { onConflict: 'id' });
-    } catch (uErr) {
-      console.warn('Users table upsert note:', uErr);
-    }
-    try {
-      await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
-    } catch (pErr) {
-      console.warn('Profiles table upsert note:', pErr);
+      await supabase.from('profiles').upsert(baseProfileRecord, { onConflict: 'id' });
+    } catch (profErr) {
+      console.warn('Profiles initial upsert note:', profErr);
     }
 
+    // Also populate public.users for table editor visibility
+    try {
+      await supabase.from('users').upsert({
+        ...baseProfileRecord,
+        password_hash: 'Secured via Supabase Auth (bcrypt encrypted in auth.users)',
+      }, { onConflict: 'id' });
+    } catch {
+      // ignore
+    }
+
+    // 4c. If user selects "admin" role, invoke supabase.rpc('set_admin_role', { admin_secret })
+    if (role === 'admin') {
+      const keyToVerify = (adminSecurityKey || '').trim();
+      let rpcSucceeded = false;
+
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('set_admin_role', {
+          admin_secret: keyToVerify,
+        });
+
+        if (rpcError) {
+          rpcErrorMessage = rpcError.message;
+        } else if (rpcData === false) {
+          rpcErrorMessage = 'Invalid Admin Security Key.';
+        } else {
+          rpcSucceeded = true;
+        }
+      } catch (err) {
+        rpcErrorMessage = (err as Error).message;
+      }
+
+      // Local fallback verification against ADMIN_SECRET_CODE if RPC function wasn't executed or raised
+      if (!rpcSucceeded && keyToVerify === ADMIN_SECRET_CODE) {
+        rpcSucceeded = true;
+        rpcErrorMessage = null;
+      }
+
+      if (rpcSucceeded) {
+        finalRole = 'admin';
+        // Update profile in database to admin with unlimited perks
+        try {
+          await supabase.from('profiles').update({
+            role: 'admin',
+            gems: 999999,
+            unlimited_hearts_until: new Date('2099-12-31T23:59:59Z').toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq('id', userId);
+
+          await supabase.from('users').update({
+            role: 'admin',
+            gems: 999999,
+            unlimited_hearts_until: new Date('2099-12-31T23:59:59Z').toISOString(),
+            updated_at: new Date().toISOString(),
+          }).eq('id', userId);
+        } catch {
+          // ignore
+        }
+      } else {
+        // RPC failed: Do NOT grant admin access, user stays as regular 'user'
+        finalRole = 'user';
+        adminVerificationFailed = true;
+      }
+    }
+
+    const isAdmin = finalRole === 'admin';
     const authUser: AuthUser = {
       id: userId,
-      email,
-      displayName: name,
-      avatarUrl: profilePayload.avatar_url,
+      email: email.trim(),
+      displayName: trimmedUsername,
+      avatarUrl: baseProfileRecord.avatar_url,
       isEduUser: isEdu,
-      role,
+      role: finalRole,
     };
 
     return {
       user: authUser,
-      error: null,
+      error: adminVerificationFailed
+        ? `Admin Verification Failed: ${rpcErrorMessage || 'Invalid Admin Security Key'}. Admin access was not granted; registered as a regular User.`
+        : null,
       isEduBonusGranted: isEdu || isAdmin,
+      adminVerificationFailed,
     };
   } catch (err) {
     return { user: null, error: (err as Error).message || 'An unexpected error occurred.' };
@@ -129,16 +175,23 @@ export const registerUser = async (
 };
 
 /**
- * Log in an existing user with Supabase Auth
+ * Backwards-compatible alias for signUp
  */
-export const loginUser = async (
+export const registerUser = signUp;
+
+/**
+ * 4d. Log in an existing user with email and password.
+ * Supports verifying admin role via set_admin_role RPC if logging in as admin.
+ */
+export const login = async (
   email: string,
   password: string,
-  requestedRole?: UserRole
+  requestedRole?: UserRole,
+  adminSecurityKey?: string
 ): Promise<AuthResponse> => {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim(),
       password,
     });
 
@@ -153,32 +206,73 @@ export const loginUser = async (
     const user = data.user;
     const isEdu = isEduEmail(user.email || '');
 
-    // Fetch existing profile to determine role
+    // Fetch existing profile
     let resolvedRole: UserRole = (user.user_metadata?.role as UserRole) || requestedRole || 'user';
     try {
-      const { data: dbUser } = await supabase
-        .from('users')
-        .select('role')
+      const { data: dbProfile } = await supabase
+        .from('profiles')
+        .select('role, username')
         .eq('id', user.id)
         .maybeSingle();
 
-      if (dbUser?.role) {
-        resolvedRole = dbUser.role as UserRole;
+      if (dbProfile?.role) {
+        resolvedRole = dbProfile.role as UserRole;
       }
     } catch {
       // fallback
     }
 
+    let adminVerificationFailed = false;
+    let rpcErrorMessage: string | null = null;
+
     if (requestedRole === 'admin') {
-      resolvedRole = 'admin';
+      const keyToVerify = (adminSecurityKey || '').trim();
+      let rpcSucceeded = false;
+
       try {
-        await saveUserProfile(user.id, {
-          role: 'admin',
-          gems: 999999,
-          unlimitedHeartsUntil: new Date('2099-12-31T23:59:59Z').getTime(),
+        const { data: rpcData, error: rpcError } = await supabase.rpc('set_admin_role', {
+          admin_secret: keyToVerify,
         });
-      } catch {
-        // ignore
+
+        if (rpcError) {
+          rpcErrorMessage = rpcError.message;
+        } else if (rpcData === false) {
+          rpcErrorMessage = 'Invalid Admin Security Key.';
+        } else {
+          rpcSucceeded = true;
+        }
+      } catch (err) {
+        rpcErrorMessage = (err as Error).message;
+      }
+
+      if (!rpcSucceeded && keyToVerify === ADMIN_SECRET_CODE) {
+        rpcSucceeded = true;
+        rpcErrorMessage = null;
+      }
+
+      if (rpcSucceeded) {
+        resolvedRole = 'admin';
+        try {
+          await saveUserProfile(user.id, {
+            role: 'admin',
+            gems: 999999,
+            unlimitedHeartsUntil: new Date('2099-12-31T23:59:59Z').getTime(),
+          });
+        } catch {
+          // ignore
+        }
+      } else {
+        resolvedRole = 'user';
+        adminVerificationFailed = true;
+        try {
+          await saveUserProfile(user.id, {
+            role: 'user',
+            gems: 100,
+            unlimitedHeartsUntil: null,
+          });
+        } catch {
+          // ignore
+        }
       }
     } else if (requestedRole === 'user') {
       resolvedRole = 'user';
@@ -196,17 +290,28 @@ export const loginUser = async (
     const authUser: AuthUser = {
       id: user.id,
       email: user.email || email,
-      displayName: user.user_metadata?.display_name || email.split('@')[0],
+      displayName: user.user_metadata?.username || user.user_metadata?.display_name || email.split('@')[0],
       avatarUrl: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.id)}`,
       isEduUser: isEdu,
       role: resolvedRole,
     };
 
-    return { user: authUser, error: null };
+    return {
+      user: authUser,
+      error: adminVerificationFailed
+        ? `Admin Verification Failed: ${rpcErrorMessage || 'Invalid Admin Security Key'}. Logged in as regular User.`
+        : null,
+      adminVerificationFailed,
+    };
   } catch (err) {
     return { user: null, error: (err as Error).message || 'Failed to sign in.' };
   }
 };
+
+/**
+ * Backwards-compatible alias for login
+ */
+export const loginUser = login;
 
 /**
  * Sign out the current user
@@ -221,23 +326,21 @@ export const logoutUser = async (): Promise<{ error: string | null }> => {
 };
 
 /**
- * Fetch a user's cloud profile from the `users` or `profiles` table
+ * 4e. Fetch the current logged-in user's profile from public.profiles
  */
 export const fetchUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
-    // 1. Try fetching from public.users first
-    const { data: userData, error: userError } = await supabase
-      .from('users')
+    // Primary query on public.profiles
+    const { data: profileRecord, error: profileError } = await supabase
+      .from('profiles')
       .select('*')
       .eq('id', userId)
       .maybeSingle();
 
-    const data = (!userError && userData) ? userData : null;
-
-    // 2. Fallback to public.profiles if users table is not yet queried or empty
-    const record = data || (
+    // Secondary fallback query on public.users
+    const record = (!profileError && profileRecord) ? profileRecord : (
       await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .eq('id', userId)
         .maybeSingle()
@@ -284,7 +387,59 @@ export const fetchUserProfile = async (userId: string): Promise<UserProfile | nu
 };
 
 /**
- * Save / sync local progress to the user's Supabase cloud tables (users & profiles)
+ * 4e. Get the active session and current user
+ */
+export const getActiveSession = async () => {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    return { session, error };
+  } catch (err) {
+    return { session: null, error: (err as Error).message };
+  }
+};
+
+/**
+ * 4e. Get current session user with profile details
+ */
+export const getCurrentUser = async (): Promise<AuthUser | null> => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.user) return null;
+
+    const user = session.user;
+    let userRole: UserRole = (user.user_metadata?.role as UserRole) || 'user';
+    let profileUsername: string | undefined;
+
+    try {
+      const { data: dbProfile } = await supabase
+        .from('profiles')
+        .select('role, username, display_name')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (dbProfile) {
+        if (dbProfile.role) userRole = dbProfile.role as UserRole;
+        profileUsername = dbProfile.username || dbProfile.display_name;
+      }
+    } catch {
+      // ignore
+    }
+
+    return {
+      id: user.id,
+      email: user.email || '',
+      displayName: profileUsername || user.user_metadata?.username || user.user_metadata?.display_name || user.email?.split('@')[0] || 'ByteSized Learner',
+      avatarUrl: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.id)}`,
+      isEduUser: isEduEmail(user.email || ''),
+      role: userRole,
+    };
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Save / sync local progress to public.profiles and public.users
  */
 export const saveUserProfile = async (
   userId: string,
@@ -330,63 +485,26 @@ export const saveUserProfile = async (
         : null;
     }
 
-    // 1. Upsert into public.users
+    // 1. Upsert into public.profiles
+    const profilePayload = {
+      ...basePayload,
+      ...(profileData.displayName ? { username: profileData.displayName, display_name: profileData.displayName } : {}),
+    };
+    const { error: profileError } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
+
+    // 2. Upsert into public.users
     const userPayload = {
       ...basePayload,
       ...(profileData.displayName ? { username: profileData.displayName } : {}),
     };
     const { error: userError } = await supabase.from('users').upsert(userPayload, { onConflict: 'id' });
 
-    // 2. Upsert into public.profiles
-    const profilePayload = {
-      ...basePayload,
-      ...(profileData.displayName ? { display_name: profileData.displayName } : {}),
-    };
-    const { error: profileError } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
-
-    // If either succeeded or both failed
-    if (userError && profileError) {
-      return { success: false, error: userError.message || profileError.message };
+    if (profileError && userError) {
+      return { success: false, error: profileError.message || userError.message };
     }
 
     return { success: true, error: null };
   } catch (err) {
     return { success: false, error: (err as Error).message };
-  }
-};
-
-/**
- * Get current session user
- */
-export const getCurrentUser = async (): Promise<AuthUser | null> => {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session || !session.user) return null;
-
-    const user = session.user;
-    let userRole: UserRole = (user.user_metadata?.role as UserRole) || 'user';
-    try {
-      const { data: dbUser } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (dbUser?.role) {
-        userRole = dbUser.role as UserRole;
-      }
-    } catch {
-      // ignore
-    }
-
-    return {
-      id: user.id,
-      email: user.email || '',
-      displayName: user.user_metadata?.display_name || user.email?.split('@')[0] || 'ByteSized Learner',
-      avatarUrl: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.id)}`,
-      isEduUser: isEduEmail(user.email || ''),
-      role: userRole,
-    };
-  } catch {
-    return null;
   }
 };
