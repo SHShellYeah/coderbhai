@@ -277,6 +277,7 @@ const MainApp: React.FC = () => {
       {/* Supabase User Account, Cloud Sync & Student .EDU Perks Modal */}
       <AuthModal
         isOpen={isAuthOpen}
+        initialTab="login"
         onClose={() => setIsAuthOpen(false)}
       />
     </div>

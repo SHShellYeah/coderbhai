@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useGame } from '../../context/GameContext';
-import { isEduEmail } from '../../lib/supabase';
+import { supabase, isEduEmail } from '../../lib/supabase';
 import { sound } from '../../utils/audio';
 import { fireSuccessConfetti } from '../../utils/confetti';
-import { ADMIN_SECRET_CODE } from '../../services/authService';
+import { ADMIN_SECRET_CODE, saveUserProfile } from '../../services/authService';
 import { UserRole } from '../../types';
 import {
   X,
@@ -22,7 +22,8 @@ import {
   Crown,
   KeyRound,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  ArrowRight
 } from 'lucide-react';
 
 interface Props {
@@ -41,6 +42,11 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
   const [displayName, setDisplayName] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('user');
   const [adminSecretPassword, setAdminSecretPassword] = useState('');
+
+  // Logged-in role upgrade state
+  const [upgradeRole, setUpgradeRole] = useState<UserRole>('admin');
+  const [upgradeAdminKey, setUpgradeAdminKey] = useState('');
+  const [isUpgradingRole, setIsUpgradingRole] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -155,6 +161,46 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
     sound.playClick();
     await logout();
     onClose();
+  };
+
+  const handleUpgradeToAdmin = async () => {
+    if (!state.authUser) return;
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setIsUpgradingRole(true);
+    sound.playClick();
+
+    const key = upgradeAdminKey.trim();
+    let rpcOk = false;
+    try {
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('set_admin_role', { admin_secret: key });
+      if (!rpcErr && rpcData !== false) {
+        rpcOk = true;
+      }
+    } catch {
+      // fallback
+    }
+
+    if (!rpcOk && key === ADMIN_SECRET_CODE) {
+      rpcOk = true;
+    }
+
+    if (rpcOk) {
+      sound.playSuccess();
+      fireSuccessConfetti();
+      await saveUserProfile(state.authUser.id, {
+        role: 'admin',
+        gems: 999999,
+        unlimitedHeartsUntil: new Date('2099-12-31T23:59:59Z').getTime(),
+      });
+      await syncCloudProgress();
+      setSuccessMsg('👑 Admin Verified! Promoted to Golden Admin with Unlimited Hearts ♾️ & Unlimited Diamonds 💎 via set_admin_role RPC!');
+      setUpgradeAdminKey('');
+    } else {
+      sound.playError();
+      setErrorMsg('⚠️ Invalid Admin Security Key. Passcode @dm1n.D1u required for Admin privileges.');
+    }
+    setIsUpgradingRole(false);
   };
 
   return (
@@ -319,6 +365,85 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
               </div>
             ) : null}
 
+            {/* Role Status & Role Switcher in Logged-In Profile */}
+            <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor="logged-in-role-select" className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Crown className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Account Role Dropdown</span>
+                </label>
+                {isAdminUser ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-sm border border-amber-300">
+                    👑 Golden Admin
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40">
+                    💜 Standard User
+                  </span>
+                )}
+              </div>
+
+              {!isAdminUser ? (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <select
+                      id="logged-in-role-select"
+                      aria-label="Account Role Drop Down"
+                      value={upgradeRole}
+                      onChange={(e) => {
+                        sound.playClick();
+                        setUpgradeRole(e.target.value as UserRole);
+                        setErrorMsg(null);
+                      }}
+                      className="w-full appearance-none rounded-xl px-3.5 py-2.5 pr-10 text-xs font-black transition-all cursor-pointer border-2 bg-amber-500/10 border-amber-400/70 text-amber-300 focus:outline-none"
+                    >
+                      <option value="user" className="bg-white dark:bg-[#0F172A] text-purple-400 font-bold">
+                        💜 Current: User (Standard Learner - Purple Nametag)
+                      </option>
+                      <option value="admin" className="bg-white dark:bg-[#0F172A] text-amber-400 font-bold">
+                        👑 Upgrade to: Admin (Special Privileges - Golden Nametag)
+                      </option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                      <ChevronDown className="w-4 h-4 stroke-[2.5]" />
+                    </div>
+                  </div>
+
+                  {upgradeRole === 'admin' && (
+                    <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/50 space-y-2 animate-slideUp">
+                      <div className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>Enter Admin Security Key to Upgrade:</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="password"
+                          value={upgradeAdminKey}
+                          onChange={(e) => setUpgradeAdminKey(e.target.value)}
+                          placeholder="Type @dm1n.D1u..."
+                          className="flex-1 bg-slate-900 border border-amber-400/60 rounded-xl px-3 py-1.5 text-xs text-amber-200 placeholder-slate-500 font-mono focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleUpgradeToAdmin}
+                          disabled={isUpgradingRole}
+                          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-xs font-black hover:brightness-110 cursor-pointer shadow flex items-center gap-1 shrink-0"
+                        >
+                          {isUpgradingRole ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Crown className="w-3.5 h-3.5" />}
+                          <span>Upgrade</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/40 text-xs text-amber-300 font-medium flex items-center gap-2">
+                  <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>Your account is verified as Super Admin with permanent Golden Nametag and unlimited perks.</span>
+                </div>
+              )}
+            </div>
+
             {/* Cloud Sync Status */}
             <div className="pt-2 flex flex-col gap-2">
               <button
@@ -419,10 +544,11 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-3.5">
-              {/* 1. ROLE SELECT DROPDOWN MENU (AT THE TOP OF THE FORM) */}
-              <div className="space-y-1.5 p-3 sm:p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border-2 border-slate-200 dark:border-slate-800 shadow-sm">
+              {/* 1. ROLE SELECT DROPDOWN MENU (UNMISTAKABLE NATIVE & STYLED SELECT DROPDOWN MENU) */}
+              <div className="space-y-2 p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm relative">
                 <div className="flex items-center justify-between">
-                  <label htmlFor="role-select" className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <label htmlFor="role-select" className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Crown className="w-3.5 h-3.5 text-amber-500" />
                     <span>Role Select Drop Down Menu</span>
                   </label>
                   {/* Live Nametag Indicator */}
@@ -438,46 +564,87 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                   )}
                 </div>
 
+                {/* Visible, high-contrast HTML <select> dropdown element */}
                 <div className="relative mt-1">
                   <select
                     id="role-select"
+                    name="role"
+                    aria-label="Role Select Drop Down Menu"
                     value={selectedRole}
                     onChange={(e) => {
                       sound.playClick();
                       setSelectedRole(e.target.value as UserRole);
                       setErrorMsg(null);
                     }}
-                    className={`w-full appearance-none rounded-xl px-3.5 py-2.5 pr-10 text-xs sm:text-sm font-black transition-all cursor-pointer border-2 ${
+                    className={`w-full rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm font-black transition-all cursor-pointer border-2 shadow-sm appearance-none ${
                       selectedRole === 'admin'
                         ? 'bg-amber-500/15 border-amber-400 text-amber-300 focus:ring-2 focus:ring-amber-400'
-                        : 'bg-white dark:bg-slate-800 border-purple-500/60 text-purple-500 dark:text-purple-300 focus:ring-2 focus:ring-purple-500'
+                        : 'bg-purple-500/10 border-purple-500/60 text-purple-600 dark:text-purple-300 focus:ring-2 focus:ring-purple-500'
                     } focus:outline-none`}
                   >
-                    <option value="user" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold py-2">
+                    <option value="user" className="bg-white dark:bg-[#0F172A] text-purple-600 dark:text-purple-300 font-extrabold py-2">
                       💜 User (Standard Learner - Purple Nametag)
                     </option>
-                    <option value="admin" className="bg-white dark:bg-slate-900 text-amber-500 dark:text-amber-400 font-bold py-2">
+                    <option value="admin" className="bg-white dark:bg-[#0F172A] text-amber-500 dark:text-amber-400 font-extrabold py-2">
                       👑 Admin (Special Privileges - Golden Nametag)
                     </option>
                   </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                    <ChevronDown className="w-4 h-4 stroke-[2.5]" />
+
+                  {/* Dropdown chevron arrow indicator */}
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400">
+                    <ChevronDown className="w-5 h-5 stroke-[2.5]" />
                   </div>
                 </div>
 
+                {/* Interactive Role Switcher Pills */}
+                <div className="grid grid-cols-2 gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setSelectedRole('user');
+                      setErrorMsg(null);
+                    }}
+                    className={`py-2 px-2.5 rounded-xl text-[11px] font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                      selectedRole === 'user'
+                        ? 'bg-purple-600 text-white border-purple-400 shadow-md ring-2 ring-purple-500/40'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full bg-purple-300 shrink-0" />
+                    <span>💜 Select User</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setSelectedRole('admin');
+                      setErrorMsg(null);
+                    }}
+                    className={`py-2 px-2.5 rounded-xl text-[11px] font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                      selectedRole === 'admin'
+                        ? 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 border-amber-300 shadow-md ring-2 ring-amber-400/40'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <Crown className="w-3.5 h-3.5 shrink-0" />
+                    <span>👑 Select Admin</span>
+                  </button>
+                </div>
+
                 {selectedRole === 'admin' ? (
-                  <div className="p-2 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center gap-2 text-[11px] text-amber-300 font-medium">
-                    <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <span>
-                      <strong>Admin perks:</strong> Unlimited Hearts ♾️ &amp; Diamonds 💎. Type passcode in the verification bar below.
-                    </span>
+                  <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-start gap-2 text-[11px] text-amber-300 font-medium animate-slideUp">
+                    <Crown className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-amber-400">Admin selected (Golden Nametag):</span> Enter Admin Security Key below to verify via <code className="font-mono bg-amber-400/20 px-1 rounded">set_admin_role</code> RPC. If correct, you get the Golden Nametag, Unlimited Hearts ♾️ and Unlimited Diamonds 💎.
+                    </div>
                   </div>
                 ) : (
-                  <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center gap-2 text-[11px] text-purple-400 dark:text-purple-300 font-medium">
-                    <ShieldCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                    <span>
-                      <strong>User role:</strong> Standard learner with normal hearts &amp; diamonds.
-                    </span>
+                  <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-start gap-2 text-[11px] text-purple-400 dark:text-purple-300 font-medium">
+                    <ShieldCheck className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold">User selected (Purple Nametag):</span> Standard learner with normal hearts &amp; diamonds. Type any random password in the Account Password field below to save your credentials.
+                    </div>
                   </div>
                 )}
               </div>
