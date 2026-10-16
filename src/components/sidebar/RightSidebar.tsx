@@ -30,7 +30,7 @@ interface Props {
   onOpenSettings?: () => void;
   onOpenIdeaZone?: () => void;
   onOpenCodeZone?: () => void;
-  onOpenAuth?: () => void;
+  onOpenAuth?: (tab?: 'login' | 'register') => void;
   filter?: 'all' | 'practice' | 'quests' | 'leaderboard' | 'settings';
 }
 
@@ -132,7 +132,7 @@ export const RightSidebar: React.FC<Props> = ({
                 <span>🎓 .EDU Student Perk</span>
               </div>
               <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-                Register with your school <span className="font-mono font-bold text-indigo-600 dark:text-indigo-300">.edu</span> email to get <span className="font-black text-amber-500">+200 Diamonds 💎</span> &amp; <span className="font-black text-rose-500">Unlimited Hearts ❤️</span> for 3 days!
+                Register with your school <span className="font-mono font-bold text-indigo-600 dark:text-indigo-300">.edu</span> email to get <span className="font-black text-amber-500">+200 Diamonds 💎</span> &amp; <span className="font-black text-rose-500">Unlimited Hearts ❤️</span> for 2 days!
               </p>
             </div>
           ) : (
@@ -145,7 +145,7 @@ export const RightSidebar: React.FC<Props> = ({
             type="button"
             onClick={() => {
               sound.playClick();
-              onOpenAuth();
+              onOpenAuth?.(state.authUser ? 'login' : 'register');
             }}
             className={`btn-3d w-full py-2.5 px-3 rounded-2xl text-xs font-black uppercase flex items-center justify-center gap-2 cursor-pointer ${
               state.authUser
@@ -161,7 +161,7 @@ export const RightSidebar: React.FC<Props> = ({
             ) : (
               <>
                 <Crown className="w-3.5 h-3.5 text-amber-300" />
-                <span>Sign In (User or Admin Role)</span>
+                <span>Sign Up / Choose Role (User or Admin)</span>
               </>
             )}
           </button>

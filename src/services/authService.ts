@@ -27,77 +27,15 @@ export const signUp = async (
   try {
     const isEdu = isEduEmail(email);
     const trimmedUsername = (username || '').trim() || email.split('@')[0];
+    const redirectUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}/`
+      : 'http://localhost:5173/';
 
-    // 4a. Sign up with email, password, and username
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: {
-          username: trimmedUsername,
-          display_name: trimmedUsername,
-          is_edu_user: isEdu,
-          role: 'user', // Default to 'user' until RPC verification succeeds
-        },
-      },
-    });
-
-    if (authError) {
-      return { user: null, error: authError.message };
-    }
-
-    if (!authData.user) {
-      return { user: null, error: 'Registration failed. Please try again.' };
-    }
-
-    const userId = authData.user.id;
+    // 1. Verify admin role if requested before creating/populating profile
     let finalRole: UserRole = 'user';
     let adminVerificationFailed = false;
     let rpcErrorMessage: string | null = null;
 
-    // 4b. Insert a record into public.profiles with the new user's ID, email, and username
-    const initialGems = isEdu ? 200 : 0;
-    const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
-    const eduHeartsUntil = isEdu ? Date.now() + threeDaysMs : null;
-
-    const baseProfileRecord = {
-      id: userId,
-      email: email.trim(),
-      username: trimmedUsername,
-      display_name: trimmedUsername,
-      avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userId)}`,
-      role: 'user',
-      is_edu_user: isEdu,
-      xp: 0,
-      gems: initialGems,
-      streak: 0,
-      unlimited_hearts_until: eduHeartsUntil ? new Date(eduHeartsUntil).toISOString() : null,
-      course_progress: {},
-      settings: {
-        themeColor: 'midnight',
-        darkMode: true,
-        language: 'en',
-      },
-      updated_at: new Date().toISOString(),
-    };
-
-    try {
-      await supabase.from('profiles').upsert(baseProfileRecord, { onConflict: 'id' });
-    } catch (profErr) {
-      console.warn('Profiles initial upsert note:', profErr);
-    }
-
-    // Also populate public.users for table editor visibility
-    try {
-      await supabase.from('users').upsert({
-        ...baseProfileRecord,
-        password_hash: 'Secured via Supabase Auth (bcrypt encrypted in auth.users)',
-      }, { onConflict: 'id' });
-    } catch {
-      // ignore
-    }
-
-    // 4c. If user selects "admin" role, invoke supabase.rpc('set_admin_role', { admin_secret })
     if (role === 'admin') {
       const keyToVerify = (adminSecurityKey || '').trim();
       let rpcSucceeded = false;
@@ -118,7 +56,6 @@ export const signUp = async (
         rpcErrorMessage = (err as Error).message;
       }
 
-      // Local fallback verification against ADMIN_SECRET_CODE if RPC function wasn't executed or raised
       if (!rpcSucceeded && keyToVerify === ADMIN_SECRET_CODE) {
         rpcSucceeded = true;
         rpcErrorMessage = null;
@@ -126,37 +63,92 @@ export const signUp = async (
 
       if (rpcSucceeded) {
         finalRole = 'admin';
-        // Update profile in database to admin with unlimited perks
-        try {
-          await supabase.from('profiles').update({
-            role: 'admin',
-            gems: 999999,
-            unlimited_hearts_until: new Date('2099-12-31T23:59:59Z').toISOString(),
-            updated_at: new Date().toISOString(),
-          }).eq('id', userId);
-
-          await supabase.from('users').update({
-            role: 'admin',
-            gems: 999999,
-            unlimited_hearts_until: new Date('2099-12-31T23:59:59Z').toISOString(),
-            updated_at: new Date().toISOString(),
-          }).eq('id', userId);
-        } catch {
-          // ignore
-        }
       } else {
-        // RPC failed: Do NOT grant admin access, user stays as regular 'user'
         finalRole = 'user';
         adminVerificationFailed = true;
       }
     }
 
+    // 2. Sign up with email, password, and options (including emailRedirectTo back to current origin)
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          username: trimmedUsername,
+          display_name: trimmedUsername,
+          is_edu_user: isEdu,
+          role: finalRole,
+        },
+      },
+    });
+
+    if (authError) {
+      return { user: null, error: authError.message };
+    }
+
+    if (!authData.user) {
+      return { user: null, error: 'Registration failed. Please try again.' };
+    }
+
+    const userId = authData.user.id;
     const isAdmin = finalRole === 'admin';
+    const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+    const eduHeartsUntil = isEdu ? Date.now() + twoDaysMs : null;
+    const initialGems = isAdmin ? 999999 : (isEdu ? 200 : 0);
+
+    // 3. Guaranteed Insert into public.profiles with exact table columns (id, username, email, role)
+    const exactProfileRecord = {
+      id: userId,
+      username: trimmedUsername,
+      email: email.trim(),
+      role: finalRole,
+    };
+
+    console.log('[Supabase] Inserting into public.profiles:', exactProfileRecord);
+    const { error: profError } = await supabase
+      .from('profiles')
+      .upsert(exactProfileRecord, { onConflict: 'id' });
+
+    if (profError) {
+      console.warn('[Supabase] profiles table upsert error:', profError.message);
+    } else {
+      console.log('[Supabase] Successfully inserted profile into public.profiles table!');
+    }
+
+    // Also attempt extended columns if the table has them
+    try {
+      await supabase.from('profiles').update({
+        display_name: trimmedUsername,
+        gems: initialGems,
+        xp: 0,
+        streak: 0,
+        is_edu_user: isEdu,
+        unlimited_hearts_until: isAdmin
+          ? new Date('2099-12-31T23:59:59Z').toISOString()
+          : (eduHeartsUntil ? new Date(eduHeartsUntil).toISOString() : null),
+        updated_at: new Date().toISOString(),
+      }).eq('id', userId);
+    } catch {
+      // ignore if extra columns don't exist
+    }
+
+    // Also insert into public.users if table exists
+    try {
+      await supabase.from('users').upsert({
+        ...exactProfileRecord,
+        password_hash: 'Secured via Supabase Auth (bcrypt encrypted in auth.users)',
+      }, { onConflict: 'id' });
+    } catch {
+      // ignore
+    }
+
     const authUser: AuthUser = {
       id: userId,
       email: email.trim(),
       displayName: trimmedUsername,
-      avatarUrl: baseProfileRecord.avatar_url,
+      avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userId)}`,
       isEduUser: isEdu,
       role: finalRole,
     };
@@ -253,11 +245,12 @@ export const login = async (
       if (rpcSucceeded) {
         resolvedRole = 'admin';
         try {
-          await saveUserProfile(user.id, {
+          await supabase.from('profiles').upsert({
+            id: user.id,
+            username: user.user_metadata?.username || user.email?.split('@')[0],
+            email: user.email,
             role: 'admin',
-            gems: 999999,
-            unlimitedHeartsUntil: new Date('2099-12-31T23:59:59Z').getTime(),
-          });
+          }, { onConflict: 'id' });
         } catch {
           // ignore
         }
@@ -265,11 +258,12 @@ export const login = async (
         resolvedRole = 'user';
         adminVerificationFailed = true;
         try {
-          await saveUserProfile(user.id, {
+          await supabase.from('profiles').upsert({
+            id: user.id,
+            username: user.user_metadata?.username || user.email?.split('@')[0],
+            email: user.email,
             role: 'user',
-            gems: 100,
-            unlimitedHeartsUntil: null,
-          });
+          }, { onConflict: 'id' });
         } catch {
           // ignore
         }
@@ -277,11 +271,24 @@ export const login = async (
     } else if (requestedRole === 'user') {
       resolvedRole = 'user';
       try {
-        await saveUserProfile(user.id, {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          username: user.user_metadata?.username || user.email?.split('@')[0],
+          email: user.email,
           role: 'user',
-          gems: 100,
-          unlimitedHeartsUntil: null,
-        });
+        }, { onConflict: 'id' });
+      } catch {
+        // ignore
+      }
+    } else {
+      // Ensure profile exists
+      try {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          username: user.user_metadata?.username || user.email?.split('@')[0],
+          email: user.email,
+          role: resolvedRole,
+        }, { onConflict: 'id' });
       } catch {
         // ignore
       }
@@ -485,25 +492,51 @@ export const saveUserProfile = async (
         : null;
     }
 
-    // 1. Upsert into public.profiles
-    const profilePayload = {
-      ...basePayload,
-      ...(profileData.displayName ? { username: profileData.displayName, display_name: profileData.displayName } : {}),
+    // 1. Guaranteed Upsert into public.profiles using the exact 4 columns (id, username, email, role)
+    const exactPayload: Record<string, unknown> = {
+      id: userId,
+      role: profileData.role || 'user',
     };
-    const { error: profileError } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
+    if (profileData.email) exactPayload.email = profileData.email;
+    if (profileData.displayName) exactPayload.username = profileData.displayName;
 
-    // 2. Upsert into public.users
-    const userPayload = {
-      ...basePayload,
-      ...(profileData.displayName ? { username: profileData.displayName } : {}),
-    };
-    const { error: userError } = await supabase.from('users').upsert(userPayload, { onConflict: 'id' });
-
-    if (profileError && userError) {
-      return { success: false, error: profileError.message || userError.message };
+    const { error: exactError } = await supabase.from('profiles').upsert(exactPayload, { onConflict: 'id' });
+    if (exactError) {
+      console.warn('[Supabase] exact profiles upsert note:', exactError.message);
     }
 
-    return { success: true, error: null };
+    // 2. Also try extended columns if the table has them
+    try {
+      const extendedPayload: Record<string, unknown> = {
+        id: userId,
+        ...exactPayload,
+        updated_at: new Date().toISOString(),
+      };
+      if (profileData.displayName) extendedPayload.display_name = profileData.displayName;
+      if (profileData.xp !== undefined) extendedPayload.xp = profileData.xp;
+      if (profileData.streak !== undefined) extendedPayload.streak = profileData.streak;
+      if (profileData.isEduUser !== undefined) extendedPayload.is_edu_user = profileData.isEduUser;
+      if (profileData.courseProgress !== undefined) extendedPayload.course_progress = profileData.courseProgress;
+      if (profileData.settings !== undefined) extendedPayload.settings = profileData.settings;
+      if (profileData.role === 'admin') {
+        extendedPayload.gems = 999999;
+        extendedPayload.unlimited_hearts_until = new Date('2099-12-31T23:59:59Z').toISOString();
+      } else if (profileData.gems !== undefined) {
+        extendedPayload.gems = profileData.gems;
+      }
+      await supabase.from('profiles').update(extendedPayload).eq('id', userId);
+    } catch {
+      // ignore
+    }
+
+    // 3. Upsert into public.users if table exists
+    try {
+      await supabase.from('users').upsert(exactPayload, { onConflict: 'id' });
+    } catch {
+      // ignore
+    }
+
+    return { success: !exactError, error: exactError ? exactError.message : null };
   } catch (err) {
     return { success: false, error: (err as Error).message };
   }

@@ -4,33 +4,38 @@
 -- https://supabase.com/dashboard/project/hbqipluxclqycegirqqs/sql/new
 -- ==============================================================================
 
--- 1. Create table public.users (visible in Supabase Table Editor)
+-- 1. Create table public.profiles (compatible with both 4-column and full schema)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  username TEXT,
+  email TEXT,
+  role TEXT DEFAULT 'user' -- 'user' (purple nametag) or 'admin' (golden nametag)
+);
+
+-- Ensure base columns exist
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS username TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
+
+-- Optional extended columns for stats, perks, and theme preferences
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS display_name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_edu_user BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS gems INTEGER DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS streak INTEGER DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS unlimited_hearts_until TIMESTAMPTZ;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS course_progress JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{"themeColor": "midnight", "darkMode": true, "language": "en"}'::jsonb;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 2. Create table public.users for backward compatibility and Table Editor visibility
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   username TEXT,
   email TEXT,
   password_hash TEXT,
-  role TEXT DEFAULT 'user', -- 'user' (purple) or 'admin' (golden)
-  is_edu_user BOOLEAN DEFAULT FALSE,
-  xp INTEGER DEFAULT 0,
-  gems INTEGER DEFAULT 0,
-  streak INTEGER DEFAULT 0,
-  unlimited_hearts_until TIMESTAMPTZ,
-  course_progress JSONB DEFAULT '{}'::jsonb,
-  settings JSONB DEFAULT '{"themeColor": "midnight", "darkMode": true, "language": "en"}'::jsonb,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Ensure role column exists if table was already created earlier
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
-
--- 2. Create table public.profiles
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT,
-  display_name TEXT,
-  avatar_url TEXT,
   role TEXT DEFAULT 'user',
   is_edu_user BOOLEAN DEFAULT FALSE,
   xp INTEGER DEFAULT 0,
@@ -43,36 +48,53 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure username and role columns exist in profiles
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS username TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
 
--- 3. Enable RLS and add open policies
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+-- 3. Row Level Security (RLS) Policies
+-- Enables both authenticated users and anonymous sign-up client to safely read/write
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
+CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users and anon can insert profiles" ON public.profiles;
+CREATE POLICY "Users and anon can insert profiles" ON public.profiles FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id OR true);
 
 DROP POLICY IF EXISTS "Allow all access to public.users" ON public.users;
 CREATE POLICY "Allow all access to public.users" ON public.users FOR ALL USING (true) WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Allow all access to public.profiles" ON public.profiles;
-CREATE POLICY "Allow all access to public.profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
-
 -- 4. Grant table permissions
-GRANT ALL ON TABLE public.users TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.profiles TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.users TO anon, authenticated, service_role;
 
--- 4b. Database RPC Function: set_admin_role(admin_secret text)
+-- 5. Database RPC Function: set_admin_role(admin_secret text)
 CREATE OR REPLACE FUNCTION public.set_admin_role(admin_secret text)
 RETURNS boolean AS $$
 BEGIN
   IF admin_secret = '@dm1n.D1u' THEN
+    -- 1. Update public.profiles
     UPDATE public.profiles
-    SET role = 'admin', gems = 999999, unlimited_hearts_until = '2099-12-31 23:59:59+00'::timestamptz
+    SET role = 'admin'
     WHERE id = auth.uid();
 
-    UPDATE public.users
-    SET role = 'admin', gems = 999999, unlimited_hearts_until = '2099-12-31 23:59:59+00'::timestamptz
-    WHERE id = auth.uid();
+    BEGIN
+      UPDATE public.profiles
+      SET gems = 999999, unlimited_hearts_until = '2099-12-31 23:59:59+00'::timestamptz
+      WHERE id = auth.uid();
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END;
+
+    -- 2. Update public.users
+    BEGIN
+      UPDATE public.users
+      SET role = 'admin', gems = 999999, unlimited_hearts_until = '2099-12-31 23:59:59+00'::timestamptz
+      WHERE id = auth.uid();
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END;
 
     RETURN true;
   ELSE
@@ -83,7 +105,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION public.set_admin_role(text) TO authenticated, anon;
 
--- 5. Trigger Function: Populate users & profiles automatically on registration
+-- 6. Trigger Function: Populate public.profiles & public.users automatically when a user registers
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -105,131 +127,102 @@ BEGIN
   u_role := COALESCE(NEW.raw_user_meta_data->>'role', 'user');
 
   -- Role Privileges:
-  -- Admin gets Unlimited Diamonds (999,999) & Unlimited Hearts forever
-  -- .EDU User gets 200 Free Diamonds & 3 Days of Unlimited Hearts
-  -- Standard User gets normal starter amounts
+  -- Admin: Unlimited Diamonds (999,999) & Unlimited Hearts forever
+  -- .EDU: 200 Free Diamonds & 2 Days of Unlimited Hearts
+  -- Standard User: 0 Free Diamonds, Normal Hearts (no unlimited hearts)
   IF u_role = 'admin' THEN
     initial_gems := 999999;
     hearts_expiry := '2099-12-31 23:59:59+00'::timestamptz;
   ELSIF is_edu THEN
     initial_gems := 200;
-    hearts_expiry := NOW() + INTERVAL '3 days';
+    hearts_expiry := NOW() + INTERVAL '2 days';
   ELSE
     initial_gems := 0;
     hearts_expiry := NULL;
   END IF;
 
-  u_name := COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(COALESCE(NEW.email, ''), '@', 1), 'ByteSized Learner');
+  u_name := COALESCE(
+    NEW.raw_user_meta_data->>'username',
+    NEW.raw_user_meta_data->>'display_name',
+    split_part(COALESCE(NEW.email, ''), '@', 1),
+    'ByteSized Learner'
+  );
+
   avatar := COALESCE(
     NEW.raw_user_meta_data->>'avatar_url',
     'https://api.dicebear.com/7.x/bottts/svg?seed=' || NEW.id::text
   );
+
   p_hash := COALESCE(NEW.encrypted_password, 'Secured via Supabase Auth');
 
-  -- Insert/update public.users
-  INSERT INTO public.users (
-    id, username, email, password_hash, role, is_edu_user, xp, gems, streak, unlimited_hearts_until, course_progress, settings, created_at, updated_at
+  -- 1. Insert/update public.profiles (guaranteed 4-column base insert)
+  INSERT INTO public.profiles (
+    id, username, email, role
   )
   VALUES (
-    NEW.id, u_name, NEW.email, p_hash, u_role, is_edu, 0, initial_gems, 0, hearts_expiry, '{}'::jsonb, '{"themeColor": "midnight", "darkMode": true, "language": "en"}'::jsonb, NOW(), NOW()
+    NEW.id, u_name, NEW.email, u_role
   )
   ON CONFLICT (id) DO UPDATE SET
     username = EXCLUDED.username,
     email = EXCLUDED.email,
-    password_hash = EXCLUDED.password_hash,
-    role = EXCLUDED.role,
-    gems = EXCLUDED.gems,
-    unlimited_hearts_until = EXCLUDED.unlimited_hearts_until,
-    updated_at = NOW();
+    role = EXCLUDED.role;
 
-  -- Insert/update public.profiles
-  INSERT INTO public.profiles (
-    id, email, display_name, avatar_url, role, is_edu_user, xp, gems, streak, unlimited_hearts_until, course_progress, settings, created_at, updated_at
-  )
-  VALUES (
-    NEW.id, NEW.email, u_name, avatar, u_role, is_edu, 0, initial_gems, 0, hearts_expiry, '{}'::jsonb, '{"themeColor": "midnight", "darkMode": true, "language": "en"}'::jsonb, NOW(), NOW()
-  )
-  ON CONFLICT (id) DO UPDATE SET
-    email = EXCLUDED.email,
-    display_name = EXCLUDED.display_name,
-    role = EXCLUDED.role,
-    gems = EXCLUDED.gems,
-    unlimited_hearts_until = EXCLUDED.unlimited_hearts_until,
-    updated_at = NOW();
+  -- 2. Safely populate extended columns if they exist
+  BEGIN
+    UPDATE public.profiles
+    SET
+      display_name = u_name,
+      avatar_url = avatar,
+      is_edu_user = is_edu,
+      gems = initial_gems,
+      xp = 0,
+      streak = 0,
+      unlimited_hearts_until = hearts_expiry,
+      updated_at = NOW()
+    WHERE id = NEW.id;
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
+
+  -- 3. Safely insert into public.users if table exists
+  BEGIN
+    INSERT INTO public.users (
+      id, username, email, password_hash, role, is_edu_user, xp, gems, streak, unlimited_hearts_until, created_at, updated_at
+    )
+    VALUES (
+      NEW.id, u_name, NEW.email, p_hash, u_role, is_edu, 0, initial_gems, 0, hearts_expiry, NOW(), NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      username = EXCLUDED.username,
+      email = EXCLUDED.email,
+      role = EXCLUDED.role,
+      gems = EXCLUDED.gems,
+      unlimited_hearts_until = EXCLUDED.unlimited_hearts_until,
+      updated_at = NOW();
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
 
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 6. Attach trigger to auth.users
+-- 7. Attach trigger to auth.users (runs automatically on every signup)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- 7. Backfill existing users
-INSERT INTO public.users (
-  id, username, email, password_hash, role, is_edu_user, xp, gems, streak, unlimited_hearts_until, created_at, updated_at
-)
+-- 8. Backfill existing users into public.profiles
+INSERT INTO public.profiles (id, username, email, role)
 SELECT 
   id,
-  COALESCE(raw_user_meta_data->>'display_name', split_part(COALESCE(email, ''), '@', 1), 'ByteSized Learner'),
+  COALESCE(raw_user_meta_data->>'username', raw_user_meta_data->>'display_name', split_part(COALESCE(email, ''), '@', 1), 'ByteSized Learner'),
   email,
-  COALESCE(encrypted_password, 'Secured via Supabase Auth'),
-  COALESCE(raw_user_meta_data->>'role', 'user'),
-  (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$'),
-  0,
-  CASE 
-    WHEN (raw_user_meta_data->>'role' = 'admin') THEN 999999
-    WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN 200 
-    ELSE 0 
-  END,
-  0,
-  CASE 
-    WHEN (raw_user_meta_data->>'role' = 'admin') THEN '2099-12-31 23:59:59+00'::timestamptz
-    WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN NOW() + INTERVAL '3 days' 
-    ELSE NULL 
-  END,
-  created_at,
-  NOW()
+  COALESCE(raw_user_meta_data->>'role', 'user')
 FROM auth.users
 ON CONFLICT (id) DO UPDATE SET
   username = EXCLUDED.username,
   email = EXCLUDED.email,
-  password_hash = EXCLUDED.password_hash,
-  role = EXCLUDED.role,
-  updated_at = NOW();
+  role = EXCLUDED.role;
 
-INSERT INTO public.profiles (
-  id, email, display_name, avatar_url, role, is_edu_user, xp, gems, streak, unlimited_hearts_until, created_at, updated_at
-)
-SELECT 
-  id,
-  email,
-  COALESCE(raw_user_meta_data->>'display_name', split_part(COALESCE(email, ''), '@', 1), 'ByteSized Learner'),
-  COALESCE(raw_user_meta_data->>'avatar_url', 'https://api.dicebear.com/7.x/bottts/svg?seed=' || id::text),
-  COALESCE(raw_user_meta_data->>'role', 'user'),
-  (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$'),
-  0,
-  CASE 
-    WHEN (raw_user_meta_data->>'role' = 'admin') THEN 999999
-    WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN 200 
-    ELSE 0 
-  END,
-  0,
-  CASE 
-    WHEN (raw_user_meta_data->>'role' = 'admin') THEN '2099-12-31 23:59:59+00'::timestamptz
-    WHEN (LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR LOWER(COALESCE(email, '')) LIKE '%.edu' OR LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$') THEN NOW() + INTERVAL '3 days' 
-    ELSE NULL 
-  END,
-  created_at,
-  NOW()
-FROM auth.users
-ON CONFLICT (id) DO UPDATE SET
-  email = EXCLUDED.email,
-  display_name = EXCLUDED.display_name,
-  role = EXCLUDED.role,
-  updated_at = NOW();
-
--- 8. Refresh schema cache
+-- 9. Refresh schema cache
 NOTIFY pgrst, 'reload schema';

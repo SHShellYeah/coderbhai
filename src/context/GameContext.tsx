@@ -83,10 +83,10 @@ const DEFAULT_COURSE_PROGRESS: Record<CourseId, CourseProgress> = {
 const DEFAULT_USER_STATE: UserState = {
   activeCourseId: 'cpp',
   courseProgress: DEFAULT_COURSE_PROGRESS,
-  streak: 3,
+  streak: 0,
   lastActiveDate: new Date().toISOString(),
-  gems: 120,
-  xp: 180,
+  gems: 0,
+  xp: 0,
   hearts: 5,
   maxHearts: 5,
   unlimitedHeartsUntil: null,
@@ -214,12 +214,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Load cloud profile
         fetchUserProfile(u.id).then(profile => {
           if (profile) {
+            const role = profile.role || 'user';
+            const isAdmin = role === 'admin';
+            const isEduAccount = isEdu && !isAdmin;
+            const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+            const unlimitedUntil = isAdmin
+              ? Number.MAX_SAFE_INTEGER
+              : (isEduAccount ? (profile.unlimitedHeartsUntil || (Date.now() + twoDaysMs)) : null);
+            const userGems = isAdmin ? 999999 : (isEduAccount ? Math.max(200, profile.gems || 0) : (profile.gems || 0));
+
             setState(prev => ({
               ...prev,
-              xp: Math.max(prev.xp, profile.xp),
-              gems: Math.max(prev.gems, profile.gems),
-              streak: Math.max(prev.streak, profile.streak),
-              unlimitedHeartsUntil: profile.unlimitedHeartsUntil || prev.unlimitedHeartsUntil,
+              role,
+              xp: profile.xp ?? 0,
+              gems: userGems,
+              streak: profile.streak ?? 0,
+              unlimitedHeartsUntil: unlimitedUntil,
               courseProgress: {
                 ...prev.courseProgress,
                 ...profile.courseProgress,
@@ -245,12 +255,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setState(prev => ({ ...prev, authUser }));
         const profile = await fetchUserProfile(u.id);
         if (profile) {
+          const role = profile.role || 'user';
+          const isAdmin = role === 'admin';
+          const isEduAccount = isEdu && !isAdmin;
+          const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+          const unlimitedUntil = isAdmin
+            ? Number.MAX_SAFE_INTEGER
+            : (isEduAccount ? (profile.unlimitedHeartsUntil || (Date.now() + twoDaysMs)) : null);
+          const userGems = isAdmin ? 999999 : (isEduAccount ? Math.max(200, profile.gems || 0) : (profile.gems || 0));
+
           setState(prev => ({
             ...prev,
-            xp: Math.max(prev.xp, profile.xp),
-            gems: Math.max(prev.gems, profile.gems),
-            streak: Math.max(prev.streak, profile.streak),
-            unlimitedHeartsUntil: profile.unlimitedHeartsUntil || prev.unlimitedHeartsUntil,
+            role,
+            xp: profile.xp ?? 0,
+            gems: userGems,
+            streak: profile.streak ?? 0,
+            unlimitedHeartsUntil: unlimitedUntil,
             courseProgress: {
               ...prev.courseProgress,
               ...profile.courseProgress,
@@ -258,7 +278,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }));
         }
       } else if (event === 'SIGNED_OUT') {
-        setState(prev => ({ ...prev, authUser: null }));
+        setState(prev => ({
+          ...prev,
+          authUser: null,
+          role: 'user',
+          gems: 0,
+          unlimitedHeartsUntil: null,
+          hearts: 5,
+        }));
       }
     });
 
@@ -550,25 +577,31 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (res.user) {
       const userRole = res.user.role || requestedRole || 'user';
       const isAdmin = userRole === 'admin';
+      const isEdu = !!res.user.isEduUser && !isAdmin;
+      const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+      const initialGems = isAdmin ? 999999 : (isEdu ? 200 : 0);
+      const initialHearts = isAdmin ? Number.MAX_SAFE_INTEGER : (isEdu ? Date.now() + twoDaysMs : null);
+
       setState(prev => ({
         ...prev,
         authUser: res.user ? { ...res.user, role: userRole } : null,
         role: userRole,
-        gems: isAdmin ? 999999 : (prev.gems >= 999999 ? 100 : prev.gems),
-        unlimitedHeartsUntil: isAdmin ? Number.MAX_SAFE_INTEGER : (prev.role === 'admin' ? null : prev.unlimitedHeartsUntil),
+        gems: initialGems,
+        unlimitedHeartsUntil: initialHearts,
       }));
       const profile = await fetchUserProfile(res.user.id);
       if (profile) {
         setState(prev => {
           const effectiveRole = res.user!.role || requestedRole || profile.role || userRole;
           const isProfAdmin = effectiveRole === 'admin';
+          const profIsEdu = !!res.user!.isEduUser && !isProfAdmin;
           return {
             ...prev,
             role: effectiveRole,
-            xp: Math.max(prev.xp, profile.xp),
-            gems: isProfAdmin ? 999999 : (profile.gems >= 999999 ? 100 : Math.max(prev.gems, profile.gems)),
-            streak: Math.max(prev.streak, profile.streak),
-            unlimitedHeartsUntil: isProfAdmin ? Number.MAX_SAFE_INTEGER : (effectiveRole === 'user' ? null : (profile.unlimitedHeartsUntil || prev.unlimitedHeartsUntil)),
+            xp: profile.xp ?? 0,
+            gems: isProfAdmin ? 999999 : (profIsEdu ? Math.max(200, profile.gems || 0) : (profile.gems || 0)),
+            streak: profile.streak ?? 0,
+            unlimitedHeartsUntil: isProfAdmin ? Number.MAX_SAFE_INTEGER : (profIsEdu ? (profile.unlimitedHeartsUntil || Date.now() + twoDaysMs) : null),
             courseProgress: {
               ...prev.courseProgress,
               ...profile.courseProgress,
@@ -600,37 +633,32 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const finalRole = res.user.role || 'user';
       const isAdmin = finalRole === 'admin';
       const isEdu = !!res.isEduBonusGranted && !isAdmin;
-      const bonusGems = isAdmin ? 999999 : (isEdu ? 200 : 0);
-      const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+      const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
       const bonusHeartsUntil = isAdmin
         ? Number.MAX_SAFE_INTEGER
-        : (isEdu ? Date.now() + threeDaysMs : null);
+        : (isEdu ? Date.now() + twoDaysMs : null);
+      const startingGems = isAdmin ? 999999 : (isEdu ? 200 : 0);
 
       setState(prev => ({
         ...prev,
         authUser: res.user,
         role: finalRole,
-        gems: isAdmin ? 999999 : prev.gems + bonusGems,
-        unlimitedHeartsUntil: bonusHeartsUntil || prev.unlimitedHeartsUntil,
+        gems: startingGems,
+        hearts: isAdmin ? 999 : 5,
+        maxHearts: 5,
+        unlimitedHeartsUntil: bonusHeartsUntil, // Strictly null for non-edu users, 2 days for .edu!
       }));
 
-      // Immediately save cloud profile with current local progress + role perks
+      // Immediately save cloud profile with exact schema and role perks
       await saveUserProfile(res.user.id, {
         email: res.user.email,
         displayName: res.user.displayName,
         role: finalRole,
-        xp: state.xp,
-        gems: isAdmin ? 999999 : state.gems + bonusGems,
-        streak: state.streak,
+        xp: 0,
+        gems: startingGems,
+        streak: 0,
         isEduUser: isEdu,
         unlimitedHeartsUntil: bonusHeartsUntil,
-        courseProgress: state.courseProgress,
-        settings: {
-          themeColor: state.themeColor,
-          darkMode: state.darkMode,
-          language: state.language,
-          soundEnabled: state.soundEnabled,
-        },
       });
     }
     return {
@@ -644,7 +672,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async (): Promise<void> => {
     await logoutUser();
-    setState(prev => ({ ...prev, authUser: null }));
+    setState(prev => ({
+      ...prev,
+      authUser: null,
+      role: 'user',
+      gems: 0,
+      unlimitedHeartsUntil: null,
+      hearts: 5,
+    }));
   };
 
   const syncCloudProgress = async (): Promise<void> => {

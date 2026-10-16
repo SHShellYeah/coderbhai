@@ -32,7 +32,7 @@ interface Props {
   onOpenSettings: () => void;
   onOpenIdeaZone?: () => void;
   onOpenCodeZone?: () => void;
-  onOpenAuth?: () => void;
+  onOpenAuth?: (tab?: 'login' | 'register') => void;
 }
 
 export const TopBar: React.FC<Props> = ({
@@ -311,7 +311,7 @@ export const TopBar: React.FC<Props> = ({
                   {isAdmin
                     ? 'As an Admin, your hearts never deplete.'
                     : state.unlimitedHeartsUntil && Date.now() < state.unlimitedHeartsUntil
-                    ? 'Your .edu student perk gives you infinite hearts for 3 days!'
+                    ? 'Your .edu student perk gives you infinite hearts for 2 days!'
                     : t.heartsDesc}
                 </p>
 
@@ -429,27 +429,19 @@ export const TopBar: React.FC<Props> = ({
             )}
           </button>
 
-          {/* Account / Sign In Button */}
+          {/* Account / Sign In & Sign Up Buttons */}
           {onOpenAuth && (
-            <button
-              type="button"
-              onClick={() => {
-                sound.playClick();
-                onOpenAuth();
-              }}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                state.authUser
-                  ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 shadow-sm'
-                  : 'bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:brightness-110 text-white shadow-md'
-              }`}
-              title={
-                state.authUser
-                  ? `Account: ${state.authUser.displayName || state.authUser.email} (Role: ${state.role || state.authUser.role})`
-                  : 'Sign In: Select User or Admin role with secret passcode verification'
-              }
-            >
+            <div className="flex items-center gap-1.5">
               {state.authUser ? (
-                <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playClick();
+                    onOpenAuth('login');
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 shadow-sm"
+                  title={`Account: ${state.authUser.displayName || state.authUser.email} (Role: ${state.role || state.authUser.role})`}
+                >
                   <div className="relative">
                     <img
                       src={state.authUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.authUser.id}`}
@@ -472,14 +464,34 @@ export const TopBar: React.FC<Props> = ({
                       User
                     </span>
                   )}
-                </>
+                </button>
               ) : (
                 <>
-                  <Crown className="w-3.5 h-3.5 text-amber-300" />
-                  <span className="font-extrabold text-[11px] sm:text-xs">Sign In (Role Select)</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      onOpenAuth('login');
+                    }}
+                    className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 sm:py-1.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 transition-all cursor-pointer"
+                  >
+                    <span>Sign In</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      onOpenAuth('register');
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:brightness-110 text-white shadow-md"
+                    title="Sign Up: Choose Admin or User role"
+                  >
+                    <Crown className="w-3.5 h-3.5 text-amber-300" />
+                    <span className="font-extrabold text-[11px] sm:text-xs">Sign Up (Choose Role)</span>
+                  </button>
                 </>
               )}
-            </button>
+            </div>
           )}
         </div>
       </div>

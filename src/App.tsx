@@ -25,6 +25,7 @@ const MainApp: React.FC = () => {
   const [isIdeaZoneOpen, setIsIdeaZoneOpen] = useState<boolean>(false);
   const [isCodeZoneOpen, setIsCodeZoneOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
+  const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('register');
   const [codeZoneSnippet, setCodeZoneSnippet] = useState<{ code: string; language: CodeLanguage } | undefined>();
   const [ideaZoneSeedNote, setIdeaZoneSeedNote] = useState<{
     title: string;
@@ -57,7 +58,10 @@ const MainApp: React.FC = () => {
           setCodeZoneSnippet(undefined);
           setIsCodeZoneOpen(true);
         }}
-        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenAuth={(tab = 'register') => {
+          setAuthInitialTab(tab);
+          setIsAuthOpen(true);
+        }}
       />
 
       {/* Main Content Area */}
@@ -178,7 +182,10 @@ const MainApp: React.FC = () => {
               setCodeZoneSnippet(undefined);
               setIsCodeZoneOpen(true);
             }}
-            onOpenAuth={() => setIsAuthOpen(true)}
+            onOpenAuth={(tab = 'register') => {
+              setAuthInitialTab(tab);
+              setIsAuthOpen(true);
+            }}
             filter={mobileTab === 'learn' ? 'all' : mobileTab}
           />
         </div>
@@ -277,7 +284,7 @@ const MainApp: React.FC = () => {
       {/* Supabase User Account, Cloud Sync & Student .EDU Perks Modal */}
       <AuthModal
         isOpen={isAuthOpen}
-        initialTab="login"
+        initialTab={authInitialTab}
         onClose={() => setIsAuthOpen(false)}
       />
     </div>

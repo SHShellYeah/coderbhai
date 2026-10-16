@@ -117,7 +117,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
           setErrorMsg(res.error || '⚠️ Admin security key verification failed. Registered as regular User.');
         } else if (res.isEduBonus) {
           fireSuccessConfetti();
-          setSuccessMsg('🎉 Account created with .edu Perks! +200 Diamonds & 3 Days of Unlimited Hearts granted!');
+          setSuccessMsg('🎉 Account created with .edu Perks! +200 Diamonds & 2 Days of Unlimited Hearts granted!');
         } else {
           setSuccessMsg('✅ Account created successfully! Profile saved to Supabase profiles table.');
         }
@@ -467,10 +467,24 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
             </div>
           </div>
         ) : (
-          /* REGISTRATION / LOGIN FORM */
           <div className="p-5 sm:p-6 space-y-4">
             {/* Mode Switcher Tabs */}
             <div className="flex rounded-2xl bg-slate-100 dark:bg-slate-800/80 p-1 border border-slate-200 dark:border-slate-700/80">
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  setTab('register');
+                  setErrorMsg(null);
+                }}
+                className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  tab === 'register'
+                    ? 'bg-brand-primary text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Sign Up
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -485,21 +499,6 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                 }`}
               >
                 Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  sound.playClick();
-                  setTab('register');
-                  setErrorMsg(null);
-                }}
-                className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                  tab === 'register'
-                    ? 'bg-brand-primary text-white shadow-md'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Create Account
               </button>
             </div>
 
@@ -528,7 +527,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                     Student .EDU Bonus
                   </div>
                   <p className="text-[11px] font-semibold text-slate-300 mt-0.5 leading-relaxed">
-                    Sign up with any school <strong className="text-white">.edu</strong> email for <span className="text-cyan-400 font-bold">200 Free Diamonds 💎</span> &amp; <span className="text-rose-400 font-bold">3 Days of Unlimited Hearts 💖</span>!
+                    Sign up with any school <strong className="text-white">.edu</strong> email for <span className="text-cyan-400 font-bold">200 Free Diamonds 💎</span> &amp; <span className="text-rose-400 font-bold">2 Days of Unlimited Hearts 💖</span>!
                   </p>
                 </div>
               </div>
@@ -538,18 +537,18 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
             {isEduDetected && tab === 'register' && selectedRole === 'user' && (
               <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-2 animate-bounceShort">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>🎉 .EDU email verified! +200 Diamonds &amp; 3-Day Unlimited Hearts will be granted!</span>
+                <span>🎉 .EDU email verified! +200 Diamonds &amp; 2-Day Unlimited Hearts will be granted!</span>
               </div>
             )}
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-3.5">
-              {/* 1. ROLE SELECT DROPDOWN MENU (UNMISTAKABLE NATIVE & STYLED SELECT DROPDOWN MENU) */}
-              <div className="space-y-2 p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm relative">
+              {/* 1. ROLE SELECT DROPDOWN MENU (CHOOSE YOUR ROLE: ADMIN OR USER) */}
+              <div className="space-y-2 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-purple-500/10 via-slate-50 to-amber-500/10 dark:from-purple-950/40 dark:via-slate-900 dark:to-amber-950/40 border-2 border-purple-500/40 dark:border-purple-500/50 shadow-sm relative">
                 <div className="flex items-center justify-between">
-                  <label htmlFor="role-select" className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                    <Crown className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Role Select Drop Down Menu</span>
+                  <label htmlFor="role-select" className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Crown className="w-4 h-4 text-amber-500" />
+                    <span>Choose your role: Admin or User</span>
                   </label>
                   {/* Live Nametag Indicator */}
                   {selectedRole === 'admin' ? (
@@ -569,7 +568,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                   <select
                     id="role-select"
                     name="role"
-                    aria-label="Role Select Drop Down Menu"
+                    aria-label="Choose your role: Admin or User"
                     value={selectedRole}
                     onChange={(e) => {
                       sound.playClick();
@@ -578,15 +577,15 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                     }}
                     className={`w-full rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm font-black transition-all cursor-pointer border-2 shadow-sm appearance-none ${
                       selectedRole === 'admin'
-                        ? 'bg-amber-500/15 border-amber-400 text-amber-300 focus:ring-2 focus:ring-amber-400'
-                        : 'bg-purple-500/10 border-purple-500/60 text-purple-600 dark:text-purple-300 focus:ring-2 focus:ring-purple-500'
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-300 focus:ring-2 focus:ring-amber-400'
+                        : 'bg-purple-500/15 border-purple-500/70 text-purple-600 dark:text-purple-300 focus:ring-2 focus:ring-purple-500'
                     } focus:outline-none`}
                   >
                     <option value="user" className="bg-white dark:bg-[#0F172A] text-purple-600 dark:text-purple-300 font-extrabold py-2">
-                      💜 User (Standard Learner - Purple Nametag)
+                      💜 User (Purple Nametag - Normal Privileges)
                     </option>
                     <option value="admin" className="bg-white dark:bg-[#0F172A] text-amber-500 dark:text-amber-400 font-extrabold py-2">
-                      👑 Admin (Special Privileges - Golden Nametag)
+                      👑 Admin (Golden Nametag - Special Privileges)
                     </option>
                   </select>
 
