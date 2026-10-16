@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { LessonNode, Question, TapToFillQuestion, SpotTheBugQuestion, PredictOutputQuestion, ConceptMatchQuestion } from '../../types';
+import { COURSES } from '../../data/courses';
 import { useGame } from '../../context/GameContext';
 import { useTranslation } from '../../data/translations';
 import { getLocalizedNode, getLocalizedQuestion } from '../../utils/lessonTranslator';
@@ -22,18 +23,47 @@ interface Props {
   node: LessonNode;
   onClose: () => void;
   onOpenPractice: () => void;
+  onNextLesson?: (nextNode: LessonNode) => void;
 }
 
 export const LessonModal: React.FC<Props> = ({
   node,
   onClose,
   onOpenPractice,
+  onNextLesson,
 }) => {
   const { state, completeNodeLesson, deductHeart, addMistake } = useGame();
   const t = useTranslation(state.language);
 
   // Localized Node based on current language
   const localizedNode = useMemo(() => getLocalizedNode(node, state.language), [node, state.language]);
+
+  // Find course and next sequential lesson node in curriculum
+  const currentCourse = useMemo(() => {
+    return (
+      Object.values(COURSES).find(c =>
+        c.units.some(u => u.nodes.some(n => n.id === node.id))
+      ) || COURSES[state.activeCourseId] || COURSES.c
+    );
+  }, [node.id, state.activeCourseId]);
+
+  const allNodesInCourse = useMemo(
+    () => currentCourse.units.flatMap(u => u.nodes),
+    [currentCourse]
+  );
+
+  const currentNodeIndex = useMemo(
+    () => allNodesInCourse.findIndex(n => n.id === node.id),
+    [allNodesInCourse, node.id]
+  );
+
+  const nextNode = useMemo(
+    () =>
+      currentNodeIndex !== -1 && currentNodeIndex + 1 < allNodesInCourse.length
+        ? allNodesInCourse[currentNodeIndex + 1]
+        : null,
+    [allNodesInCourse, currentNodeIndex]
+  );
 
   // Concept Guide state: ensure user is TAUGHT first, not just thrown into a quiz!
   const [showIntro, setShowIntro] = useState<boolean>(!!node.teachingIntro);
@@ -465,6 +495,15 @@ export const LessonModal: React.FC<Props> = ({
             )
           )}
           streak={state.streak}
+          hasNextLesson={!!nextNode}
+          nextLessonTitle={nextNode?.title}
+          onNextLesson={() => {
+            if (nextNode && onNextLesson) {
+              onNextLesson(nextNode);
+            } else {
+              onClose();
+            }
+          }}
           onFinish={onClose}
         />
       )}

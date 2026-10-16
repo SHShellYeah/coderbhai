@@ -247,8 +247,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     accuracy: number
   ) => {
     setState(prev => {
-      const activeCourse = COURSES[prev.activeCourseId];
-      const currentProg = prev.courseProgress[prev.activeCourseId];
+      // Find course containing this node or activeCourse
+      const activeCourse =
+        Object.values(COURSES).find(c =>
+          c.units.some(u => u.nodes.some(n => n.id === nodeId))
+        ) || COURSES[prev.activeCourseId] || COURSES.c;
+      const courseId = activeCourse.id;
+
+      const currentProg = prev.courseProgress[courseId] || {
+        completedNodeIds: [],
+        currentNodeId: activeCourse.units[0]?.nodes[0]?.id || '',
+        placementTaken: false,
+        unlockedUnitCount: 1,
+      };
 
       const completedSet = new Set(currentProg.completedNodeIds);
       completedSet.add(nodeId);
@@ -258,11 +269,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let unlockedUnits = currentProg.unlockedUnitCount;
 
       const allNodesInCourse = activeCourse.units.flatMap(u => u.nodes);
-      const currentIndex = allNodesInCourse.findIndex(n => n.id === nodeId);
+      const completedNodeIndex = allNodesInCourse.findIndex(n => n.id === nodeId);
+      const currentProgNodeIndex = allNodesInCourse.findIndex(n => n.id === currentProg.currentNodeId);
 
-      if (currentIndex !== -1 && currentIndex + 1 < allNodesInCourse.length) {
-        nextNodeId = allNodesInCourse[currentIndex + 1].id;
-        const nextUnitId = allNodesInCourse[currentIndex + 1].unitId;
+      if (completedNodeIndex !== -1 && completedNodeIndex + 1 < allNodesInCourse.length) {
+        // Only advance currentNodeId if completed node was at or ahead of current progress
+        if (completedNodeIndex >= currentProgNodeIndex) {
+          nextNodeId = allNodesInCourse[completedNodeIndex + 1].id;
+        }
+        const nextUnitId = allNodesInCourse[completedNodeIndex + 1].unitId;
         const nextUnitIndex = activeCourse.units.findIndex(u => u.id === nextUnitId);
         if (nextUnitIndex + 1 > unlockedUnits) {
           unlockedUnits = nextUnitIndex + 1;
@@ -290,7 +305,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         gems: prev.gems + earnedGems,
         courseProgress: {
           ...prev.courseProgress,
-          [prev.activeCourseId]: {
+          [courseId]: {
             ...currentProg,
             completedNodeIds: Array.from(completedSet),
             currentNodeId: nextNodeId,

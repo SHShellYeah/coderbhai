@@ -4,12 +4,15 @@ import { sound } from '../../utils/audio';
 import { useGame } from '../../context/GameContext';
 import { useTranslation } from '../../data/translations';
 import { CatFace } from '../common/CatFace';
-import { Zap, Target, Flame, Sparkles } from 'lucide-react';
+import { Zap, Target, Flame, Sparkles, ArrowRight } from 'lucide-react';
 
 interface Props {
   totalXp: number;
   accuracy: number;
   streak: number;
+  hasNextLesson?: boolean;
+  nextLessonTitle?: string;
+  onNextLesson?: () => void;
   onFinish: () => void;
 }
 
@@ -17,6 +20,9 @@ export const LessonCompleteModal: React.FC<Props> = ({
   totalXp,
   accuracy,
   streak,
+  hasNextLesson = false,
+  nextLessonTitle,
+  onNextLesson,
   onFinish,
 }) => {
   const { state } = useGame();
@@ -116,17 +122,44 @@ export const LessonCompleteModal: React.FC<Props> = ({
           <span className="text-brand-accent font-black font-mono">+15 {t.gems}</span>
         </div>
 
-        {/* Continue Button */}
-        <button
-          type="button"
-          onClick={() => {
-            sound.playClick();
-            onFinish();
-          }}
-          className="btn-3d btn-3d-primary w-full py-4 rounded-2xl text-base font-black uppercase tracking-wider cursor-pointer"
-        >
-          {t.keepLearning}
-        </button>
+        {/* Next Lesson or Finish Button */}
+        {hasNextLesson && onNextLesson ? (
+          <div className="w-full flex flex-col gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onNextLesson();
+              }}
+              className="btn-3d btn-3d-primary w-full py-4 rounded-2xl text-base font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+            >
+              <span>{state.language === 'bn' ? 'পরবর্তী পাঠ শুরু করুন' : 'Next Lesson'}</span>
+              <ArrowRight className="w-5 h-5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onFinish();
+              }}
+              className="w-full py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
+            >
+              {state.language === 'bn' ? 'ম্যাপে ফিরে যান' : 'Back to Learning Path'}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              onFinish();
+            }}
+            className="btn-3d btn-3d-primary w-full py-4 rounded-2xl text-base font-black uppercase tracking-wider cursor-pointer"
+          >
+            {t.keepLearning}
+          </button>
+        )}
       </div>
     </div>
   );

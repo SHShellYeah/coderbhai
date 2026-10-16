@@ -197,8 +197,12 @@ const MainApp: React.FC = () => {
       {/* Full-Screen Interactive Lesson Modal */}
       {activeLessonNode && (
         <LessonModal
+          key={activeLessonNode.id}
           node={activeLessonNode}
           onClose={() => setActiveLessonNode(null)}
+          onNextLesson={(nextNode) => {
+            setActiveLessonNode(nextNode);
+          }}
           onOpenPractice={() => {
             setActiveLessonNode(null);
             setIsPracticeOpen(true);
