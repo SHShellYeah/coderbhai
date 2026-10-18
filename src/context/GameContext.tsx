@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
-import { CourseId, CourseProgress, Question, Quest, UserState, Language, AuthUser, UserRole } from '../types';
+import { CourseId, CourseProgress, Question, Quest, UserState, Language, AuthUser, UserRole, UserActiveStatus } from '../types';
 import { COURSES } from '../data/courses';
 import { sound } from '../utils/audio';
 import { supabase, isEduEmail } from '../lib/supabase';
@@ -91,6 +91,9 @@ const DEFAULT_USER_STATE: UserState = {
   maxHearts: 5,
   unlimitedHeartsUntil: null,
   authUser: null,
+  role: 'user',
+  activeStatus: 'online',
+  bio: '',
   mistakes: [],
   soundEnabled: true,
   soundPack: 'duolingo',
@@ -123,6 +126,7 @@ interface GameContextType {
   register: (email: string, password: string, displayName?: string, role?: UserRole, adminSecurityKey?: string) => Promise<{ success: boolean; user?: AuthUser; isEduBonus?: boolean; error?: string; adminVerificationFailed?: boolean }>;
   logout: () => Promise<void>;
   syncCloudProgress: () => Promise<void>;
+  updateProfile: (updates: { displayName?: string; avatarUrl?: string; bio?: string; activeStatus?: UserActiveStatus }) => Promise<{ success: boolean; error?: string }>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -203,14 +207,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session?.user) {
         const u = session.user;
         const isEdu = isEduEmail(u.email || '');
+        const metaStatus = (u.user_metadata?.active_status as UserActiveStatus) || 'online';
+        const metaBio = u.user_metadata?.bio || '';
         const authUser: AuthUser = {
           id: u.id,
           email: u.email || '',
-          displayName: u.user_metadata?.display_name || u.email?.split('@')[0],
+          displayName: u.user_metadata?.display_name || u.user_metadata?.username || u.email?.split('@')[0],
           avatarUrl: u.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.id)}`,
+          bio: metaBio,
+          activeStatus: metaStatus,
           isEduUser: isEdu,
         };
-        setState(prev => ({ ...prev, authUser }));
+        setState(prev => ({
+          ...prev,
+          authUser,
+          bio: metaBio || prev.bio,
+          activeStatus: metaStatus || prev.activeStatus,
+        }));
         // Load cloud profile
         fetchUserProfile(u.id).then(profile => {
           if (profile) {
@@ -226,6 +239,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setState(prev => ({
               ...prev,
               role,
+              bio: profile.bio || prev.bio || '',
+              activeStatus: profile.activeStatus || prev.activeStatus || 'online',
+              authUser: prev.authUser ? {
+                ...prev.authUser,
+                displayName: profile.displayName || prev.authUser.displayName,
+                avatarUrl: profile.avatarUrl || prev.authUser.avatarUrl,
+                bio: profile.bio || prev.authUser.bio || '',
+                activeStatus: profile.activeStatus || prev.authUser.activeStatus || 'online',
+                role,
+              } : null,
               xp: profile.xp ?? 0,
               gems: userGems,
               streak: profile.streak ?? 0,
@@ -245,14 +268,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (event === 'SIGNED_IN' && session?.user) {
         const u = session.user;
         const isEdu = isEduEmail(u.email || '');
+        const metaStatus = (u.user_metadata?.active_status as UserActiveStatus) || 'online';
+        const metaBio = u.user_metadata?.bio || '';
         const authUser: AuthUser = {
           id: u.id,
           email: u.email || '',
-          displayName: u.user_metadata?.display_name || u.email?.split('@')[0],
+          displayName: u.user_metadata?.display_name || u.user_metadata?.username || u.email?.split('@')[0],
           avatarUrl: u.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.id)}`,
+          bio: metaBio,
+          activeStatus: metaStatus,
           isEduUser: isEdu,
         };
-        setState(prev => ({ ...prev, authUser }));
+        setState(prev => ({
+          ...prev,
+          authUser,
+          bio: metaBio || prev.bio,
+          activeStatus: metaStatus || prev.activeStatus,
+        }));
         const profile = await fetchUserProfile(u.id);
         if (profile) {
           const role = profile.role || 'user';
@@ -267,6 +299,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setState(prev => ({
             ...prev,
             role,
+            bio: profile.bio || prev.bio || '',
+            activeStatus: profile.activeStatus || prev.activeStatus || 'online',
+            authUser: prev.authUser ? {
+              ...prev.authUser,
+              displayName: profile.displayName || prev.authUser.displayName,
+              avatarUrl: profile.avatarUrl || prev.authUser.avatarUrl,
+              bio: profile.bio || prev.authUser.bio || '',
+              activeStatus: profile.activeStatus || prev.authUser.activeStatus || 'online',
+              role,
+            } : null,
             xp: profile.xp ?? 0,
             gems: userGems,
             streak: profile.streak ?? 0,
@@ -282,6 +324,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...prev,
           authUser: null,
           role: 'user',
+          activeStatus: 'online',
+          bio: '',
           gems: 0,
           unlimitedHeartsUntil: null,
           hearts: 5,
@@ -685,6 +729,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const syncCloudProgress = async (): Promise<void> => {
     if (!state.authUser?.id) return;
     await saveUserProfile(state.authUser.id, {
+      displayName: state.authUser.displayName,
+      avatarUrl: state.authUser.avatarUrl,
+      bio: state.bio,
+      activeStatus: state.activeStatus,
+      role: state.role,
       xp: state.xp,
       gems: state.gems,
       streak: state.streak,
@@ -698,6 +747,51 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         soundEnabled: state.soundEnabled,
       },
     });
+  };
+
+  const updateProfile = async (updates: {
+    displayName?: string;
+    avatarUrl?: string;
+    bio?: string;
+    activeStatus?: UserActiveStatus;
+  }): Promise<{ success: boolean; error?: string }> => {
+    const curUserId = state.authUser?.id;
+    const newActiveStatus = updates.activeStatus ?? state.activeStatus ?? 'online';
+    const newBio = updates.bio !== undefined ? updates.bio : (state.bio ?? '');
+
+    setState(prev => {
+      const updatedAuthUser: AuthUser | null = prev.authUser ? {
+        ...prev.authUser,
+        displayName: updates.displayName !== undefined ? updates.displayName : prev.authUser.displayName,
+        avatarUrl: updates.avatarUrl !== undefined ? updates.avatarUrl : prev.authUser.avatarUrl,
+        bio: newBio,
+        activeStatus: newActiveStatus,
+      } : null;
+
+      return {
+        ...prev,
+        activeStatus: newActiveStatus,
+        bio: newBio,
+        authUser: updatedAuthUser,
+      };
+    });
+
+    if (curUserId) {
+      const res = await saveUserProfile(curUserId, {
+        displayName: updates.displayName,
+        avatarUrl: updates.avatarUrl,
+        bio: updates.bio,
+        activeStatus: updates.activeStatus,
+        role: state.role,
+        xp: state.xp,
+        gems: state.gems,
+        streak: state.streak,
+        isEduUser: !!state.authUser?.isEduUser,
+        unlimitedHeartsUntil: state.unlimitedHeartsUntil,
+      });
+      return { success: res.success, error: res.error || undefined };
+    }
+    return { success: true };
   };
 
   const value = useMemo(
@@ -724,6 +818,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       register,
       logout,
       syncCloudProgress,
+      updateProfile,
     }),
     [state]
   );

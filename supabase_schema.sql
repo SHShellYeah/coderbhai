@@ -20,6 +20,8 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
 -- Optional extended columns for stats, perks, and theme preferences
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS display_name TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT '';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS active_status TEXT DEFAULT 'online';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_edu_user BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS gems INTEGER DEFAULT 0;
@@ -49,11 +51,29 @@ CREATE TABLE IF NOT EXISTS public.users (
 );
 
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT '';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS active_status TEXT DEFAULT 'online';
 
--- 3. Row Level Security (RLS) Policies
--- Enables both authenticated users and anonymous sign-up client to safely read/write
+-- 3. In-App Community Messages Table (Optional Cloud Sync)
+CREATE TABLE IF NOT EXISTS public.messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  channel_id TEXT NOT NULL DEFAULT 'general',
+  sender_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  sender_name TEXT NOT NULL,
+  sender_avatar TEXT,
+  sender_role TEXT DEFAULT 'user',
+  sender_status TEXT DEFAULT 'online',
+  content TEXT NOT NULL,
+  code_snippet JSONB,
+  reactions JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. Row Level Security (RLS) Policies
+-- Enables both authenticated users and anonymous client to safely read/write
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
@@ -67,9 +87,16 @@ CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING
 DROP POLICY IF EXISTS "Allow all access to public.users" ON public.users;
 CREATE POLICY "Allow all access to public.users" ON public.users FOR ALL USING (true) WITH CHECK (true);
 
--- 4. Grant table permissions
+DROP POLICY IF EXISTS "Allow read public messages" ON public.messages;
+CREATE POLICY "Allow read public messages" ON public.messages FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow insert public messages" ON public.messages;
+CREATE POLICY "Allow insert public messages" ON public.messages FOR INSERT WITH CHECK (true);
+
+-- 5. Grant table permissions
 GRANT ALL ON TABLE public.profiles TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.users TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.messages TO anon, authenticated, service_role;
 
 -- 5. Database RPC Function: set_admin_role(admin_secret text)
 CREATE OR REPLACE FUNCTION public.set_admin_role(admin_secret text)

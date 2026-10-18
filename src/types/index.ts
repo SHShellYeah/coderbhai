@@ -158,12 +158,15 @@ export type ThemeColor = 'midnight' | 'cyberpunk' | 'sunset' | 'emerald-synth' |
 export type Language = 'en' | 'bn';
 
 export type UserRole = 'user' | 'admin';
+export type UserActiveStatus = 'online' | 'away' | 'busy' | 'offline';
 
 export interface AuthUser {
   id: string;
   email: string;
   displayName?: string;
   avatarUrl?: string;
+  bio?: string;
+  activeStatus?: UserActiveStatus;
   isEduUser?: boolean;
   role?: UserRole;
 }
@@ -173,6 +176,8 @@ export interface UserProfile {
   email: string;
   displayName?: string;
   avatarUrl?: string;
+  bio?: string;
+  activeStatus?: UserActiveStatus;
   isEduUser: boolean;
   role: UserRole;
   xp: number;
@@ -202,6 +207,8 @@ export interface UserState {
   unlimitedHeartsUntil?: number | null; // Timestamp ms for .edu unlimited hearts perk
   authUser?: AuthUser | null;
   role?: UserRole;
+  activeStatus?: UserActiveStatus;
+  bio?: string;
   mistakes: Question[];
   soundEnabled: boolean;
   soundPack: SoundPack;
@@ -209,6 +216,32 @@ export interface UserState {
   darkMode: boolean;
   language: Language;
   quests: Quest[];
+}
+
+export interface ChatMessage {
+  id: string;
+  channelId: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string;
+  senderRole?: UserRole;
+  senderStatus?: UserActiveStatus;
+  content: string;
+  codeSnippet?: {
+    code: string;
+    language: string;
+  };
+  timestamp: number;
+  reactions?: Record<string, number>;
+}
+
+export interface ChatChannel {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  isDirect?: boolean;
+  peerStatus?: UserActiveStatus;
 }
 
 export type IdeaCategory = 'all' | 'idea' | 'dsa' | 'bug' | 'snippet' | 'general';

@@ -4,7 +4,7 @@ import { supabase, isEduEmail } from '../../lib/supabase';
 import { sound } from '../../utils/audio';
 import { fireSuccessConfetti } from '../../utils/confetti';
 import { ADMIN_SECRET_CODE, saveUserProfile } from '../../services/authService';
-import { UserRole } from '../../types';
+import { UserRole, UserActiveStatus } from '../../types';
 import {
   X,
   Mail,
@@ -23,17 +23,43 @@ import {
   KeyRound,
   ShieldCheck,
   ChevronDown,
-  ArrowRight
+  ArrowRight,
+  Edit3,
+  Camera,
+  Check,
+  MessageSquare,
+  FileText,
+  Radio,
+  ArrowLeft
 } from 'lucide-react';
+
+const AVATAR_PRESETS = [
+  { name: 'Byte Bot', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=ByteBot' },
+  { name: 'Ada Cyber', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=AdaLovelace' },
+  { name: 'Pixel Cat', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=PixelCat' },
+  { name: 'Cyber Raven', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=CyberHacker' },
+  { name: 'Turing Matrix', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=AlanTuring' },
+  { name: 'Robo Guru', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=RoboGuru' },
+  { name: 'Neon Coder', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=NeonCoder' },
+  { name: 'Algorist', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Algorist' },
+];
+
+const STATUS_CONFIG: Record<UserActiveStatus, { label: string; dot: string; bg: string; text: string; desc: string }> = {
+  online: { label: 'Online', dot: 'bg-emerald-500 shadow-emerald-500/50', bg: 'bg-emerald-500/15 border-emerald-500/30', text: 'text-emerald-500', desc: 'Ready to pair program & learn' },
+  away: { label: 'Away', dot: 'bg-amber-400 shadow-amber-400/50', bg: 'bg-amber-400/15 border-amber-400/30', text: 'text-amber-500', desc: 'Stepped away from keyboard' },
+  busy: { label: 'Busy (DND)', dot: 'bg-rose-500 shadow-rose-500/50', bg: 'bg-rose-500/15 border-rose-500/30', text: 'text-rose-500', desc: 'Deep in coding flow' },
+  offline: { label: 'Invisible', dot: 'bg-slate-400 shadow-slate-400/50', bg: 'bg-slate-500/15 border-slate-500/30', text: 'text-slate-400', desc: 'Appear offline to peers' },
+};
 
 interface Props {
   isOpen: boolean;
   initialTab?: 'login' | 'register';
   onClose: () => void;
+  onOpenMessaging?: () => void;
 }
 
-export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClose }) => {
-  const { state, login, register, logout, syncCloudProgress } = useGame();
+export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClose, onOpenMessaging }) => {
+  const { state, login, register, logout, syncCloudProgress, updateProfile } = useGame();
 
   // Default to 'login' (Sign In) so users immediately see Sign In form
   const [tab, setTab] = useState<'register' | 'login'>(initialTab);
@@ -42,6 +68,14 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
   const [displayName, setDisplayName] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('user');
   const [adminSecretPassword, setAdminSecretPassword] = useState('');
+
+  // Logged-in profile editing state
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const [editActiveStatus, setEditActiveStatus] = useState<UserActiveStatus>('online');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Logged-in role upgrade state
   const [upgradeRole, setUpgradeRole] = useState<UserRole>('admin');
@@ -58,8 +92,15 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
       setTab(initialTab);
       setErrorMsg(null);
       setSuccessMsg(null);
+      setIsEditingProfile(false);
+      if (state.authUser) {
+        setEditDisplayName(state.authUser.displayName || '');
+        setEditBio(state.bio || state.authUser.bio || '');
+        setEditAvatarUrl(state.authUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.authUser.id}`);
+        setEditActiveStatus(state.activeStatus || state.authUser.activeStatus || 'online');
+      }
     }
-  }, [isOpen, initialTab]);
+  }, [isOpen, initialTab, state.authUser, state.bio, state.activeStatus]);
 
   const isEduDetected = useMemo(() => isEduEmail(email), [email]);
 
@@ -203,21 +244,69 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
     setIsUpgradingRole(false);
   };
 
+  const handleSaveProfile = async () => {
+    if (!state.authUser) return;
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setIsSavingProfile(true);
+    sound.playClick();
+
+    const res = await updateProfile({
+      displayName: editDisplayName.trim() || undefined,
+      bio: editBio.trim(),
+      avatarUrl: editAvatarUrl.trim() || undefined,
+      activeStatus: editActiveStatus,
+    });
+
+    setIsSavingProfile(false);
+    if (!res.success) {
+      sound.playError();
+      setErrorMsg(res.error || 'Failed to update profile.');
+    } else {
+      sound.playSuccess();
+      fireSuccessConfetti();
+      setSuccessMsg('🎉 Profile & Bio updated successfully!');
+      setIsEditingProfile(false);
+      setTimeout(() => setSuccessMsg(null), 3500);
+    }
+  };
+
+  const currentStatusConfig = STATUS_CONFIG[state.activeStatus || 'online'] || STATUS_CONFIG.online;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md animate-fade">
       <div className="w-full max-w-md bg-white dark:bg-[#0F172A] border-2 border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-800 dark:text-slate-100 relative max-h-[92vh] overflow-y-auto">
         {/* Top Header */}
         <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-[#111C35] sticky top-0 z-10">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-brand-primary/15 text-brand-primary flex items-center justify-center shadow-inner">
-              <User className="w-5 h-5 stroke-[2.5]" />
-            </div>
+            {isEditingProfile ? (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  setIsEditingProfile(false);
+                  setErrorMsg(null);
+                }}
+                className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+                title="Back to profile"
+              >
+                <ArrowLeft className="w-4 h-4 text-slate-700 dark:text-slate-200" />
+              </button>
+            ) : (
+              <div className="w-9 h-9 rounded-2xl bg-brand-primary/15 text-brand-primary flex items-center justify-center shadow-inner">
+                <User className="w-5 h-5 stroke-[2.5]" />
+              </div>
+            )}
             <div>
               <h3 className="text-base font-black tracking-tight leading-none">
-                {state.authUser ? 'Your Account' : 'ByteSized Account'}
+                {state.authUser
+                  ? (isEditingProfile ? 'Edit Profile' : 'Your Account')
+                  : 'ByteSized Account'}
               </h3>
               <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
-                {state.authUser ? 'Account details & progress' : 'Save your XP, streak & notes across devices'}
+                {state.authUser
+                  ? (isEditingProfile ? 'Customize avatar, bio & active status' : 'Account details & progress')
+                  : 'Save your XP, streak & notes across devices'}
               </p>
             </div>
           </div>
@@ -233,54 +322,335 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
 
         {/* LOGGED-IN VIEW */}
         {state.authUser ? (
-          <div className="p-5 sm:p-6 space-y-4">
-            {/* User Profile Card */}
-            <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 flex items-center gap-3.5">
-              <div className="relative shrink-0">
-                <img
-                  src={state.authUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.authUser.id}`}
-                  alt="Avatar"
-                  className={`w-13 h-13 rounded-2xl bg-slate-900 border-2 shadow-md ${
-                    isAdminUser ? 'border-amber-400 ring-2 ring-amber-400/40' : 'border-purple-500'
-                  }`}
-                />
-                {isAdminUser && (
-                  <span className="absolute -top-1.5 -right-1.5 text-xs bg-amber-400 text-slate-950 p-0.5 rounded-full shadow">
-                    👑
+          isEditingProfile ? (
+            /* EDIT PROFILE FORM */
+            <div className="p-5 sm:p-6 space-y-4 animate-fade">
+              {/* Avatar Selector Section */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Choose Profile Picture</span>
                   </span>
-                )}
+                  <span className="text-[10px] text-slate-400 font-medium">8 Presets + Custom URL</span>
+                </label>
+
+                {/* Avatar Preview */}
+                <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+                  <div className="relative shrink-0">
+                    <img
+                      src={editAvatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.authUser.id}`}
+                      alt="Avatar Preview"
+                      className="w-14 h-14 rounded-2xl bg-slate-900 border-2 border-purple-500 shadow-md object-cover"
+                    />
+                    <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full ring-2 ring-white dark:ring-slate-900 ${STATUS_CONFIG[editActiveStatus]?.dot || 'bg-emerald-500'}`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-black text-slate-900 dark:text-white truncate">
+                      {editDisplayName.trim() || 'Learner'}
+                    </div>
+                    <div className="text-[11px] text-slate-400 truncate mt-0.5">
+                      Previewing with status: <span className="font-bold text-purple-400">{STATUS_CONFIG[editActiveStatus]?.label}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Avatar Presets Grid */}
+                <div className="grid grid-cols-4 gap-2 pt-1">
+                  {AVATAR_PRESETS.map((preset) => {
+                    const isSelected = editAvatarUrl === preset.url;
+                    return (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => {
+                          sound.playClick();
+                          setEditAvatarUrl(preset.url);
+                        }}
+                        className={`p-1.5 rounded-xl border-2 flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-purple-500 bg-purple-500/15 shadow-md scale-105'
+                            : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
+                        }`}
+                        title={preset.name}
+                      >
+                        <img src={preset.url} alt={preset.name} className="w-8 h-8 rounded-lg bg-slate-800" />
+                        <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300 truncate max-w-full">
+                          {preset.name.split(' ')[0]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Custom Avatar URL input */}
+                <div className="pt-1">
+                  <input
+                    type="url"
+                    value={editAvatarUrl}
+                    onChange={(e) => setEditAvatarUrl(e.target.value)}
+                    placeholder="Or paste custom image URL (https://...)"
+                    className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 font-mono focus:outline-none focus:border-purple-500"
+                  />
+                </div>
               </div>
 
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="text-base font-black text-slate-900 dark:text-white truncate">
-                    {state.authUser.displayName || 'Learner'}
-                  </h4>
+              {/* Display Name Input */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-brand-primary" />
+                  <span>Display Name</span>
+                </label>
+                <input
+                  type="text"
+                  value={editDisplayName}
+                  onChange={(e) => setEditDisplayName(e.target.value)}
+                  placeholder="e.g. CodeNinja, ByteWizard"
+                  maxLength={30}
+                  className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 font-bold focus:outline-none focus:border-brand-primary"
+                />
+              </div>
 
-                  {/* Golden or Purple Nametag */}
-                  {isAdminUser ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-md border border-amber-300">
-                      <Crown className="w-3 h-3 fill-current" />
-                      Admin
-                    </span>
+              {/* Active Status Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Radio className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Active Status</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(Object.keys(STATUS_CONFIG) as UserActiveStatus[]).map((st) => {
+                    const cfg = STATUS_CONFIG[st];
+                    const isSelected = editActiveStatus === st;
+                    return (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => {
+                          sound.playClick();
+                          setEditActiveStatus(st);
+                        }}
+                        className={`p-2.5 rounded-xl border text-left flex items-start gap-2 transition-all cursor-pointer ${
+                          isSelected
+                            ? `${cfg.bg} border-2 shadow-sm font-black`
+                            : 'bg-slate-100 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                        }`}
+                      >
+                        <span className={`w-3 h-3 rounded-full mt-0.5 shrink-0 ${cfg.dot}`} />
+                        <div className="min-w-0">
+                          <div className={`text-xs font-bold ${isSelected ? cfg.text : 'text-slate-800 dark:text-slate-200'}`}>
+                            {cfg.label}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-medium leading-tight">
+                            {cfg.desc}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Bio Textarea */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Developer Bio</span>
+                  </label>
+                  <span className={`text-[10px] font-bold ${editBio.length > 150 ? 'text-amber-400' : 'text-slate-400'}`}>
+                    {editBio.length} / 160
+                  </span>
+                </div>
+                <textarea
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value.slice(0, 160))}
+                  placeholder="Share a short bio, learning goals, or your favorite language (e.g. DSA explorer, C++ lover, building daily!)..."
+                  rows={3}
+                  className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl p-3 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-brand-primary leading-relaxed resize-none"
+                />
+              </div>
+
+              {/* Error and Success alerts */}
+              {errorMsg && (
+                <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+              {successMsg && (
+                <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{successMsg}</span>
+                </div>
+              )}
+
+              {/* Save & Cancel Buttons */}
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playClick();
+                    setIsEditingProfile(false);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveProfile}
+                  disabled={isSavingProfile}
+                  className="flex-2 btn-3d btn-3d-green py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                >
+                  {isSavingProfile ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Saving...</span>
+                    </>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40">
-                      User
-                    </span>
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Save Profile Changes</span>
+                    </>
                   )}
-
-                  {state.authUser.isEduUser && !isAdminUser && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
-                      <GraduationCap className="w-3 h-3" />
-                      .EDU
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* NORMAL PROFILE VIEW */
+            <div className="p-5 sm:p-6 space-y-4">
+              {/* User Profile Card */}
+              <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 flex items-start gap-3.5">
+                <div className="relative shrink-0">
+                  <img
+                    src={state.authUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.authUser.id}`}
+                    alt="Avatar"
+                    className={`w-14 h-14 rounded-2xl bg-slate-900 border-2 shadow-md object-cover ${
+                      isAdminUser ? 'border-amber-400 ring-2 ring-amber-400/40' : 'border-purple-500'
+                    }`}
+                  />
+                  {/* Active Status Badge Dot */}
+                  <span
+                    className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full ring-2 ring-white dark:ring-slate-900 ${currentStatusConfig.dot}`}
+                    title={`Status: ${currentStatusConfig.label}`}
+                  />
+                  {isAdminUser && (
+                    <span className="absolute -top-1.5 -right-1.5 text-xs bg-amber-400 text-slate-950 p-0.5 rounded-full shadow">
+                      👑
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">
-                  {state.authUser.email}
-                </p>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-base font-black text-slate-900 dark:text-white truncate">
+                      {state.authUser.displayName || 'Learner'}
+                    </h4>
+
+                    {/* Golden or Purple Nametag */}
+                    {isAdminUser ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-md border border-amber-300">
+                        <Crown className="w-3 h-3 fill-current" />
+                        Admin
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40">
+                        User
+                      </span>
+                    )}
+
+                    {state.authUser.isEduUser && !isAdminUser && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
+                        <GraduationCap className="w-3 h-3" />
+                        .EDU
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">
+                    {state.authUser.email}
+                  </p>
+
+                  {/* Active Status Pill */}
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border ${currentStatusConfig.bg} ${currentStatusConfig.text}`}>
+                      <span className={`w-2 h-2 rounded-full ${currentStatusConfig.dot}`} />
+                      <span>{currentStatusConfig.label}</span>
+                    </div>
+
+                    {/* Edit Profile Button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sound.playClick();
+                        setIsEditingProfile(true);
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-300 hover:bg-purple-500/25 border border-purple-500/30 transition-all cursor-pointer"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      <span>Edit Profile</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
+
+              {/* Bio Section */}
+              <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  <span className="flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Bio</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setIsEditingProfile(true);
+                    }}
+                    className="text-[10px] text-purple-500 dark:text-purple-400 hover:underline font-bold cursor-pointer"
+                  >
+                    {state.bio ? 'Edit' : '+ Add Bio'}
+                  </button>
+                </div>
+                {state.bio ? (
+                  <p className="text-xs text-slate-700 dark:text-slate-300 italic bg-white/60 dark:bg-slate-900/60 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 leading-relaxed">
+                    &ldquo;{state.bio}&rdquo;
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">
+                    No bio added yet. Click &ldquo;Edit Profile&rdquo; to introduce yourself to peers!
+                  </p>
+                )}
+              </div>
+
+              {/* In-App Messaging Quick Launcher */}
+              {onOpenMessaging && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playClick();
+                    onClose();
+                    onOpenMessaging();
+                  }}
+                  className="w-full p-3 rounded-2xl bg-gradient-to-r from-blue-600/15 via-indigo-600/15 to-purple-600/15 border border-indigo-500/30 hover:border-indigo-500/60 transition-all flex items-center justify-between cursor-pointer group shadow-sm text-left"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow">
+                      <MessageSquare className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <span>ByteSized Community Chat</span>
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-semibold">
+                        Chat with learners, share DSA snippets &amp; ask questions
+                      </div>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-indigo-400 group-hover:translate-x-1 transition-transform" />
+                </button>
+              )}
 
             {/* Perks & Stats Badge Grid */}
             <div className="grid grid-cols-2 gap-2.5">
@@ -477,7 +847,8 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
               </button>
             </div>
           </div>
-        ) : (
+        )
+      ) : (
           <div className="p-5 sm:p-6 space-y-4">
             {/* Mode Switcher Tabs */}
             <div className="flex rounded-2xl bg-slate-100 dark:bg-slate-800/80 p-1 border border-slate-200 dark:border-slate-700/80">

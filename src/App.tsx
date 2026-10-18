@@ -12,8 +12,9 @@ import { ThemeCustomizerModal } from './components/settings/ThemeCustomizerModal
 import { IdeaZoneModal } from './components/ideazone/IdeaZoneModal';
 import { CodeZoneModal } from './components/codezone/CodeZoneModal';
 import { AuthModal } from './components/auth/AuthModal';
+import { MessagingModal } from './components/chat/MessagingModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal } from 'lucide-react';
+import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageSquare } from 'lucide-react';
 
 const MainApp: React.FC = () => {
   const { state } = useGame();
@@ -25,6 +26,7 @@ const MainApp: React.FC = () => {
   const [isIdeaZoneOpen, setIsIdeaZoneOpen] = useState<boolean>(false);
   const [isCodeZoneOpen, setIsCodeZoneOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
+  const [isMessagingOpen, setIsMessagingOpen] = useState<boolean>(false);
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('register');
   const [codeZoneSnippet, setCodeZoneSnippet] = useState<{ code: string; language: CodeLanguage } | undefined>();
   const [ideaZoneSeedNote, setIdeaZoneSeedNote] = useState<{
@@ -62,6 +64,7 @@ const MainApp: React.FC = () => {
           setAuthInitialTab(tab);
           setIsAuthOpen(true);
         }}
+        onOpenMessaging={() => setIsMessagingOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -150,6 +153,14 @@ const MainApp: React.FC = () => {
             <Terminal className="w-3.5 h-3.5 text-emerald-500" />
             {t.codeZone || 'CodeZone'}
           </button>
+          <button
+            type="button"
+            onClick={() => setIsMessagingOpen(true)}
+            className="flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30"
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Chat</span>
+          </button>
         </div>
 
         {/* Learning Path (The Winding Map) */}
@@ -186,6 +197,7 @@ const MainApp: React.FC = () => {
               setAuthInitialTab(tab);
               setIsAuthOpen(true);
             }}
+            onOpenMessaging={() => setIsMessagingOpen(true)}
             filter={mobileTab === 'learn' ? 'all' : mobileTab}
           />
         </div>
@@ -286,6 +298,21 @@ const MainApp: React.FC = () => {
         isOpen={isAuthOpen}
         initialTab={authInitialTab}
         onClose={() => setIsAuthOpen(false)}
+        onOpenMessaging={() => setIsMessagingOpen(true)}
+      />
+
+      {/* In-App Community Messaging & Code Share Modal */}
+      <MessagingModal
+        isOpen={isMessagingOpen}
+        onClose={() => setIsMessagingOpen(false)}
+        onOpenCodeZone={(snippet, lang) => {
+          if (snippet) {
+            setCodeZoneSnippet({ code: snippet, language: lang || 'cpp' });
+          } else {
+            setCodeZoneSnippet(undefined);
+          }
+          setIsCodeZoneOpen(true);
+        }}
       />
     </div>
   );

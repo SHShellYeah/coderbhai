@@ -1,5 +1,5 @@
 import { supabaseClient as supabase, isEduEmail } from '../lib/supabase';
-import { AuthUser, UserProfile, CourseId, CourseProgress, ThemeColor, Language, UserRole } from '../types';
+import { AuthUser, UserProfile, CourseId, CourseProgress, ThemeColor, Language, UserRole, UserActiveStatus } from '../types';
 
 export const ADMIN_SECRET_CODE = '@dm1n.D1u';
 
@@ -377,6 +377,8 @@ export const fetchUserProfile = async (userId: string): Promise<UserProfile | nu
       email: record.email,
       displayName: record.username || record.display_name || (record.email ? record.email.split('@')[0] : 'ByteSized Learner'),
       avatarUrl: record.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userId)}`,
+      bio: record.bio || '',
+      activeStatus: record.active_status || 'online',
       isEduUser: !!record.is_edu_user,
       role,
       xp: record.xp || 0,
@@ -437,6 +439,8 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
       email: user.email || '',
       displayName: profileUsername || user.user_metadata?.username || user.user_metadata?.display_name || user.email?.split('@')[0] || 'ByteSized Learner',
       avatarUrl: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.id)}`,
+      bio: user.user_metadata?.bio || '',
+      activeStatus: (user.user_metadata?.active_status as UserActiveStatus) || 'online',
       isEduUser: isEduEmail(user.email || ''),
       role: userRole,
     };
@@ -453,6 +457,9 @@ export const saveUserProfile = async (
   profileData: Partial<{
     email: string;
     displayName: string;
+    avatarUrl: string;
+    bio: string;
+    activeStatus: UserActiveStatus;
     role: UserRole;
     xp: number;
     gems: number;
@@ -469,6 +476,22 @@ export const saveUserProfile = async (
   }>
 ): Promise<{ success: boolean; error: string | null }> => {
   try {
+    // 0. Sync Auth metadata directly if profile info is present
+    if (profileData.displayName || profileData.avatarUrl || profileData.bio !== undefined || profileData.activeStatus) {
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            ...(profileData.displayName ? { display_name: profileData.displayName, username: profileData.displayName } : {}),
+            ...(profileData.avatarUrl ? { avatar_url: profileData.avatarUrl } : {}),
+            ...(profileData.bio !== undefined ? { bio: profileData.bio } : {}),
+            ...(profileData.activeStatus ? { active_status: profileData.activeStatus } : {}),
+          }
+        });
+      } catch {
+        // ignore
+      }
+    }
+
     const basePayload: Record<string, unknown> = {
       id: userId,
       updated_at: new Date().toISOString(),
@@ -513,6 +536,9 @@ export const saveUserProfile = async (
         updated_at: new Date().toISOString(),
       };
       if (profileData.displayName) extendedPayload.display_name = profileData.displayName;
+      if (profileData.avatarUrl) extendedPayload.avatar_url = profileData.avatarUrl;
+      if (profileData.bio !== undefined) extendedPayload.bio = profileData.bio;
+      if (profileData.activeStatus) extendedPayload.active_status = profileData.activeStatus;
       if (profileData.xp !== undefined) extendedPayload.xp = profileData.xp;
       if (profileData.streak !== undefined) extendedPayload.streak = profileData.streak;
       if (profileData.isEduUser !== undefined) extendedPayload.is_edu_user = profileData.isEduUser;

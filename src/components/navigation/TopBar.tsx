@@ -23,7 +23,8 @@ import {
   GraduationCap,
   User,
   Cloud,
-  Crown
+  Crown,
+  MessageSquare
 } from 'lucide-react';
 
 interface Props {
@@ -33,6 +34,7 @@ interface Props {
   onOpenIdeaZone?: () => void;
   onOpenCodeZone?: () => void;
   onOpenAuth?: (tab?: 'login' | 'register') => void;
+  onOpenMessaging?: () => void;
 }
 
 export const TopBar: React.FC<Props> = ({
@@ -42,6 +44,7 @@ export const TopBar: React.FC<Props> = ({
   onOpenIdeaZone,
   onOpenCodeZone,
   onOpenAuth,
+  onOpenMessaging,
 }) => {
   const { state, setActiveCourse, toggleSound, toggleDarkMode, toggleLanguage, refillHearts } = useGame();
   const t = useTranslation(state.language);
@@ -429,6 +432,22 @@ export const TopBar: React.FC<Props> = ({
             )}
           </button>
 
+          {/* Community Chat Launcher */}
+          {onOpenMessaging && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onOpenMessaging();
+              }}
+              className="relative p-1 sm:p-2 rounded-xl text-indigo-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors cursor-pointer shrink-0"
+              title="Community Chat & Code Share"
+            >
+              <MessageSquare className="w-4.5 sm:w-5 h-4.5 sm:h-5" />
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            </button>
+          )}
+
           {/* Account / Sign In & Sign Up Buttons - ALWAYS VISIBLE ON MOBILE AND DESKTOP */}
           {onOpenAuth && (
             <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
@@ -440,13 +459,25 @@ export const TopBar: React.FC<Props> = ({
                     onOpenAuth('login');
                   }}
                   className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 shadow-sm shrink-0"
-                  title={`Account: ${state.authUser.displayName || state.authUser.email} (Role: ${state.role || state.authUser.role})`}
+                  title={`Account: ${state.authUser.displayName || state.authUser.email} (Status: ${state.activeStatus || 'online'})`}
                 >
                   <div className="relative">
                     <img
                       src={state.authUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.authUser.id}`}
                       alt="Avatar"
-                      className="w-4 h-4 sm:w-5 sm:h-5 rounded-lg bg-slate-900 border border-brand-primary"
+                      className="w-4 h-4 sm:w-5 sm:h-5 rounded-lg bg-slate-900 border border-brand-primary object-cover"
+                    />
+                    {/* Active Status Dot */}
+                    <span
+                      className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ring-1 ring-white dark:ring-slate-900 ${
+                        state.activeStatus === 'away'
+                          ? 'bg-amber-400'
+                          : state.activeStatus === 'busy'
+                          ? 'bg-rose-500'
+                          : state.activeStatus === 'offline'
+                          ? 'bg-slate-400'
+                          : 'bg-emerald-500'
+                      }`}
                     />
                     {state.authUser.isEduUser && (
                       <span className="absolute -top-1 -right-1 text-[8px]" title=".EDU Student Verified">🎓</span>

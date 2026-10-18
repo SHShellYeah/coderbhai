@@ -21,7 +21,8 @@ import {
   GraduationCap,
   User,
   Cloud,
-  Crown
+  Crown,
+  MessageSquare
 } from 'lucide-react';
 
 interface Props {
@@ -31,6 +32,7 @@ interface Props {
   onOpenIdeaZone?: () => void;
   onOpenCodeZone?: () => void;
   onOpenAuth?: (tab?: 'login' | 'register') => void;
+  onOpenMessaging?: () => void;
   filter?: 'all' | 'practice' | 'quests' | 'leaderboard' | 'settings';
 }
 
@@ -41,6 +43,7 @@ export const RightSidebar: React.FC<Props> = ({
   onOpenIdeaZone,
   onOpenCodeZone,
   onOpenAuth,
+  onOpenMessaging,
   filter = 'all',
 }) => {
   const { state, toggleDarkMode } = useGame();
@@ -166,6 +169,36 @@ export const RightSidebar: React.FC<Props> = ({
             )}
           </button>
         </div>
+      )}
+
+      {/* Community Messaging Card */}
+      {onOpenMessaging && (filter === 'all' || filter === 'practice') && (
+        <button
+          type="button"
+          onClick={() => {
+            sound.playClick();
+            onOpenMessaging();
+          }}
+          className="btn-3d p-4 rounded-3xl bg-gradient-to-r from-indigo-600/10 via-purple-600/10 to-blue-600/10 dark:from-indigo-950/40 dark:via-purple-950/40 dark:to-blue-950/30 border-2 border-indigo-500/20 hover:border-indigo-500/40 text-left transition-all cursor-pointer group flex items-center justify-between shadow-sm"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shrink-0">
+              <MessageSquare className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">
+                  Community Chat
+                </span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
+                Live discussion, DSA &amp; code share
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-indigo-400 group-hover:translate-x-1 transition-transform shrink-0" />
+        </button>
       )}
 
       {/* Dev Hub: IdeaZone & CodeZone */}
