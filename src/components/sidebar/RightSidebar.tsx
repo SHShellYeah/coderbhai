@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useGame } from '../../context/GameContext';
 import { useTranslation } from '../../data/translations';
 import { sound } from '../../utils/audio';
 import { CatFace } from '../common/CatFace';
+import { supabase } from '../../lib/supabaseClient';
+import { UserRole } from '../../types';
 import {
   Trophy,
   Target,
@@ -50,13 +52,124 @@ export const RightSidebar: React.FC<Props> = ({
   const t = useTranslation(state.language);
   const isAdmin = state.role === 'admin' || state.authUser?.role === 'admin';
 
-  const mockLeaderboard = [
-    { rank: 1, name: 'Linus T.', xp: 620, avatar: '🐧', isUser: false },
-    { rank: 2, name: 'Grace H.', xp: 510, avatar: '🚀', isUser: false },
-    { rank: 3, name: 'Bjarne S.', xp: 440, avatar: '⚡', isUser: false },
-    { rank: 4, name: 'You (ByteSized Champion)', xp: state.xp, avatar: '🐈‍⬛', isUser: true },
-    { rank: 5, name: 'Ada L.', xp: 220, avatar: '✨', isUser: false },
-  ];
+  const [cloudLeaders, setCloudLeaders] = useState<
+    Array<{
+      id: string;
+      username?: string;
+      display_name?: string;
+      xp?: number;
+      avatar_url?: string;
+      role?: string;
+    }>
+  >([]);
+
+  // Fetch live top learners from Supabase profiles
+  useEffect(() => {
+    let isMounted = true;
+    const fetchTopLearners = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, display_name, xp, avatar_url, role')
+          .order('xp', { ascending: false })
+          .limit(10);
+
+        if (!error && data && isMounted) {
+          setCloudLeaders(data);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    fetchTopLearners();
+    return () => {
+      isMounted = false;
+    };
+  }, [state.authUser?.id, state.xp]);
+
+  // Dynamic, reactive Leaderboard based on current user's real points
+  const sortedLeaderboard = useMemo(() => {
+    interface ContenderItem {
+      id: string;
+      name: string;
+      username?: string;
+      xp: number;
+      avatar: string;
+      role: UserRole;
+      isUser: boolean;
+    }
+
+    const PEER_CONTENDERS: ContenderItem[] = [
+      { id: 'peer-linus', name: 'Linus T.', username: 'linus', xp: 620, avatar: '🐧', role: 'admin' as UserRole, isUser: false },
+      { id: 'peer-grace', name: 'Grace H.', username: 'grace_h', xp: 510, avatar: '🚀', role: 'user' as UserRole, isUser: false },
+      { id: 'peer-bjarne', name: 'Bjarne S.', username: 'bjarne_cpp', xp: 440, avatar: '⚡', role: 'user' as UserRole, isUser: false },
+      { id: 'peer-ada', name: 'Ada L.', username: 'ada_lovelace', xp: 220, avatar: '✨', role: 'user' as UserRole, isUser: false },
+      { id: 'peer-dennis', name: 'Dennis R.', username: 'dennis_c', xp: 150, avatar: '💾', role: 'user' as UserRole, isUser: false },
+    ];
+
+    const currentUserId = state.authUser?.id;
+    const currentUserName =
+      state.authUser?.displayName ||
+      state.authUser?.username ||
+      (state.language === 'bn' ? 'আপনি (চ্যাম্পিয়ন)' : 'You (ByteSized Champion)');
+    const currentUserAvatar = state.authUser?.avatarUrl || '🐈‍⬛';
+    const currentUserRole = (state.authUser?.role || state.role) as UserRole;
+    const currentUserXp = state.xp || 0;
+
+    // Filter out current user from cloud profiles to prevent duplicate listing
+    const cloudFiltered: ContenderItem[] = cloudLeaders
+      .filter((l) => !currentUserId || l.id !== currentUserId)
+      .map((l) => ({
+        id: l.id,
+        name: l.display_name || l.username || 'Learner',
+        username: l.username,
+        xp: l.xp || 0,
+        avatar: l.avatar_url || '👤',
+        role: (l.role as UserRole) || 'user',
+        isUser: false,
+      }));
+
+    // Merge peers and cloud learners (dedup by username or ID)
+    const contenders: ContenderItem[] = [...PEER_CONTENDERS];
+    for (const c of cloudFiltered) {
+      if (!contenders.some((p) => (p.username && p.username === c.username) || p.id === c.id)) {
+        contenders.push(c);
+      }
+    }
+
+    // Insert the current user with their exact, real-time reactive points!
+    const userEntry = {
+      id: currentUserId || 'me',
+      name: currentUserName,
+      username: state.authUser?.username,
+      xp: currentUserXp,
+      avatar: currentUserAvatar,
+      role: currentUserRole,
+      isUser: true,
+    };
+
+    contenders.push(userEntry);
+
+    // Sort strictly by XP descending. If tied, prioritize active user!
+    contenders.sort((a, b) => {
+      if (b.xp !== a.xp) return b.xp - a.xp;
+      if (a.isUser) return -1;
+      if (b.isUser) return 1;
+      return 0;
+    });
+
+    // Assign dynamic ranks (1-indexed)
+    return contenders.map((item, index) => ({
+      ...item,
+      rank: index + 1,
+    }));
+  }, [cloudLeaders, state.authUser, state.xp, state.role, state.language]);
+
+  const userRankItem = sortedLeaderboard.find((u) => u.isUser);
+  const userRank = userRankItem?.rank || 1;
+  const userAhead = userRank > 1 ? sortedLeaderboard[userRank - 2] : null;
+  const xpNeededToOvertake = userAhead ? Math.max(10, userAhead.xp - state.xp + 10) : 0;
 
   // Daily CS Wisdom
   const csTips = [
@@ -424,7 +537,7 @@ export const RightSidebar: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Weekly Leaderboard Mock */}
+      {/* Weekly Dynamic Reactive Leaderboard */}
       {showLeaderboard && (
         <div className="p-5 rounded-3xl bg-white dark:bg-[#111827] border-2 border-slate-200 dark:border-slate-800 shadow-sm text-left flex flex-col gap-3.5">
           <div className="flex items-center justify-between">
@@ -441,46 +554,118 @@ export const RightSidebar: React.FC<Props> = ({
                 </span>
               </div>
             </div>
+            {userRank === 1 ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-sm border border-amber-300 animate-pulse">
+                🏆 #1 Champion
+              </span>
+            ) : (
+              <span className="text-xs font-mono font-black text-indigo-500">
+                Rank #{userRank}
+              </span>
+            )}
           </div>
 
-          <div className="flex flex-col gap-2">
-            {mockLeaderboard.map(user => (
-              <div
-                key={user.rank}
-                className={`p-2.5 rounded-2xl flex items-center justify-between transition-all ${
-                  user.isUser
-                    ? 'bg-brand-primary/15 text-brand-primary font-black border border-brand-primary/30 dark:bg-brand-primary/20'
-                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-700 dark:text-slate-300 font-bold'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="w-5 text-center text-xs font-black text-slate-400">
-                    {user.rank}
-                  </span>
-                  <span className="flex items-center justify-center">
-                    {user.isUser ? <CatFace size="xs" mood="happy" /> : <span className="text-lg">{user.avatar}</span>}
-                  </span>
-                  <span className="text-xs md:text-sm flex items-center gap-1.5">
-                    <span>{user.name}</span>
-                    {user.isUser && (
-                      isAdmin ? (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 border border-amber-300">
+          {/* Dynamic Rank Alert Banner */}
+          {userRank === 1 ? (
+            <div className="p-2.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-black flex items-center gap-2 shadow-xs">
+              <Crown className="w-4 h-4 text-amber-400 shrink-0 fill-current animate-wiggle" />
+              <span>You are currently #1 at the top of the Diamond League!</span>
+            </div>
+          ) : userAhead ? (
+            <div className="p-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 dark:text-indigo-300 text-xs font-bold flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                <span>Earn <strong className="text-indigo-400 font-mono font-black">+{xpNeededToOvertake} XP</strong> to overtake #{userRank - 1}!</span>
+              </span>
+            </div>
+          ) : null}
+
+          {/* Contenders List */}
+          <div className="flex flex-col gap-1.5">
+            {sortedLeaderboard.slice(0, 6).map((user) => {
+              const isFirst = user.rank === 1;
+              const isSecond = user.rank === 2;
+              const isThird = user.rank === 3;
+              const isUserRow = user.isUser;
+
+              return (
+                <div
+                  key={user.id}
+                  className={`p-2.5 rounded-2xl flex items-center justify-between transition-all ${
+                    isUserRow && isFirst
+                      ? 'bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-amber-500/20 border-2 border-amber-400 text-amber-300 font-black shadow-sm ring-1 ring-amber-400/30'
+                      : isUserRow
+                      ? 'bg-brand-primary/15 text-brand-primary font-black border-2 border-brand-primary/40 dark:bg-brand-primary/20 shadow-xs'
+                      : isFirst
+                      ? 'bg-amber-500/10 border border-amber-500/30 text-slate-800 dark:text-slate-200 font-bold'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-700 dark:text-slate-300 font-bold'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-6 text-center text-xs font-black shrink-0">
+                      {isFirst ? '🥇' : isSecond ? '🥈' : isThird ? '🥉' : `#${user.rank}`}
+                    </span>
+
+                    <span className="shrink-0 flex items-center justify-center">
+                      {isUserRow ? (
+                        <CatFace size="xs" mood={isFirst ? 'cheering' : 'happy'} />
+                      ) : user.avatar && user.avatar.startsWith('http') ? (
+                        <img
+                          src={user.avatar}
+                          alt={user.name}
+                          className="w-6 h-6 rounded-lg object-cover bg-slate-900 border border-slate-700"
+                        />
+                      ) : (
+                        <span className="text-base">{user.avatar}</span>
+                      )}
+                    </span>
+
+                    <div className="flex items-center gap-1.5 min-w-0 truncate">
+                      <span className="text-xs truncate">{user.name}</span>
+                      {user.role === 'admin' ? (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 border border-amber-300 shrink-0">
                           👑 Admin
                         </span>
-                      ) : (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase bg-purple-500/20 text-purple-400 border border-purple-500/40">
-                          User
+                      ) : isUserRow ? (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase bg-purple-500/20 text-purple-400 border border-purple-500/40 shrink-0">
+                          You
                         </span>
-                      )
-                    )}
-                  </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 font-mono text-xs font-black text-amber-500 shrink-0 ml-2">
+                    <Zap className="w-3 h-3 fill-current" />
+                    <span>{user.xp} XP</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 font-mono text-xs font-extrabold text-amber-500">
-                  <Zap className="w-3 h-3 fill-current" />
-                  <span>{user.xp} XP</span>
+              );
+            })}
+
+            {/* Pinned User Row if User is Ranked Beyond Top 6 */}
+            {userRank > 6 && userRankItem && (
+              <>
+                <div className="text-center text-[10px] text-slate-400 font-bold py-0.5">•••</div>
+                <div className="p-2.5 rounded-2xl flex items-center justify-between bg-brand-primary/15 text-brand-primary font-black border-2 border-brand-primary/40 shadow-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-6 text-center text-xs font-black shrink-0">
+                      #{userRank}
+                    </span>
+                    <CatFace size="xs" mood="happy" />
+                    <div className="flex items-center gap-1.5 min-w-0 truncate">
+                      <span className="text-xs truncate">{userRankItem.name}</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase bg-purple-500/20 text-purple-400 border border-purple-500/40 shrink-0">
+                        You
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 font-mono text-xs font-black text-amber-500 shrink-0 ml-2">
+                    <Zap className="w-3 h-3 fill-current" />
+                    <span>{userRankItem.xp} XP</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              </>
+            )}
           </div>
         </div>
       )}

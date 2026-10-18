@@ -163,6 +163,7 @@ export type UserActiveStatus = 'online' | 'away' | 'busy' | 'offline';
 export interface AuthUser {
   id: string;
   email: string;
+  username?: string;
   displayName?: string;
   avatarUrl?: string;
   bio?: string;
@@ -174,6 +175,7 @@ export interface AuthUser {
 export interface UserProfile {
   id: string;
   email: string;
+  username?: string;
   displayName?: string;
   avatarUrl?: string;
   bio?: string;
@@ -233,6 +235,7 @@ export interface ChatMessage {
   };
   timestamp: number;
   reactions?: Record<string, number>;
+  userReactions?: Record<string, string[]>;
 }
 
 export interface ChatChannel {

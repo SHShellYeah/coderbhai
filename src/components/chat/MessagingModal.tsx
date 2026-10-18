@@ -36,13 +36,15 @@ import {
   User as UserIcon,
   Flame,
   Shield,
-  MessageCircle
+  MessageCircle,
+  Lock
 } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onOpenCodeZone?: (code?: string, lang?: CodeLanguage) => void;
+  onOpenAuth?: (tab?: 'login' | 'register') => void;
 }
 
 const STORAGE_KEY = 'bytesized_chat_messages_v1';
@@ -192,12 +194,33 @@ const STATUS_DOT: Record<UserActiveStatus, string> = {
 
 const COMMON_REACTIONS = ['🔥', '💡', '❤️', '🚀', '💻', '👀'];
 
-export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZone }) => {
+export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZone, onOpenAuth }) => {
   const { state, updateProfile } = useGame();
   const [activeChannelId, setActiveChannelId] = useState<string>('general');
   const [channels, setChannels] = useState<ChatChannel[]>(INITIAL_CHANNELS);
   const [friends, setFriends] = useState<FriendProfile[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
+
+  // User's own reactions: messageId -> array of emojis reacted by current user
+  const [myReactions, setMyReactions] = useState<Record<string, string[]>>(() => {
+    try {
+      const stored = localStorage.getItem('bytesized_user_reactions_v1');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch {
+      // ignore
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bytesized_user_reactions_v1', JSON.stringify(myReactions));
+    } catch {
+      // ignore
+    }
+  }, [myReactions]);
 
   // Add friend / Search states
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
@@ -319,6 +342,12 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
 
   const handleSendMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!state.authUser) {
+      sound.playError();
+      if (onOpenAuth) onOpenAuth('login');
+      return;
+    }
+
     const trimmedText = inputText.trim();
     const trimmedCode = codeContent.trim();
 
@@ -329,7 +358,7 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
     const newMessage: ChatMessage = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       channelId: activeChannelId,
-      senderId: state.authUser?.id || 'guest-learner',
+      senderId: state.authUser.id,
       senderName: currentUserName,
       senderAvatar: currentUserAvatar,
       senderRole: isAdmin ? 'admin' : 'user',
@@ -406,15 +435,68 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
 
   const handleToggleReaction = (messageId: string, emoji: string) => {
     sound.playClick();
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.id !== messageId) return msg;
-        const reactions = { ...(msg.reactions || {}) };
-        const currentCount = reactions[emoji] || 0;
-        reactions[emoji] = currentCount + 1;
-        return { ...msg, reactions };
-      })
-    );
+    const currentUid = state.authUser?.id;
+    if (!currentUid) {
+      sound.playError();
+      if (onOpenAuth) {
+        onOpenAuth('login');
+      }
+      return;
+    }
+
+    const currentEmojis = myReactions[messageId] || [];
+    const hasAlreadyReacted = currentEmojis.includes(emoji);
+
+    if (hasAlreadyReacted) {
+      // UNDO / REMOVE REACTION
+      setMyReactions((prev) => ({
+        ...prev,
+        [messageId]: (prev[messageId] || []).filter((e) => e !== emoji),
+      }));
+
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== messageId) return msg;
+          const reactions = { ...(msg.reactions || {}) };
+          const userReactions = { ...(msg.userReactions || {}) };
+
+          const count = reactions[emoji] || 1;
+          if (count <= 1) {
+            delete reactions[emoji];
+          } else {
+            reactions[emoji] = count - 1;
+          }
+
+          if (userReactions[emoji]) {
+            userReactions[emoji] = userReactions[emoji].filter((uid) => uid !== currentUid);
+            if (userReactions[emoji].length === 0) {
+              delete userReactions[emoji];
+            }
+          }
+
+          return { ...msg, reactions, userReactions };
+        })
+      );
+    } else {
+      // ADD REACTION
+      setMyReactions((prev) => ({
+        ...prev,
+        [messageId]: [...(prev[messageId] || []), emoji],
+      }));
+
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== messageId) return msg;
+          const reactions = { ...(msg.reactions || {}) };
+          const userReactions = { ...(msg.userReactions || {}) };
+
+          reactions[emoji] = (reactions[emoji] || 0) + 1;
+          userReactions[emoji] = Array.from(new Set([...(userReactions[emoji] || []), currentUid]));
+
+          return { ...msg, reactions, userReactions };
+        })
+      );
+    }
   };
 
   const handleCopyCode = (snippetCode: string, id: string) => {
@@ -564,6 +646,21 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
 
           {/* Right Side Controls */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {!state.authUser && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  if (onOpenAuth) onOpenAuth('login');
+                }}
+                className="hidden xs:flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/25 border border-amber-500/30 text-xs font-black transition-all cursor-pointer"
+                title="Anonymous chat disabled: click to sign in"
+              >
+                <Lock className="w-3 h-3 text-amber-500" />
+                <span>Sign In</span>
+              </button>
+            )}
+
             {/* Find / Add Friend Button */}
             <button
               type="button"
@@ -803,24 +900,54 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
             </div>
 
             {/* User Profile Mini Footer inside Sidebar */}
-            <div className="mt-auto pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2.5">
-              <div className="relative shrink-0">
-                <img
-                  src={currentUserAvatar}
-                  alt={currentUserName}
-                  className="w-8 h-8 rounded-xl bg-slate-900 border border-purple-500 object-cover"
-                />
-                <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-slate-900 ${STATUS_DOT[currentUserStatus]}`} />
-              </div>
-              <div className="min-w-0 flex-1 text-left">
-                <div className="text-xs font-black text-slate-800 dark:text-slate-200 truncate flex items-center gap-1">
-                  <span>{currentUserName}</span>
-                  {isAdmin && <Crown className="w-3 h-3 text-amber-400" />}
+            <div className="mt-auto pt-3 border-t border-slate-200 dark:border-slate-800">
+              {state.authUser ? (
+                <div className="flex items-center gap-2.5">
+                  <div className="relative shrink-0">
+                    <img
+                      src={currentUserAvatar}
+                      alt={currentUserName}
+                      className="w-8 h-8 rounded-xl bg-slate-900 border border-purple-500 object-cover"
+                    />
+                    <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-slate-900 ${STATUS_DOT[currentUserStatus]}`} />
+                  </div>
+                  <div className="min-w-0 flex-1 text-left">
+                    <div className="text-xs font-black text-slate-800 dark:text-slate-200 truncate flex items-center gap-1">
+                      <span>{currentUserName}</span>
+                      {isAdmin && <Crown className="w-3 h-3 text-amber-400" />}
+                    </div>
+                    <div className="text-[10px] text-slate-400 capitalize">
+                      {currentUserStatus}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-[10px] text-slate-400 capitalize">
-                  {currentUserStatus}
+              ) : (
+                <div className="flex items-center justify-between gap-2 p-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+                    <div className="min-w-0 text-left">
+                      <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">
+                        Guest Mode
+                      </div>
+                      <div className="text-[9px] text-amber-600 dark:text-amber-400 font-bold truncate">
+                        Chatting disabled
+                      </div>
+                    </div>
+                  </div>
+                  {onOpenAuth && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sound.playClick();
+                        onOpenAuth('login');
+                      }}
+                      className="text-[10px] font-black text-indigo-500 hover:text-indigo-400 hover:underline shrink-0"
+                    >
+                      Sign In
+                    </button>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -1178,31 +1305,49 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
                           {/* Emoji Reactions Row */}
                           <div className="mt-2 flex items-center gap-1.5 flex-wrap">
                             {msg.reactions &&
-                              Object.entries(msg.reactions).map(([emoji, count]) => (
-                                <button
-                                  key={emoji}
-                                  type="button"
-                                  onClick={() => handleToggleReaction(msg.id, emoji)}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-                                >
-                                  <span>{emoji}</span>
-                                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{count}</span>
-                                </button>
-                              ))}
+                              Object.entries(msg.reactions).map(([emoji, count]) => {
+                                const isReactedByMe = (myReactions[msg.id] || []).includes(emoji);
+                                return (
+                                  <button
+                                    key={emoji}
+                                    type="button"
+                                    onClick={() => handleToggleReaction(msg.id, emoji)}
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs transition-all cursor-pointer ${
+                                      isReactedByMe
+                                        ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/50 shadow-xs ring-1 ring-indigo-500/30 font-bold scale-105'
+                                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+                                    }`}
+                                    title={isReactedByMe ? "You reacted • Click to remove/undo" : "Click to react"}
+                                  >
+                                    <span>{emoji}</span>
+                                    <span className={`text-[10px] font-bold ${isReactedByMe ? 'text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                      {count}
+                                    </span>
+                                    {isReactedByMe && <span className="text-[10px] text-indigo-400 font-black">✓</span>}
+                                  </button>
+                                );
+                              })}
 
                             {/* Quick reactions on hover */}
                             <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                              {COMMON_REACTIONS.slice(0, 4).map((emoji) => (
-                                <button
-                                  key={emoji}
-                                  type="button"
-                                  onClick={() => handleToggleReaction(msg.id, emoji)}
-                                  className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer"
-                                  title={`React with ${emoji}`}
-                                >
-                                  {emoji}
-                                </button>
-                              ))}
+                              {COMMON_REACTIONS.slice(0, 4).map((emoji) => {
+                                const isReactedByMe = (myReactions[msg.id] || []).includes(emoji);
+                                return (
+                                  <button
+                                    key={emoji}
+                                    type="button"
+                                    onClick={() => handleToggleReaction(msg.id, emoji)}
+                                    className={`p-1 rounded-lg text-xs transition-colors cursor-pointer ${
+                                      isReactedByMe
+                                        ? 'bg-indigo-500/30 text-indigo-300 ring-1 ring-indigo-400 scale-110'
+                                        : 'hover:bg-slate-200 dark:hover:bg-slate-800'
+                                    }`}
+                                    title={isReactedByMe ? `You reacted with ${emoji} (click to remove/undo)` : `React with ${emoji}`}
+                                  >
+                                    {emoji}
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
                         </div>
@@ -1214,7 +1359,7 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
               </div>
 
               {/* Code Attachment Expandable Drawer */}
-              {isAttachingCode && (
+              {isAttachingCode && state.authUser && (
                 <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 animate-slideUp space-y-2">
                   <div className="flex items-center justify-between text-xs font-black uppercase text-slate-500">
                     <div className="flex items-center gap-2">
@@ -1253,48 +1398,96 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
               )}
 
               {/* Input Composer Box */}
-              <form
-                onSubmit={handleSendMessage}
-                className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E1526] shrink-0"
-              >
-                <div className="flex items-center gap-2 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 focus-within:border-indigo-500 transition-colors">
-                  {/* Code Attachment Toggle */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      sound.playClick();
-                      setIsAttachingCode(!isAttachingCode);
-                    }}
-                    className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                      isAttachingCode
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
-                    }`}
-                    title="Attach code snippet"
-                  >
-                    <Code2 className="w-4 h-4" />
-                  </button>
-
-                  {/* Message Text Input */}
-                  <input
-                    type="text"
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder={`Message #${currentChannel.name}...`}
-                    className="flex-1 bg-transparent px-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none font-medium"
-                  />
-
-                  {/* Send Button */}
-                  <button
-                    type="submit"
-                    disabled={!inputText.trim() && !codeContent.trim()}
-                    className="p-2 sm:px-3 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-black shadow-md active:scale-95"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Send</span>
-                  </button>
+              {!state.authUser ? (
+                <div className="p-3.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/95 dark:bg-slate-900/90 backdrop-blur-sm shrink-0 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-inner">
+                  <div className="flex items-center gap-2.5 text-center sm:text-left">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-500 shrink-0">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5 justify-center sm:justify-start">
+                        <span>Anonymous Chatting Disabled</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">
+                          Members Only
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Sign in or register your account to chat, share code snippets, and react.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    {onOpenAuth && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sound.playClick();
+                            onOpenAuth('login');
+                          }}
+                          className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 transition-all cursor-pointer"
+                        >
+                          Sign In
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sound.playClick();
+                            onOpenAuth('register');
+                          }}
+                          className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-black text-white shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                          <span>Register</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </form>
+              ) : (
+                <form
+                  onSubmit={handleSendMessage}
+                  className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E1526] shrink-0"
+                >
+                  <div className="flex items-center gap-2 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 focus-within:border-indigo-500 transition-colors">
+                    {/* Code Attachment Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sound.playClick();
+                        setIsAttachingCode(!isAttachingCode);
+                      }}
+                      className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                        isAttachingCode
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
+                      }`}
+                      title="Attach code snippet"
+                    >
+                      <Code2 className="w-4 h-4" />
+                    </button>
+
+                    {/* Message Text Input */}
+                    <input
+                      type="text"
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      placeholder={`Message #${currentChannel.name}...`}
+                      className="flex-1 bg-transparent px-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none font-medium"
+                    />
+
+                    {/* Send Button */}
+                    <button
+                      type="submit"
+                      disabled={!inputText.trim() && !codeContent.trim()}
+                      className="p-2 sm:px-3 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-black shadow-md active:scale-95"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Send</span>
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
         </div>

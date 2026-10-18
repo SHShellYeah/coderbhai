@@ -311,6 +311,11 @@ const MainApp: React.FC = () => {
       <MessagingModal
         isOpen={isMessagingOpen}
         onClose={() => setIsMessagingOpen(false)}
+        onOpenAuth={(tab) => {
+          setIsMessagingOpen(false);
+          setAuthInitialTab(tab || 'login');
+          setIsAuthOpen(true);
+        }}
         onOpenCodeZone={(snippet, lang) => {
           if (snippet) {
             setCodeZoneSnippet({ code: snippet, language: lang || 'cpp' });
