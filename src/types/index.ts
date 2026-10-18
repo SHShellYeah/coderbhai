@@ -242,6 +242,23 @@ export interface ChatChannel {
   icon: string;
   isDirect?: boolean;
   peerStatus?: UserActiveStatus;
+  peerUserId?: string;
+  peerUsername?: string;
+  peerAvatar?: string;
+}
+
+export interface FriendProfile {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string;
+  role?: UserRole;
+  activeStatus?: UserActiveStatus;
+  bio?: string;
+  xp?: number;
+  streak?: number;
+  isEduUser?: boolean;
+  isFriend?: boolean;
 }
 
 export type IdeaCategory = 'all' | 'idea' | 'dsa' | 'bug' | 'snippet' | 'general';

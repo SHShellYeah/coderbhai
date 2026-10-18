@@ -69,11 +69,41 @@ CREATE TABLE IF NOT EXISTS public.messages (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 3b. Friendships Table (Search & Add Friends by Unique Username)
+CREATE TABLE IF NOT EXISTS public.friendships (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  friend_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'accepted' CHECK (status IN ('pending', 'accepted', 'blocked')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, friend_id)
+);
+
+-- Unique Username Indexes (Case-insensitive unique handle across ByteSized)
+CREATE UNIQUE INDEX IF NOT EXISTS profiles_username_lower_idx ON public.profiles ((LOWER(username))) WHERE username IS NOT NULL AND username <> '';
+CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_idx ON public.users ((LOWER(username))) WHERE username IS NOT NULL AND username <> '';
+
 -- 4. Row Level Security (RLS) Policies
 -- Enables both authenticated users and anonymous client to safely read/write
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow read friendships" ON public.friendships;
+CREATE POLICY "Allow read friendships" ON public.friendships FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow insert friendships" ON public.friendships;
+CREATE POLICY "Allow insert friendships" ON public.friendships FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow update friendships" ON public.friendships;
+CREATE POLICY "Allow update friendships" ON public.friendships FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Allow delete friendships" ON public.friendships;
+CREATE POLICY "Allow delete friendships" ON public.friendships FOR DELETE USING (true);
+
+GRANT ALL ON TABLE public.friendships TO anon, authenticated, service_role;
 
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);

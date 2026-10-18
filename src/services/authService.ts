@@ -1,5 +1,5 @@
 import { supabaseClient as supabase, isEduEmail } from '../lib/supabase';
-import { AuthUser, UserProfile, CourseId, CourseProgress, ThemeColor, Language, UserRole, UserActiveStatus } from '../types';
+import { AuthUser, UserProfile, CourseId, CourseProgress, ThemeColor, Language, UserRole, UserActiveStatus, FriendProfile } from '../types';
 
 export const ADMIN_SECRET_CODE = '@dm1n.D1u';
 
@@ -9,6 +9,54 @@ export interface AuthResponse {
   isEduBonusGranted?: boolean;
   adminVerificationFailed?: boolean;
 }
+
+/**
+ * Check if a username is available (unique across all registered accounts).
+ */
+export const checkUsernameAvailability = async (
+  username: string,
+  excludeUserId?: string
+): Promise<{ available: boolean; error?: string }> => {
+  try {
+    const cleanUsername = (username || '').trim();
+    if (!cleanUsername) {
+      return { available: false, error: 'Username cannot be empty.' };
+    }
+    if (cleanUsername.length < 2) {
+      return { available: false, error: 'Username must be at least 2 characters.' };
+    }
+    if (cleanUsername.length > 25) {
+      return { available: false, error: 'Username cannot exceed 25 characters.' };
+    }
+    if (!/^[a-zA-Z0-9_.-]+$/.test(cleanUsername)) {
+      return { available: false, error: 'Username can only contain letters, numbers, underscores, dashes, and periods.' };
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username')
+      .ilike('username', cleanUsername);
+
+    if (error) {
+      // In case of network hiccup, allow fallback
+      return { available: true };
+    }
+
+    if (data && data.length > 0) {
+      const match = data.find((row) => !excludeUserId || row.id !== excludeUserId);
+      if (match) {
+        return {
+          available: false,
+          error: `The username "${cleanUsername}" is already taken by another learner. Please choose a unique username.`,
+        };
+      }
+    }
+
+    return { available: true };
+  } catch {
+    return { available: true };
+  }
+};
 
 /**
  * 4a, 4b, 4c: Sign up a new user with Supabase Auth.
@@ -30,6 +78,15 @@ export const signUp = async (
     const redirectUrl = typeof window !== 'undefined'
       ? `${window.location.origin}/`
       : 'http://localhost:5173/';
+
+    // 0. Pre-validate username uniqueness across database
+    const availCheck = await checkUsernameAvailability(trimmedUsername);
+    if (!availCheck.available) {
+      return {
+        user: null,
+        error: availCheck.error || `The username "${trimmedUsername}" is already taken by another learner. Please choose a different unique username.`,
+      };
+    }
 
     // 1. Verify admin role if requested before creating/populating profile
     let finalRole: UserRole = 'user';
@@ -489,6 +546,14 @@ export const saveUserProfile = async (
   }>
 ): Promise<{ success: boolean; error: string | null }> => {
   try {
+    // Check username uniqueness if displayName is being updated
+    if (profileData.displayName) {
+      const availCheck = await checkUsernameAvailability(profileData.displayName, userId);
+      if (!availCheck.available) {
+        return { success: false, error: availCheck.error || `The username "${profileData.displayName}" is already taken.` };
+      }
+    }
+
     // 0. Sync Auth metadata directly if profile info is present
     if (profileData.displayName || profileData.avatarUrl || profileData.bio !== undefined || profileData.activeStatus || profileData.role !== undefined) {
       try {
@@ -797,6 +862,233 @@ export const uploadAvatarImage = async (
     return { url: dataUrl, error: null };
   } catch (err) {
     return { url: null, error: (err as Error).message || 'Failed to process avatar image.' };
+  }
+};
+
+/**
+ * 4h. Search registered learners by username or display name for Add Friend
+ */
+export const searchUsersByUsername = async (
+  query: string,
+  currentUserId?: string
+): Promise<FriendProfile[]> => {
+  try {
+    const cleanQuery = (query || '').trim();
+    if (!cleanQuery) return [];
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username, display_name, avatar_url, role, active_status, bio, xp, streak, is_edu_user')
+      .or(`username.ilike.%${cleanQuery}%,display_name.ilike.%${cleanQuery}%`)
+      .limit(20);
+
+    if (error || !data) {
+      return [];
+    }
+
+    // Check if any are already friends
+    let friendIds = new Set<string>();
+    if (currentUserId) {
+      try {
+        const { data: friendData } = await supabase
+          .from('friendships')
+          .select('friend_id')
+          .eq('user_id', currentUserId);
+
+        if (friendData) {
+          friendIds = new Set(friendData.map((f) => f.friend_id));
+        }
+      } catch {
+        // fallback to localStorage
+        try {
+          const stored = localStorage.getItem(`bytesized_friends_${currentUserId}`);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) friendIds = new Set(parsed);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    return data
+      .filter((u) => !currentUserId || u.id !== currentUserId)
+      .map((u) => ({
+        id: u.id,
+        username: u.username || u.display_name || 'Learner',
+        displayName: u.display_name || u.username || 'Learner',
+        avatarUrl: u.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.id)}`,
+        role: (u.role as UserRole) || 'user',
+        activeStatus: (u.active_status as UserActiveStatus) || 'online',
+        bio: u.bio || '',
+        xp: u.xp || 0,
+        streak: u.streak || 0,
+        isEduUser: !!u.is_edu_user,
+        isFriend: friendIds.has(u.id),
+      }));
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * 4i. Fetch friend list for a given user
+ */
+export const fetchUserFriends = async (userId: string): Promise<FriendProfile[]> => {
+  try {
+    if (!userId) return [];
+
+    let friendIds: string[] = [];
+    try {
+      const { data: friendships, error: friendErr } = await supabase
+        .from('friendships')
+        .select('friend_id')
+        .eq('user_id', userId);
+
+      if (!friendErr && friendships) {
+        friendIds = friendships.map((f) => f.friend_id);
+      }
+    } catch {
+      // ignore
+    }
+
+    // Fallback or augment with localStorage cached friends
+    try {
+      const stored = localStorage.getItem(`bytesized_friends_${userId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          friendIds = Array.from(new Set([...friendIds, ...parsed]));
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    if (friendIds.length === 0) {
+      return [];
+    }
+
+    const { data: profiles, error: profErr } = await supabase
+      .from('profiles')
+      .select('id, username, display_name, avatar_url, role, active_status, bio, xp, streak, is_edu_user')
+      .in('id', friendIds);
+
+    if (profErr || !profiles) {
+      return [];
+    }
+
+    return profiles.map((u) => ({
+      id: u.id,
+      username: u.username || u.display_name || 'Learner',
+      displayName: u.display_name || u.username || 'Learner',
+      avatarUrl: u.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.id)}`,
+      role: (u.role as UserRole) || 'user',
+      activeStatus: (u.active_status as UserActiveStatus) || 'online',
+      bio: u.bio || '',
+      xp: u.xp || 0,
+      streak: u.streak || 0,
+      isEduUser: !!u.is_edu_user,
+      isFriend: true,
+    }));
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * 4j. Add friend via username/user ID
+ */
+export const addFriend = async (
+  userId: string,
+  friendId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    if (!userId || !friendId || userId === friendId) {
+      return { success: false, error: 'Cannot add yourself or invalid friend ID.' };
+    }
+
+    try {
+      await supabase
+        .from('friendships')
+        .upsert(
+          {
+            user_id: userId,
+            friend_id: friendId,
+            status: 'accepted',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,friend_id' }
+        );
+
+      // Reciprocal friendship
+      await supabase
+        .from('friendships')
+        .upsert(
+          {
+            user_id: friendId,
+            friend_id: userId,
+            status: 'accepted',
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,friend_id' }
+        );
+    } catch (err) {
+      console.warn('[Supabase] Friendship upsert error:', err);
+    }
+
+    // Local storage cache backup
+    try {
+      const stored = localStorage.getItem(`bytesized_friends_${userId}`);
+      const list: string[] = stored ? JSON.parse(stored) : [];
+      if (!list.includes(friendId)) {
+        list.push(friendId);
+        localStorage.setItem(`bytesized_friends_${userId}`, JSON.stringify(list));
+      }
+    } catch {
+      // ignore
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+};
+
+/**
+ * 4k. Remove friend
+ */
+export const removeFriend = async (
+  userId: string,
+  friendId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    if (!userId || !friendId) return { success: true };
+
+    try {
+      await supabase
+        .from('friendships')
+        .delete()
+        .or(`and(user_id.eq.${userId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${userId})`);
+    } catch {
+      // ignore
+    }
+
+    try {
+      const stored = localStorage.getItem(`bytesized_friends_${userId}`);
+      if (stored) {
+        const list: string[] = JSON.parse(stored);
+        const filtered = list.filter((id) => id !== friendId);
+        localStorage.setItem(`bytesized_friends_${userId}`, JSON.stringify(filtered));
+      }
+    } catch {
+      // ignore
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
   }
 };
 

@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
 import { sound } from '../../utils/audio';
-import { ChatMessage, ChatChannel, UserActiveStatus, CodeLanguage } from '../../types';
+import { ChatMessage, ChatChannel, UserActiveStatus, CodeLanguage, FriendProfile } from '../../types';
+import {
+  searchUsersByUsername,
+  fetchUserFriends,
+  addFriend,
+  removeFriend
+} from '../../services/authService';
 import {
   X,
   Send,
@@ -19,7 +25,18 @@ import {
   Circle,
   HelpCircle,
   CornerDownRight,
-  RefreshCw
+  RefreshCw,
+  UserPlus,
+  Search,
+  UserCheck,
+  UserMinus,
+  ArrowLeft,
+  CheckCircle2,
+  AlertCircle,
+  User as UserIcon,
+  Flame,
+  Shield,
+  MessageCircle
 } from 'lucide-react';
 
 interface Props {
@@ -98,39 +115,35 @@ const INITIAL_MESSAGES: ChatMessage[] = [
     senderStatus: 'online',
     content: 'Just finished the Pointers & Memory unit in C! The mental model of memory addresses finally clicked.',
     timestamp: Date.now() - 3600000 * 1.5,
-    reactions: { '🚀': 3, '💡': 4 },
+    reactions: { '👏': 3, '💡': 6 },
   },
   {
     id: 'm3',
     channelId: 'dsa',
-    senderId: 'mentor-turing',
+    senderId: 'learner-turing',
     senderName: 'Alan Turing',
     senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=AlanTuring',
-    senderRole: 'admin',
-    senderStatus: 'online',
-    content: 'Remember: When analyzing recursive algorithms, always write out the recurrence relation first before leaping into Master Theorem!',
-    codeSnippet: {
-      language: 'cpp',
-      code: '// Binary search recurrence:\n// T(n) = T(n/2) + O(1) => O(log n) time complexity!',
-    },
-    timestamp: Date.now() - 3600000,
-    reactions: { '💡': 6, '🔥': 2 },
+    senderRole: 'user',
+    senderStatus: 'busy',
+    content: 'Quick tip: When implementing Binary Search, use `mid = low + (high - low) / 2` instead of `(low + high) / 2` to prevent 32-bit integer overflow!',
+    timestamp: Date.now() - 3600000 * 1,
+    reactions: { '💡': 12, '🔥': 8 },
   },
   {
     id: 'm4',
     channelId: 'snippets',
-    senderId: 'learner-bjarne',
-    senderName: 'Bjarne S.',
-    senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Bjarne',
-    senderRole: 'user',
-    senderStatus: 'online',
-    content: 'Clean C++20 range iteration trick that replaces verbose indexed loops:',
+    senderId: 'learner-linus',
+    senderName: 'Linus Torvalds',
+    senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Linus',
+    senderRole: 'admin',
+    senderStatus: 'away',
+    content: 'Fast bit manipulation check to see if an integer is a power of 2 in C/C++:',
     codeSnippet: {
-      language: 'cpp',
-      code: 'for (const auto& [idx, val] : std::views::enumerate(my_vector)) {\n    std::cout << idx << ": " << val << "\\n";\n}',
+      language: 'c',
+      code: 'bool isPowerOfTwo(int n) {\n    return n > 0 && (n & (n - 1)) == 0;\n}',
     },
     timestamp: Date.now() - 1800000,
-    reactions: { '🔥': 8, '💻': 5 },
+    reactions: { '⚡': 9, '🚀': 7 },
   },
   {
     id: 'm5',
@@ -140,9 +153,9 @@ const INITIAL_MESSAGES: ChatMessage[] = [
     senderAvatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=ByteBot',
     senderRole: 'admin',
     senderStatus: 'online',
-    content: 'Purr... I am here whenever you get stuck on a lesson! What programming language or concept are you practicing today? 🐱',
+    content: 'Meow! Purr... Need hints on your current lesson? Drop your question or snippet below and I will help you debug!',
     timestamp: Date.now() - 900000,
-    reactions: { '❤️': 3 },
+    reactions: { '🐾': 3 },
   },
   {
     id: 'm6',
@@ -182,6 +195,17 @@ const COMMON_REACTIONS = ['🔥', '💡', '❤️', '🚀', '💻', '👀'];
 export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZone }) => {
   const { state, updateProfile } = useGame();
   const [activeChannelId, setActiveChannelId] = useState<string>('general');
+  const [channels, setChannels] = useState<ChatChannel[]>(INITIAL_CHANNELS);
+  const [friends, setFriends] = useState<FriendProfile[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+
+  // Add friend / Search states
+  const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
+  const [searchUsernameQuery, setSearchUsernameQuery] = useState('');
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const [searchResults, setSearchResults] = useState<FriendProfile[]>([]);
+  const [searchFeedback, setSearchFeedback] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -204,7 +228,6 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
   const [showChannelListMobile, setShowChannelListMobile] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Sync messages to localStorage
   useEffect(() => {
@@ -215,16 +238,78 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
     }
   }, [messages]);
 
-  // Scroll to bottom when channel changes or new message arrives
+  // Load user friends on mount / auth change
+  const refreshFriendsList = async () => {
+    const currentUid = state.authUser?.id;
+    if (!currentUid) return;
+    setLoadingFriends(true);
+    try {
+      const friendList = await fetchUserFriends(currentUid);
+      setFriends(friendList);
+
+      // Dynamically add friend channels to channels list
+      setChannels((prev) => {
+        const nonFriendChannels = prev.filter((c) => !c.id.startsWith('dm-user-'));
+        const friendChannels: ChatChannel[] = friendList.map((f) => ({
+          id: `dm-user-${f.id}`,
+          name: f.displayName || f.username || 'Friend',
+          description: `@${f.username} • Direct Message`,
+          icon: '💬',
+          isDirect: true,
+          peerStatus: f.activeStatus || 'online',
+          peerUserId: f.id,
+          peerUsername: f.username,
+          peerAvatar: f.avatarUrl,
+        }));
+        return [...nonFriendChannels, ...friendChannels];
+      });
+    } catch (err) {
+      console.warn('Failed to load friends:', err);
+    } finally {
+      setLoadingFriends(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
+      refreshFriendsList();
+    }
+  }, [isOpen, state.authUser?.id]);
+
+  // Debounced search for learners by username
+  useEffect(() => {
+    const trimmed = searchUsernameQuery.trim().replace(/^@+/, '');
+    if (!trimmed) {
+      setSearchResults([]);
+      setIsSearchingUsers(false);
+      return;
+    }
+
+    setIsSearchingUsers(true);
+    const timer = setTimeout(async () => {
+      try {
+        const results = await searchUsersByUsername(trimmed, state.authUser?.id);
+        setSearchResults(results);
+      } catch (err) {
+        console.warn('Search users error:', err);
+      } finally {
+        setIsSearchingUsers(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [searchUsernameQuery, state.authUser?.id]);
+
+  // Scroll to bottom when channel changes or new message arrives
+  useEffect(() => {
+    if (isOpen && !isAddFriendOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [isOpen, activeChannelId, messages.length]);
+  }, [isOpen, activeChannelId, messages.length, isAddFriendOpen]);
 
   if (!isOpen) return null;
 
-  const currentChannel = INITIAL_CHANNELS.find((c) => c.id === activeChannelId) || INITIAL_CHANNELS[0];
+  const currentChannel = channels.find((c) => c.id === activeChannelId) || channels[0];
   const channelMessages = messages.filter((m) => m.channelId === activeChannelId);
 
   const isAdmin = state.role === 'admin' || state.authUser?.role === 'admin';
@@ -265,8 +350,8 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
     setCodeContent('');
     setIsAttachingCode(false);
 
-    // AI mascot / peer auto-reply if inside a DM channel
-    if (currentChannel.isDirect) {
+    // AI mentor auto-replies for companion bots
+    if (currentChannel.isDirect && currentChannel.id.startsWith('dm-') && !currentChannel.id.startsWith('dm-user-')) {
       setTimeout(() => {
         handlePeerAutoReply(currentChannel.id, trimmedText);
       }, 1200);
@@ -294,7 +379,7 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
     } else if (channelId === 'dm-linus') {
       peerName = 'Linus Torvalds';
       peerAvatar = 'https://api.dicebear.com/7.x/bottts/svg?seed=Linus';
-      replyText = 'Good code explains itself. If your pointer arithmetic is clear and memory is freed, performance will follow.';
+      replyText = 'Talk is cheap. Show me the code. If your pointer arithmetic is clear and memory is freed, performance will follow.';
       replySnippet = {
         language: 'c',
         code: '// Always check malloc returns!\nint *arr = malloc(n * sizeof(int));\nif (!arr) return -1; // handle allocation failure',
@@ -339,6 +424,75 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
     setTimeout(() => setCopiedCodeId(null), 2000);
   };
 
+  // Add friend action
+  const handleAddFriendClick = async (targetUser: FriendProfile) => {
+    sound.playClick();
+    const currentUid = state.authUser?.id;
+    if (!currentUid) {
+      setSearchFeedback({ msg: 'Please log in to add friends!', type: 'error' });
+      sound.playError();
+      return;
+    }
+
+    const res = await addFriend(currentUid, targetUser.id);
+    if (res.success) {
+      sound.playSuccess();
+      setSearchFeedback({ msg: `🎉 Added @${targetUser.username} as a friend!`, type: 'success' });
+      setSearchResults((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? { ...u, isFriend: true } : u))
+      );
+      refreshFriendsList();
+    } else {
+      sound.playError();
+      setSearchFeedback({ msg: res.error || 'Failed to add friend.', type: 'error' });
+    }
+  };
+
+  // Remove friend action
+  const handleRemoveFriendClick = async (targetUser: FriendProfile) => {
+    sound.playClick();
+    const currentUid = state.authUser?.id;
+    if (!currentUid) return;
+
+    const res = await removeFriend(currentUid, targetUser.id);
+    if (res.success) {
+      sound.playClick();
+      setSearchResults((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? { ...u, isFriend: false } : u))
+      );
+      refreshFriendsList();
+    }
+  };
+
+  // Switch to a direct message channel with a user/friend
+  const handleStartDMWithUser = (user: FriendProfile) => {
+    sound.playClick();
+    const dmChannelId = `dm-user-${user.id}`;
+
+    // Ensure channel exists in channels list
+    setChannels((prev) => {
+      if (prev.some((c) => c.id === dmChannelId)) return prev;
+      return [
+        ...prev,
+        {
+          id: dmChannelId,
+          name: user.displayName || user.username,
+          description: `@${user.username} • Direct Message`,
+          icon: '💬',
+          isDirect: true,
+          peerStatus: user.activeStatus || 'online',
+          peerUserId: user.id,
+          peerUsername: user.username,
+          peerAvatar: user.avatarUrl,
+        },
+      ];
+    });
+
+    setActiveChannelId(dmChannelId);
+    setIsAddFriendOpen(false);
+    setShowChannelListMobile(false);
+  };
+
   const formatTimestamp = (ts: number) => {
     const diff = Date.now() - ts;
     if (diff < 60000) return 'Just now';
@@ -348,56 +502,102 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md animate-fade">
-      <div className="w-full max-w-4xl h-[90vh] sm:h-[85vh] bg-white dark:bg-[#0B0F19] border-2 border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-800 dark:text-slate-100 relative">
-        {/* Top Chat Header */}
-        <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-[#111827] z-10 shrink-0">
-          <div className="flex items-center gap-2.5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-fade">
+      <div className="w-full h-full sm:h-[88vh] max-w-4xl bg-white dark:bg-[#0B0F19] sm:border-2 border-slate-200 dark:border-slate-800 rounded-none sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-800 dark:text-slate-100 relative">
+        
+        {/* =====================================================================
+            TOP CHAT HEADER BAR - ALWAYS CONTAINS A UNMISSABLE CLOSE BUTTON
+            ===================================================================== */}
+        <div className="px-3.5 py-2.5 sm:px-5 sm:py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-[#111827] z-10 shrink-0">
+          
+          {/* Left Side: Channel / View Info */}
+          <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden pr-2">
             {/* Mobile Channel Toggle Button */}
             <button
               type="button"
-              onClick={() => setShowChannelListMobile(!showChannelListMobile)}
-              className="md:hidden p-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1 text-xs font-bold"
+              onClick={() => {
+                sound.playClick();
+                setShowChannelListMobile(!showChannelListMobile);
+              }}
+              className="md:hidden p-2 rounded-xl bg-slate-200/90 dark:bg-slate-800 text-slate-800 dark:text-slate-200 flex items-center gap-1 text-xs font-black shrink-0 hover:bg-slate-300 transition-colors"
+              title="Toggle channel list"
             >
-              <Hash className="w-4 h-4" />
-              <span>Channels</span>
+              <Hash className="w-4 h-4 text-indigo-500" />
+              <span className="hidden xs:inline">Channels</span>
             </button>
 
-            <div className="w-9 h-9 rounded-2xl bg-indigo-500/15 text-indigo-500 flex items-center justify-center shadow-inner text-base">
-              {currentChannel.icon}
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-black tracking-tight leading-none text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <span>{currentChannel.name}</span>
-                  {currentChannel.isDirect && (
-                    <span className={`w-2 h-2 rounded-full ${STATUS_DOT[currentChannel.peerStatus || 'online']}`} />
-                  )}
-                </h3>
+            {isAddFriendOpen ? (
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-indigo-500/20 text-indigo-500 flex items-center justify-center shrink-0">
+                  <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-500" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-xs sm:text-base font-black tracking-tight leading-none text-slate-900 dark:text-white truncate">
+                    Find Friends by @Username
+                  </h3>
+                  <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium truncate mt-0.5">
+                    Search unique handles across ByteSized
+                  </p>
+                </div>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium truncate max-w-[220px] sm:max-w-md mt-0.5">
-                {currentChannel.description}
-              </p>
-            </div>
+            ) : (
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-indigo-500/15 text-indigo-500 flex items-center justify-center shrink-0 text-sm sm:text-base">
+                  {currentChannel.icon}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-xs sm:text-base font-black tracking-tight leading-none text-slate-900 dark:text-white truncate">
+                      {currentChannel.name}
+                    </h3>
+                    {currentChannel.isDirect && (
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[currentChannel.peerStatus || 'online']}`} />
+                    )}
+                  </div>
+                  <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium truncate mt-0.5">
+                    {currentChannel.description}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Right Side Controls */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Find / Add Friend Button */}
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setIsAddFriendOpen(!isAddFriendOpen);
+                setShowChannelListMobile(false);
+              }}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                isAddFriendOpen
+                  ? 'bg-indigo-600 text-white ring-2 ring-indigo-400/50'
+                  : 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/25 border border-indigo-500/30'
+              }`}
+              title="Search and add friends by username"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Add Friend</span>
+            </button>
+
             {/* Active Status Quick Picker in Header */}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setIsStatusMenuOpen(!isStatusMenuOpen)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-bold transition-all cursor-pointer"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-bold transition-all cursor-pointer"
                 title="Change active status"
               >
-                <span className={`w-2.5 h-2.5 rounded-full ${STATUS_DOT[currentUserStatus]}`} />
-                <span className="hidden sm:inline capitalize">{currentUserStatus}</span>
+                <span className={`w-2 h-2 rounded-full ${STATUS_DOT[currentUserStatus]}`} />
+                <span className="hidden md:inline capitalize text-[11px]">{currentUserStatus}</span>
                 <ChevronDown className="w-3 h-3 text-slate-400" />
               </button>
 
               {isStatusMenuOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-36 rounded-2xl bg-white dark:bg-[#111827] border-2 border-slate-200 dark:border-slate-800 shadow-xl p-1.5 z-30 animate-pop">
+                <div className="absolute right-0 top-full mt-1.5 w-36 rounded-2xl bg-white dark:bg-[#111827] border-2 border-slate-200 dark:border-slate-800 shadow-xl p-1.5 z-40 animate-pop">
                   {(['online', 'away', 'busy', 'offline'] as UserActiveStatus[]).map((st) => (
                     <button
                       key={st}
@@ -421,44 +621,88 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
               )}
             </div>
 
+            {/* PROMINENT, UNMISSABLE CLOSE BUTTON (Visible on all screen sizes) */}
             <button
               type="button"
-              onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              onClick={() => {
+                sound.playClick();
+                onClose();
+              }}
+              aria-label="Close Chat"
+              className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/30 transition-all font-black text-xs flex items-center gap-1 shrink-0 cursor-pointer shadow-xs active:scale-95"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 stroke-[2.5]" />
+              <span className="hidden xs:inline">Close</span>
             </button>
           </div>
         </div>
 
-        {/* Main Body: Sidebar Channels + Chat Feed */}
+        {/* =====================================================================
+            MAIN BODY: SIDEBAR CHANNELS + (CHAT FEED OR ADD FRIEND VIEW)
+            ===================================================================== */}
         <div className="flex-1 flex min-h-0 relative">
-          {/* Channels Sidebar (Always visible on desktop, drawer on mobile) */}
+          
+          {/* ===================================================================
+              CHANNELS SIDEBAR (Desktop permanent / Mobile drawer overlay)
+              =================================================================== */}
           <div
             className={`w-64 border-r border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0E1526]/70 flex flex-col p-3 overflow-y-auto shrink-0 z-20 ${
-              showChannelListMobile ? 'absolute inset-0 bg-white dark:bg-[#0B0F19] w-full z-30' : 'hidden md:flex'
+              showChannelListMobile
+                ? 'absolute inset-0 bg-white dark:bg-[#0B0F19] w-full h-full z-30 p-4'
+                : 'hidden md:flex'
             }`}
           >
-            {/* Channels Header */}
-            <div className="flex items-center justify-between px-2 py-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400">
-              <span className="flex items-center gap-1">
-                <Hash className="w-3.5 h-3.5" />
-                <span>Channels</span>
-              </span>
-              {showChannelListMobile && (
+            {/* Mobile Drawer Top Action Bar with Clear Back & Close Buttons */}
+            {showChannelListMobile && (
+              <div className="pb-3 mb-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
                 <button
                   type="button"
                   onClick={() => setShowChannelListMobile(false)}
-                  className="p-1 text-slate-400"
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
                 >
-                  <X className="w-4 h-4" />
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to Chat</span>
                 </button>
-              )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playClick();
+                    onClose();
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-rose-500 text-white text-xs font-black flex items-center gap-1 shadow-sm active:scale-95"
+                >
+                  <X className="w-4 h-4 stroke-[2.5]" />
+                  <span>Close Chat</span>
+                </button>
+              </div>
+            )}
+
+            {/* Quick "Add Friend" Button in Sidebar */}
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setIsAddFriendOpen(true);
+                setShowChannelListMobile(false);
+              }}
+              className="w-full mb-3 px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Search &amp; Add Friend</span>
+            </button>
+
+            {/* Public Community Channels */}
+            <div className="flex items-center justify-between px-2 py-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
+              <span className="flex items-center gap-1">
+                <Hash className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Channels</span>
+              </span>
             </div>
 
             <div className="space-y-1 mt-1">
-              {INITIAL_CHANNELS.filter((c) => !c.isDirect).map((c) => {
-                const isActive = activeChannelId === c.id;
+              {channels.filter((c) => !c.isDirect).map((c) => {
+                const isActive = !isAddFriendOpen && activeChannelId === c.id;
                 return (
                   <button
                     key={c.id}
@@ -466,6 +710,7 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
                     onClick={() => {
                       sound.playClick();
                       setActiveChannelId(c.id);
+                      setIsAddFriendOpen(false);
                       setShowChannelListMobile(false);
                     }}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
@@ -481,15 +726,17 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
               })}
             </div>
 
-            {/* Direct Messages Section */}
-            <div className="mt-4 px-2 py-1.5 text-[11px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <Users className="w-3.5 h-3.5" />
-              <span>Mentors &amp; Peers</span>
+            {/* Friends / Direct Messages Section */}
+            <div className="mt-4 flex items-center justify-between px-2 py-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
+              <span className="flex items-center gap-1">
+                <Users className="w-3.5 h-3.5 text-purple-400" />
+                <span>Friends &amp; Peers ({friends.length})</span>
+              </span>
             </div>
 
             <div className="space-y-1 mt-1">
-              {INITIAL_CHANNELS.filter((c) => c.isDirect).map((c) => {
-                const isActive = activeChannelId === c.id;
+              {channels.filter((c) => c.isDirect && c.id.startsWith('dm-user-')).map((c) => {
+                const isActive = !isAddFriendOpen && activeChannelId === c.id;
                 return (
                   <button
                     key={c.id}
@@ -497,11 +744,51 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
                     onClick={() => {
                       sound.playClick();
                       setActiveChannelId(c.id);
+                      setIsAddFriendOpen(false);
                       setShowChannelListMobile(false);
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
                       isActive
                         ? 'bg-purple-600 text-white shadow-sm font-black'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {c.peerAvatar ? (
+                        <img
+                          src={c.peerAvatar}
+                          alt={c.name}
+                          className="w-5 h-5 rounded-lg object-cover bg-slate-900 border border-slate-700"
+                        />
+                      ) : (
+                        <span>{c.icon}</span>
+                      )}
+                      <span className="truncate">{c.name}</span>
+                    </div>
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[c.peerStatus || 'online']}`} />
+                  </button>
+                );
+              })}
+
+              {/* AI Mentors */}
+              <div className="pt-2 px-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                AI Companions
+              </div>
+              {channels.filter((c) => c.isDirect && !c.id.startsWith('dm-user-')).map((c) => {
+                const isActive = !isAddFriendOpen && activeChannelId === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setActiveChannelId(c.id);
+                      setIsAddFriendOpen(false);
+                      setShowChannelListMobile(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
+                      isActive
+                        ? 'bg-indigo-600 text-white shadow-sm font-black'
                         : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
                     }`}
                   >
@@ -521,7 +808,7 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
                 <img
                   src={currentUserAvatar}
                   alt={currentUserName}
-                  className="w-8 h-8 rounded-xl bg-slate-900 border border-purple-500"
+                  className="w-8 h-8 rounded-xl bg-slate-900 border border-purple-500 object-cover"
                 />
                 <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-slate-900 ${STATUS_DOT[currentUserStatus]}`} />
               </div>
@@ -537,228 +824,479 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
             </div>
           </div>
 
-          {/* Chat Messages Feed & Composer */}
-          <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#0B0F19]">
-            {/* Scrollable Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-              {channelMessages.map((msg) => {
-                const isMe = msg.senderId === state.authUser?.id;
-                const isMsgAdmin = msg.senderRole === 'admin';
+          {/* ===================================================================
+              MAIN VIEW AREA: EITHER "ADD FRIEND & SEARCH" OR "CHAT FEED"
+              =================================================================== */}
+          {isAddFriendOpen ? (
+            <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#0B0F19] overflow-y-auto p-4 sm:p-6 space-y-5 animate-fade">
+              {/* Back to Chat Link */}
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setIsAddFriendOpen(false)}
+                  className="flex items-center gap-1.5 text-xs font-black text-indigo-500 hover:text-indigo-400 cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to Channel Feed</span>
+                </button>
 
-                return (
-                  <div key={msg.id} className="flex items-start gap-3 group animate-fade">
-                    <div className="relative shrink-0">
-                      <img
-                        src={msg.senderAvatar}
-                        alt={msg.senderName}
-                        className={`w-9 h-9 rounded-2xl bg-slate-900 border object-cover ${
-                          isMsgAdmin ? 'border-amber-400 ring-1 ring-amber-400/40' : 'border-purple-500/50'
-                        }`}
-                      />
-                      <span
-                        className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-slate-900 ${
-                          STATUS_DOT[msg.senderStatus || 'online']
-                        }`}
-                      />
-                    </div>
+                <span className="text-[11px] font-bold text-slate-400">
+                  Usernames are 100% unique across ByteSized
+                </span>
+              </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-black text-slate-900 dark:text-white">
-                          {msg.senderName}
-                        </span>
+              {/* Add Friend Banner */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-500/15 via-purple-500/15 to-indigo-500/10 border-2 border-indigo-500/30">
+                <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-indigo-500" />
+                  <span>Connect with Friends &amp; Peers</span>
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                  Search for your classmates or coding partners by their unique <span className="font-bold text-indigo-400">@username</span> handle to add them, compare learning streaks, and send direct messages.
+                </p>
 
-                        {isMsgAdmin ? (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-xs border border-amber-300">
-                            👑 Admin
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-500/15 text-purple-400 border border-purple-500/30">
-                            User
-                          </span>
-                        )}
+                {/* Real-Time Username Search Input */}
+                <div className="mt-4 relative">
+                  <span className="absolute left-3.5 top-3 text-sm font-black text-slate-400 select-none">@</span>
+                  <input
+                    type="text"
+                    value={searchUsernameQuery}
+                    onChange={(e) => setSearchUsernameQuery(e.target.value)}
+                    placeholder="Search username handle (e.g. acid, codeninja)..."
+                    className="w-full bg-white dark:bg-slate-900 border-2 border-indigo-500/40 focus:border-indigo-500 rounded-xl pl-8 pr-10 py-2.5 text-xs sm:text-sm font-bold text-slate-800 dark:text-white focus:outline-none shadow-sm"
+                  />
+                  <div className="absolute right-3 top-3 text-slate-400">
+                    {isSearchingUsers ? (
+                      <RefreshCw className="w-4 h-4 animate-spin text-indigo-500" />
+                    ) : (
+                      <Search className="w-4 h-4" />
+                    )}
+                  </div>
+                </div>
+              </div>
 
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {formatTimestamp(msg.timestamp)}
-                        </span>
+              {/* Feedback Alert */}
+              {searchFeedback && (
+                <div
+                  className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-slideUp ${
+                    searchFeedback.type === 'success'
+                      ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+                      : 'bg-rose-500/15 border border-rose-500/30 text-rose-400'
+                  }`}
+                >
+                  {searchFeedback.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                  )}
+                  <span>{searchFeedback.msg}</span>
+                </div>
+              )}
+
+              {/* Search Results List */}
+              {searchUsernameQuery.trim() && (
+                <div className="space-y-3">
+                  <div className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                    <span>Search Results ({searchResults.length})</span>
+                    {isSearchingUsers && <span className="text-[10px] text-indigo-400">Searching database...</span>}
+                  </div>
+
+                  {searchResults.length === 0 && !isSearchingUsers ? (
+                    <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-center space-y-2">
+                      <div className="text-2xl">🔍</div>
+                      <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                        No learner found matching &ldquo;@{searchUsernameQuery.replace(/^@+/, '')}&rdquo;
                       </div>
+                      <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                        Make sure the username is spelled correctly. Usernames in ByteSized are strictly unique!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {searchResults.map((user) => (
+                        <div
+                          key={user.id}
+                          className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 transition-all flex items-start gap-3 shadow-xs"
+                        >
+                          <div className="relative shrink-0">
+                            <img
+                              src={user.avatarUrl}
+                              alt={user.displayName}
+                              className="w-11 h-11 rounded-2xl bg-slate-950 border border-purple-500/50 object-cover"
+                            />
+                            <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-slate-900 ${STATUS_DOT[user.activeStatus || 'online']}`} />
+                          </div>
 
-                      {/* Message Content */}
-                      {msg.content && (
-                        <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 mt-1 leading-relaxed whitespace-pre-wrap break-words">
-                          {msg.content}
-                        </p>
-                      )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-black text-slate-900 dark:text-white truncate">
+                                {user.displayName}
+                              </span>
+                              {user.role === 'admin' ? (
+                                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-xs border border-amber-300">
+                                  👑 Admin
+                                </span>
+                              ) : (
+                                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                                  User
+                                </span>
+                              )}
+                            </div>
 
-                      {/* Attached Code Snippet */}
-                      {msg.codeSnippet && (
-                        <div className="mt-2 rounded-2xl bg-slate-900 border border-slate-700/80 overflow-hidden shadow-md max-w-xl">
-                          <div className="px-3 py-1.5 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between text-[11px] font-mono text-slate-400">
-                            <span className="text-purple-400 uppercase font-black">
-                              {msg.codeSnippet.language}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              {onOpenCodeZone && (
+                            <div className="text-[11px] font-mono font-bold text-indigo-500 dark:text-indigo-400 mt-0.5">
+                              @{user.username}
+                            </div>
+
+                            {user.bio && (
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-1">
+                                {user.bio}
+                              </p>
+                            )}
+
+                            {/* Action Buttons */}
+                            <div className="mt-2.5 flex items-center gap-2">
+                              {user.isFriend ? (
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    sound.playClick();
-                                    onClose();
-                                    onOpenCodeZone(msg.codeSnippet?.code, (msg.codeSnippet?.language as CodeLanguage) || 'cpp');
-                                  }}
-                                  className="hover:text-emerald-400 flex items-center gap-1 cursor-pointer transition-colors"
-                                  title="Open in CodeZone playground"
+                                  onClick={() => handleRemoveFriendClick(user)}
+                                  className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-rose-500/20 hover:text-rose-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1 transition-all"
+                                  title="Click to remove friend"
                                 >
-                                  <Sparkles className="w-3 h-3 text-emerald-400" />
-                                  <span>Run in CodeZone</span>
+                                  <UserCheck className="w-3 h-3" />
+                                  <span>Friends ✓</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddFriendClick(user)}
+                                  className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black flex items-center gap-1 transition-all shadow-xs cursor-pointer"
+                                >
+                                  <UserPlus className="w-3 h-3" />
+                                  <span>Add Friend</span>
                                 </button>
                               )}
+
                               <button
                                 type="button"
-                                onClick={() => handleCopyCode(msg.codeSnippet!.code, msg.id)}
-                                className="hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+                                onClick={() => handleStartDMWithUser(user)}
+                                className="px-2.5 py-1 rounded-xl bg-purple-600/20 hover:bg-purple-600 text-purple-400 hover:text-white border border-purple-500/30 text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer"
                               >
-                                {copiedCodeId === msg.id ? (
-                                  <>
-                                    <Check className="w-3 h-3 text-emerald-400" />
-                                    <span className="text-emerald-400">Copied!</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy className="w-3 h-3" />
-                                    <span>Copy</span>
-                                  </>
-                                )}
+                                <MessageCircle className="w-3 h-3" />
+                                <span>Message</span>
                               </button>
                             </div>
                           </div>
-                          <pre className="p-3 text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed">
-                            <code>{msg.codeSnippet.code}</code>
-                          </pre>
                         </div>
-                      )}
-
-                      {/* Emoji Reactions Row */}
-                      <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                        {/* Existing reactions */}
-                        {msg.reactions &&
-                          Object.entries(msg.reactions).map(([emoji, count]) => (
-                            <button
-                              key={emoji}
-                              type="button"
-                              onClick={() => handleToggleReaction(msg.id, emoji)}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-                            >
-                              <span>{emoji}</span>
-                              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{count}</span>
-                            </button>
-                          ))}
-
-                        {/* Quick reaction button options on hover */}
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                          {COMMON_REACTIONS.slice(0, 4).map((emoji) => (
-                            <button
-                              key={emoji}
-                              type="button"
-                              onClick={() => handleToggleReaction(msg.id, emoji)}
-                              className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer"
-                              title={`React with ${emoji}`}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      ))}
                     </div>
-                  </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
-            </div>
+                  )}
+                </div>
+              )}
 
-            {/* Code Attachment Expandable Drawer */}
-            {isAttachingCode && (
-              <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 animate-slideUp space-y-2">
-                <div className="flex items-center justify-between text-xs font-black uppercase text-slate-500">
-                  <div className="flex items-center gap-2">
-                    <Code2 className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Attach Code Snippet</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={codeLanguage}
-                      onChange={(e) => setCodeLanguage(e.target.value)}
-                      className="bg-slate-200 dark:bg-slate-800 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-800 dark:text-slate-200 border-none outline-none cursor-pointer"
-                    >
-                      <option value="cpp">C++</option>
-                      <option value="c">C</option>
-                      <option value="python">Python</option>
-                      <option value="javascript">JavaScript</option>
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => setIsAttachingCode(false)}
-                      className="p-1 hover:text-rose-400 text-slate-400 cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+              {/* Current Friends List */}
+              <div className="pt-2 space-y-3">
+                <div className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                  <span>Your Friends ({friends.length})</span>
+                  {loadingFriends && <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-400" />}
                 </div>
 
-                <textarea
-                  value={codeContent}
-                  onChange={(e) => setCodeContent(e.target.value)}
-                  placeholder="// Paste your code here..."
-                  rows={4}
-                  className="w-full bg-slate-950 text-emerald-300 font-mono text-xs p-2.5 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 leading-relaxed resize-none"
-                />
+                {friends.length === 0 ? (
+                  <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-center space-y-2">
+                    <div className="text-3xl">👥</div>
+                    <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      You haven&apos;t added any friends yet
+                    </div>
+                    <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                      Search your classmate&apos;s unique @username handle above to connect and direct message.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {friends.map((friend) => (
+                      <div
+                        key={friend.id}
+                        className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shadow-xs"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="relative shrink-0">
+                            <img
+                              src={friend.avatarUrl}
+                              alt={friend.displayName}
+                              className="w-10 h-10 rounded-xl bg-slate-950 border border-purple-500/40 object-cover"
+                            />
+                            <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-white dark:ring-slate-900 ${STATUS_DOT[friend.activeStatus || 'online']}`} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-slate-900 dark:text-white truncate">
+                              {friend.displayName}
+                            </div>
+                            <div className="text-[11px] font-mono text-indigo-400 font-bold truncate">
+                              @{friend.username}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleStartDMWithUser(friend)}
+                            className="px-2.5 py-1 rounded-xl bg-purple-600 text-white hover:bg-purple-500 text-xs font-black flex items-center gap-1 transition-all shadow-xs"
+                          >
+                            <MessageSquare className="w-3 h-3" />
+                            <span>Chat</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFriendClick(friend)}
+                            className="p-1 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                            title="Remove friend"
+                          >
+                            <UserMinus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+          ) : (
+            /* ===================================================================
+                CHAT MESSAGES FEED & COMPOSER
+                =================================================================== */
+            <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#0B0F19]">
+              {/* Scrollable Messages Area */}
+              <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-4">
+                {channelMessages.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-2 text-slate-400">
+                    <div className="text-4xl">{currentChannel.icon || '💬'}</div>
+                    <div className="text-sm font-black text-slate-700 dark:text-slate-200">
+                      Welcome to #{currentChannel.name}!
+                    </div>
+                    <p className="text-xs max-w-sm">
+                      {currentChannel.description}
+                    </p>
+                  </div>
+                ) : (
+                  channelMessages.map((msg) => {
+                    const isMsgAdmin = msg.senderRole === 'admin';
 
-            {/* Input Composer Box */}
-            <form
-              onSubmit={handleSendMessage}
-              className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E1526] shrink-0"
-            >
-              <div className="flex items-center gap-2 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 focus-within:border-indigo-500 transition-colors">
-                {/* Code Attachment Toggle */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    sound.playClick();
-                    setIsAttachingCode(!isAttachingCode);
-                  }}
-                  className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                    isAttachingCode
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
-                  }`}
-                  title="Attach code snippet"
-                >
-                  <Code2 className="w-4 h-4" />
-                </button>
+                    return (
+                      <div key={msg.id} className="flex items-start gap-2.5 sm:gap-3 group animate-fade">
+                        <div className="relative shrink-0">
+                          <img
+                            src={msg.senderAvatar}
+                            alt={msg.senderName}
+                            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-slate-900 border object-cover ${
+                              isMsgAdmin ? 'border-amber-400 ring-1 ring-amber-400/40' : 'border-purple-500/50'
+                            }`}
+                          />
+                          <span
+                            className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full ring-2 ring-white dark:ring-slate-900 ${
+                              STATUS_DOT[msg.senderStatus || 'online']
+                            }`}
+                          />
+                        </div>
 
-                {/* Message Text Input */}
-                <input
-                  type="text"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder={`Message #${currentChannel.name}...`}
-                  className="flex-1 bg-transparent px-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none font-medium"
-                />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                            <span className="text-xs font-black text-slate-900 dark:text-white">
+                              {msg.senderName}
+                            </span>
 
-                {/* Send Button */}
-                <button
-                  type="submit"
-                  disabled={!inputText.trim() && !codeContent.trim()}
-                  className="p-2 sm:px-3 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-black shadow-md"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Send</span>
-                </button>
+                            {isMsgAdmin ? (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-xs border border-amber-300">
+                                👑 Admin
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                                User
+                              </span>
+                            )}
+
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {formatTimestamp(msg.timestamp)}
+                            </span>
+                          </div>
+
+                          {/* Message Content */}
+                          {msg.content && (
+                            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 mt-1 leading-relaxed whitespace-pre-wrap break-words">
+                              {msg.content}
+                            </p>
+                          )}
+
+                          {/* Attached Code Snippet */}
+                          {msg.codeSnippet && (
+                            <div className="mt-2 rounded-2xl bg-slate-900 border border-slate-700/80 overflow-hidden shadow-md max-w-xl">
+                              <div className="px-3 py-1.5 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between text-[11px] font-mono text-slate-400">
+                                <span className="text-purple-400 uppercase font-black">
+                                  {msg.codeSnippet.language}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  {onOpenCodeZone && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        sound.playClick();
+                                        onClose();
+                                        onOpenCodeZone(msg.codeSnippet?.code, (msg.codeSnippet?.language as CodeLanguage) || 'cpp');
+                                      }}
+                                      className="hover:text-emerald-400 flex items-center gap-1 cursor-pointer transition-colors"
+                                      title="Open in CodeZone playground"
+                                    >
+                                      <Sparkles className="w-3 h-3 text-emerald-400" />
+                                      <span>Run in CodeZone</span>
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyCode(msg.codeSnippet!.code, msg.id)}
+                                    className="hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+                                  >
+                                    {copiedCodeId === msg.id ? (
+                                      <>
+                                        <Check className="w-3 h-3 text-emerald-400" />
+                                        <span className="text-emerald-400">Copied!</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy className="w-3 h-3" />
+                                        <span>Copy</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                              <pre className="p-3 text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed">
+                                <code>{msg.codeSnippet.code}</code>
+                              </pre>
+                            </div>
+                          )}
+
+                          {/* Emoji Reactions Row */}
+                          <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                            {msg.reactions &&
+                              Object.entries(msg.reactions).map(([emoji, count]) => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => handleToggleReaction(msg.id, emoji)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                                >
+                                  <span>{emoji}</span>
+                                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{count}</span>
+                                </button>
+                              ))}
+
+                            {/* Quick reactions on hover */}
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                              {COMMON_REACTIONS.slice(0, 4).map((emoji) => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => handleToggleReaction(msg.id, emoji)}
+                                  className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-xs transition-colors cursor-pointer"
+                                  title={`React with ${emoji}`}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+                <div ref={messagesEndRef} />
               </div>
-            </form>
-          </div>
+
+              {/* Code Attachment Expandable Drawer */}
+              {isAttachingCode && (
+                <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/90 animate-slideUp space-y-2">
+                  <div className="flex items-center justify-between text-xs font-black uppercase text-slate-500">
+                    <div className="flex items-center gap-2">
+                      <Code2 className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Attach Code Snippet</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={codeLanguage}
+                        onChange={(e) => setCodeLanguage(e.target.value)}
+                        className="bg-slate-200 dark:bg-slate-800 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-800 dark:text-slate-200 border-none outline-none cursor-pointer"
+                      >
+                        <option value="cpp">C++</option>
+                        <option value="c">C</option>
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setIsAttachingCode(false)}
+                        className="p-1 hover:text-rose-400 text-slate-400 cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <textarea
+                    value={codeContent}
+                    onChange={(e) => setCodeContent(e.target.value)}
+                    placeholder="// Paste your code here..."
+                    rows={4}
+                    className="w-full bg-slate-950 text-emerald-300 font-mono text-xs p-2.5 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 leading-relaxed resize-none"
+                  />
+                </div>
+              )}
+
+              {/* Input Composer Box */}
+              <form
+                onSubmit={handleSendMessage}
+                className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E1526] shrink-0"
+              >
+                <div className="flex items-center gap-2 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 focus-within:border-indigo-500 transition-colors">
+                  {/* Code Attachment Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setIsAttachingCode(!isAttachingCode);
+                    }}
+                    className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                      isAttachingCode
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800'
+                    }`}
+                    title="Attach code snippet"
+                  >
+                    <Code2 className="w-4 h-4" />
+                  </button>
+
+                  {/* Message Text Input */}
+                  <input
+                    type="text"
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    placeholder={`Message #${currentChannel.name}...`}
+                    className="flex-1 bg-transparent px-2 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none font-medium"
+                  />
+
+                  {/* Send Button */}
+                  <button
+                    type="submit"
+                    disabled={!inputText.trim() && !codeContent.trim()}
+                    className="p-2 sm:px-3 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-black shadow-md active:scale-95"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Send</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       </div>
     </div>

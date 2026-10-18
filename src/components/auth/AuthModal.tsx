@@ -3,7 +3,7 @@ import { useGame } from '../../context/GameContext';
 import { supabase, isEduEmail } from '../../lib/supabase';
 import { sound } from '../../utils/audio';
 import { fireSuccessConfetti } from '../../utils/confetti';
-import { ADMIN_SECRET_CODE, saveUserProfile, uploadAvatarImage } from '../../services/authService';
+import { ADMIN_SECRET_CODE, saveUserProfile, uploadAvatarImage, checkUsernameAvailability } from '../../services/authService';
 import { UserRole, UserActiveStatus } from '../../types';
 import {
   X,
@@ -89,6 +89,33 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
   const [isSyncing, setIsSyncing] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [usernameCheck, setUsernameCheck] = useState<{
+    checking: boolean;
+    available?: boolean;
+    error?: string;
+  }>({ checking: false });
+
+  // Debounce username check during registration
+  useEffect(() => {
+    const trimmed = displayName.trim();
+    if (!trimmed || tab !== 'register') {
+      setUsernameCheck({ checking: false });
+      return;
+    }
+
+    setUsernameCheck({ checking: true });
+    const timer = setTimeout(async () => {
+      const res = await checkUsernameAvailability(trimmed);
+      setUsernameCheck({
+        checking: false,
+        available: res.available,
+        error: res.error,
+      });
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [displayName, tab]);
 
   const handleCustomImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -176,7 +203,33 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
     sound.playClick();
 
     if (tab === 'register') {
-      const res = await register(email.trim(), password, displayName.trim(), selectedRole, adminSecretPassword);
+      const trimmedUser = displayName.trim().replace(/^@+/, '');
+      if (!trimmedUser) {
+        setLoading(false);
+        setErrorMsg('Please choose a unique username handle (e.g. codeninja).');
+        sound.playError();
+        return;
+      }
+      if (trimmedUser.length < 3) {
+        setLoading(false);
+        setErrorMsg('Username must be at least 3 characters long.');
+        sound.playError();
+        return;
+      }
+      if (!/^[a-zA-Z0-9_]+$/.test(trimmedUser)) {
+        setLoading(false);
+        setErrorMsg('Username can only contain letters, numbers, and underscores.');
+        sound.playError();
+        return;
+      }
+      const check = await checkUsernameAvailability(trimmedUser);
+      if (!check.available) {
+        setLoading(false);
+        sound.playError();
+        setErrorMsg(check.error || `Username "@${trimmedUser}" is already taken by another user. Please choose a unique handle.`);
+        return;
+      }
+      const res = await register(email.trim(), password, trimmedUser, selectedRole, adminSecretPassword);
       setLoading(false);
 
       if (!res.success) {
@@ -290,8 +343,19 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
     setIsSavingProfile(true);
     sound.playClick();
 
+    const trimmedDisplayName = editDisplayName.trim();
+    if (trimmedDisplayName && trimmedDisplayName.toLowerCase() !== state.authUser.displayName?.toLowerCase()) {
+      const check = await checkUsernameAvailability(trimmedDisplayName, state.authUser.id);
+      if (!check.available) {
+        setIsSavingProfile(false);
+        sound.playError();
+        setErrorMsg(check.error || `Username "${trimmedDisplayName}" is already taken by another learner. Please choose a unique username.`);
+        return;
+      }
+    }
+
     const res = await updateProfile({
-      displayName: editDisplayName.trim() || undefined,
+      displayName: trimmedDisplayName || undefined,
       bio: editBio.trim(),
       avatarUrl: editAvatarUrl.trim() || undefined,
       activeStatus: editActiveStatus,
@@ -490,20 +554,26 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                 </div>
               </div>
 
-              {/* Display Name Input */}
+              {/* Unique Username Input */}
               <div className="space-y-1.5">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-brand-primary" />
-                  <span>Display Name</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-brand-primary" />
+                    <span>Unique Username (@handle)</span>
+                  </label>
+                  <span className="text-[10px] text-purple-400 font-bold">Must be unique</span>
+                </div>
                 <input
                   type="text"
                   value={editDisplayName}
                   onChange={(e) => setEditDisplayName(e.target.value)}
-                  placeholder="e.g. CodeNinja, ByteWizard"
-                  maxLength={30}
+                  placeholder="e.g. acid, codeninja, byte_master"
+                  maxLength={25}
                   className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 font-bold focus:outline-none focus:border-brand-primary"
                 />
+                <p className="text-[10px] text-slate-400 pl-1">
+                  Unique across ByteSized. Other learners use this handle to search and add you as a friend.
+                </p>
               </div>
 
               {/* Active Status Selector */}
@@ -1101,22 +1171,67 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                 </div>
               </div>
 
-              {/* 2. DISPLAY NAME (ONLY ON CREATE ACCOUNT TAB) */}
+              {/* 2. UNIQUE USERNAME (@HANDLE) - MANDATORY & GLOBALLY UNIQUE */}
               {tab === 'register' && (
                 <div>
-                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
-                    Display Name (Optional)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-brand-primary" />
+                      <span>Unique Username (@handle)</span>
+                      <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="text-[10px] font-bold">
+                      {usernameCheck.checking ? (
+                        <span className="text-slate-400 flex items-center gap-1">
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          Checking...
+                        </span>
+                      ) : displayName.trim() ? (
+                        usernameCheck.available ? (
+                          <span className="text-emerald-500 dark:text-emerald-400 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Username Available
+                          </span>
+                        ) : (
+                          <span className="text-rose-500 dark:text-rose-400 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            Already Taken
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-purple-400 dark:text-purple-300">Must be unique</span>
+                      )}
+                    </div>
+                  </div>
                   <div className="relative">
-                    <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                    <span className="absolute left-3.5 top-2.5 text-xs font-black text-slate-400 select-none">@</span>
                     <input
                       type="text"
+                      required
                       value={displayName}
-                      onChange={e => setDisplayName(e.target.value)}
-                      placeholder={selectedRole === 'admin' ? 'e.g. Master Admin' : 'e.g. ByteSized'}
-                      className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-brand-primary"
+                      onChange={e => setDisplayName(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                      placeholder={selectedRole === 'admin' ? 'admin_master' : 'codeninja'}
+                      maxLength={25}
+                      className={`w-full bg-slate-100 dark:bg-slate-900 border rounded-xl pl-8 pr-9 py-2.5 text-xs font-bold text-slate-800 dark:text-white focus:outline-none transition-all ${
+                        displayName.trim() && usernameCheck.available === false
+                          ? 'border-rose-500/70 focus:border-rose-500 ring-1 ring-rose-500/30'
+                          : displayName.trim() && usernameCheck.available === true
+                          ? 'border-emerald-500/70 focus:border-emerald-500 ring-1 ring-emerald-500/30'
+                          : 'border-slate-200 dark:border-slate-800 focus:border-brand-primary'
+                      }`}
                     />
+                    <div className="absolute right-3 top-2.5">
+                      {displayName.trim() && usernameCheck.available === true && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      )}
+                      {displayName.trim() && usernameCheck.available === false && (
+                        <AlertCircle className="w-4 h-4 text-rose-500" />
+                      )}
+                    </div>
                   </div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 pl-1">
+                    Every username in ByteSized is unique. Friends use your @handle to find, add, and message you.
+                  </p>
                 </div>
               )}
 
