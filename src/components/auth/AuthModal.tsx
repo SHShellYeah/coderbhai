@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
 import { supabase, isEduEmail } from '../../lib/supabase';
 import { sound } from '../../utils/audio';
 import { fireSuccessConfetti } from '../../utils/confetti';
-import { ADMIN_SECRET_CODE, saveUserProfile } from '../../services/authService';
+import { ADMIN_SECRET_CODE, saveUserProfile, uploadAvatarImage } from '../../services/authService';
 import { UserRole, UserActiveStatus } from '../../types';
 import {
   X,
@@ -30,7 +30,8 @@ import {
   MessageSquare,
   FileText,
   Radio,
-  ArrowLeft
+  ArrowLeft,
+  Upload
 } from 'lucide-react';
 
 const AVATAR_PRESETS = [
@@ -86,6 +87,38 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCustomImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAvatar(true);
+    setErrorMsg(null);
+    sound.playClick();
+
+    try {
+      const userId = state.authUser?.id || 'learner_' + Date.now();
+      const { url, error } = await uploadAvatarImage(userId, file);
+      if (error || !url) {
+        setErrorMsg(error || 'Failed to upload photo. Please choose another image.');
+        sound.playError();
+      } else {
+        setEditAvatarUrl(url);
+        setSuccessMsg('📷 Photo uploaded successfully! Click "Save Profile Changes" below to apply.');
+        sound.playSuccess();
+      }
+    } catch (err) {
+      setErrorMsg((err as Error).message || 'Failed to process image file.');
+      sound.playError();
+    } finally {
+      setIsUploadingAvatar(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -327,13 +360,13 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
             <div className="p-5 sm:p-6 space-y-4 animate-fade">
               {/* Avatar Selector Section */}
               <div className="space-y-2.5">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <Camera className="w-3.5 h-3.5 text-purple-400" />
                     <span>Choose Profile Picture</span>
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-medium">8 Presets + Custom URL</span>
-                </label>
+                  </label>
+                  <span className="text-[10px] text-purple-400 font-bold">Upload Photo / Presets</span>
+                </div>
 
                 {/* Avatar Preview */}
                 <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
@@ -355,41 +388,97 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                   </div>
                 </div>
 
-                {/* Avatar Presets Grid */}
-                <div className="grid grid-cols-4 gap-2 pt-1">
-                  {AVATAR_PRESETS.map((preset) => {
-                    const isSelected = editAvatarUrl === preset.url;
-                    return (
+                {/* Direct File Upload Option */}
+                <div className="pt-0.5">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                    onChange={handleCustomImageUpload}
+                    className="hidden"
+                    id="profile-picture-upload"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={isUploadingAvatar}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-purple-600/15 hover:bg-purple-600/25 border-2 border-dashed border-purple-500/50 hover:border-purple-500 text-purple-600 dark:text-purple-300 text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm group"
+                    >
+                      {isUploadingAvatar ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin text-purple-400" />
+                          <span>Uploading &amp; Optimizing Photo...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 text-purple-400 group-hover:-translate-y-0.5 transition-transform" />
+                          <span>Upload Custom Photo</span>
+                        </>
+                      )}
+                    </button>
+                    {editAvatarUrl && (
                       <button
-                        key={preset.name}
                         type="button"
                         onClick={() => {
                           sound.playClick();
-                          setEditAvatarUrl(preset.url);
+                          setEditAvatarUrl(`https://api.dicebear.com/7.x/bottts/svg?seed=${state.authUser?.id || 'learner'}`);
                         }}
-                        className={`p-1.5 rounded-xl border-2 flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-purple-500 bg-purple-500/15 shadow-md scale-105'
-                            : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
-                        }`}
-                        title={preset.name}
+                        className="py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+                        title="Reset to default avatar"
                       >
-                        <img src={preset.url} alt={preset.name} className="w-8 h-8 rounded-lg bg-slate-800" />
-                        <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300 truncate max-w-full">
-                          {preset.name.split(' ')[0]}
-                        </span>
+                        Reset
                       </button>
-                    );
-                  })}
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1 pl-1">
+                    Upload any image from your computer or phone (JPG, PNG, WEBP).
+                  </p>
+                </div>
+
+                {/* Avatar Presets Grid */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Or Choose From Presets
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {AVATAR_PRESETS.map((preset) => {
+                      const isSelected = editAvatarUrl === preset.url;
+                      return (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => {
+                            sound.playClick();
+                            setEditAvatarUrl(preset.url);
+                          }}
+                          className={`p-1.5 rounded-xl border-2 flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-purple-500 bg-purple-500/15 shadow-md scale-105'
+                              : 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/60 hover:border-slate-300 dark:hover:border-slate-700'
+                          }`}
+                          title={preset.name}
+                        >
+                          <img src={preset.url} alt={preset.name} className="w-8 h-8 rounded-lg bg-slate-800" />
+                          <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300 truncate max-w-full">
+                            {preset.name.split(' ')[0]}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Custom Avatar URL input */}
-                <div className="pt-1">
+                <div className="pt-1 space-y-1">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Or Paste Image URL
+                  </div>
                   <input
                     type="url"
                     value={editAvatarUrl}
                     onChange={(e) => setEditAvatarUrl(e.target.value)}
-                    placeholder="Or paste custom image URL (https://...)"
+                    placeholder="https://example.com/my-photo.jpg"
                     className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 font-mono focus:outline-none focus:border-purple-500"
                   />
                 </div>

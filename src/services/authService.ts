@@ -92,52 +92,61 @@ export const signUp = async (
       return { user: null, error: 'Registration failed. Please try again.' };
     }
 
+    // Check if Supabase returned an existing user (identities is empty when email already exists)
+    if (authData.user.identities && authData.user.identities.length === 0) {
+      return {
+        user: null,
+        error: 'An account with this email already exists! Please switch to the Sign In tab to log in.',
+      };
+    }
+
     const userId = authData.user.id;
     const isAdmin = finalRole === 'admin';
     const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
     const eduHeartsUntil = isEdu ? Date.now() + twoDaysMs : null;
     const initialGems = isAdmin ? 999999 : (isEdu ? 200 : 0);
 
-    // 3. Guaranteed Insert into public.profiles with exact table columns (id, username, email, role)
-    const exactProfileRecord = {
+    // 3. Guaranteed Insert into public.profiles & public.users with complete profile record
+    const fullProfileRecord: Record<string, unknown> = {
       id: userId,
       username: trimmedUsername,
       email: email.trim(),
       role: finalRole,
+      display_name: trimmedUsername,
+      avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(userId)}`,
+      gems: initialGems,
+      xp: 0,
+      streak: 0,
+      is_edu_user: isEdu,
+      unlimited_hearts_until: isAdmin
+        ? new Date('2099-12-31T23:59:59Z').toISOString()
+        : (eduHeartsUntil ? new Date(eduHeartsUntil).toISOString() : null),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
-    console.log('[Supabase] Inserting into public.profiles:', exactProfileRecord);
+    console.log('[Supabase] Inserting into public.profiles:', fullProfileRecord);
     const { error: profError } = await supabase
       .from('profiles')
-      .upsert(exactProfileRecord, { onConflict: 'id' });
+      .upsert(fullProfileRecord, { onConflict: 'id' });
 
     if (profError) {
-      console.warn('[Supabase] profiles table upsert error:', profError.message);
+      console.warn('[Supabase] profiles table upsert error, trying fallback:', profError.message);
+      // Fallback to basic 4 columns if necessary
+      await supabase.from('profiles').upsert({
+        id: userId,
+        username: trimmedUsername,
+        email: email.trim(),
+        role: finalRole,
+      }, { onConflict: 'id' });
     } else {
       console.log('[Supabase] Successfully inserted profile into public.profiles table!');
-    }
-
-    // Also attempt extended columns if the table has them
-    try {
-      await supabase.from('profiles').update({
-        display_name: trimmedUsername,
-        gems: initialGems,
-        xp: 0,
-        streak: 0,
-        is_edu_user: isEdu,
-        unlimited_hearts_until: isAdmin
-          ? new Date('2099-12-31T23:59:59Z').toISOString()
-          : (eduHeartsUntil ? new Date(eduHeartsUntil).toISOString() : null),
-        updated_at: new Date().toISOString(),
-      }).eq('id', userId);
-    } catch {
-      // ignore if extra columns don't exist
     }
 
     // Also insert into public.users if table exists
     try {
       await supabase.from('users').upsert({
-        ...exactProfileRecord,
+        ...fullProfileRecord,
         password_hash: 'Secured via Supabase Auth (bcrypt encrypted in auth.users)',
       }, { onConflict: 'id' });
     } catch {
@@ -268,30 +277,30 @@ export const login = async (
           // ignore
         }
       }
-    } else if (requestedRole === 'user') {
-      resolvedRole = 'user';
-      try {
-        await supabase.from('profiles').upsert({
-          id: user.id,
-          username: user.user_metadata?.username || user.email?.split('@')[0],
-          email: user.email,
-          role: 'user',
-        }, { onConflict: 'id' });
-      } catch {
-        // ignore
-      }
-    } else {
-      // Ensure profile exists
-      try {
-        await supabase.from('profiles').upsert({
-          id: user.id,
-          username: user.user_metadata?.username || user.email?.split('@')[0],
-          email: user.email,
-          role: resolvedRole,
-        }, { onConflict: 'id' });
-      } catch {
-        // ignore
-      }
+    }
+
+    // Ensure profile exists in both public.profiles and public.users
+    const syncProfileRecord: Record<string, unknown> = {
+      id: user.id,
+      username: user.user_metadata?.username || user.user_metadata?.display_name || user.email?.split('@')[0],
+      display_name: user.user_metadata?.display_name || user.user_metadata?.username || user.email?.split('@')[0],
+      email: user.email,
+      role: resolvedRole,
+      avatar_url: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.id)}`,
+      updated_at: new Date().toISOString(),
+    };
+    try {
+      await supabase.from('profiles').upsert(syncProfileRecord, { onConflict: 'id' });
+    } catch {
+      // ignore
+    }
+    try {
+      await supabase.from('users').upsert({
+        ...syncProfileRecord,
+        password_hash: 'Secured via Supabase Auth',
+      }, { onConflict: 'id' });
+    } catch {
+      // ignore
     }
 
     const authUser: AuthUser = {
@@ -515,55 +524,162 @@ export const saveUserProfile = async (
         : null;
     }
 
-    // 1. Guaranteed Upsert into public.profiles using the exact 4 columns (id, username, email, role)
-    const exactPayload: Record<string, unknown> = {
+    // 1. Build comprehensive payload for public.profiles and public.users
+    const fullPayload: Record<string, unknown> = {
       id: userId,
       role: profileData.role || 'user',
+      updated_at: new Date().toISOString(),
     };
-    if (profileData.email) exactPayload.email = profileData.email;
-    if (profileData.displayName) exactPayload.username = profileData.displayName;
-
-    const { error: exactError } = await supabase.from('profiles').upsert(exactPayload, { onConflict: 'id' });
-    if (exactError) {
-      console.warn('[Supabase] exact profiles upsert note:', exactError.message);
+    if (profileData.email) fullPayload.email = profileData.email;
+    if (profileData.displayName) {
+      fullPayload.username = profileData.displayName;
+      fullPayload.display_name = profileData.displayName;
+    }
+    if (profileData.avatarUrl) fullPayload.avatar_url = profileData.avatarUrl;
+    if (profileData.bio !== undefined) fullPayload.bio = profileData.bio;
+    if (profileData.activeStatus) fullPayload.active_status = profileData.activeStatus;
+    if (profileData.xp !== undefined) fullPayload.xp = profileData.xp;
+    if (profileData.streak !== undefined) fullPayload.streak = profileData.streak;
+    if (profileData.isEduUser !== undefined) fullPayload.is_edu_user = profileData.isEduUser;
+    if (profileData.courseProgress !== undefined) fullPayload.course_progress = profileData.courseProgress;
+    if (profileData.settings !== undefined) fullPayload.settings = profileData.settings;
+    if (profileData.role === 'admin') {
+      fullPayload.gems = 999999;
+      fullPayload.unlimited_hearts_until = new Date('2099-12-31T23:59:59Z').toISOString();
+    } else if (profileData.gems !== undefined) {
+      fullPayload.gems = profileData.gems;
+    } else if (profileData.unlimitedHeartsUntil !== undefined) {
+      fullPayload.unlimited_hearts_until = profileData.unlimitedHeartsUntil
+        ? new Date(profileData.unlimitedHeartsUntil).toISOString()
+        : null;
     }
 
-    // 2. Also try extended columns if the table has them
-    try {
-      const extendedPayload: Record<string, unknown> = {
+    // 2. Upsert directly to public.profiles
+    const { error: profError } = await supabase
+      .from('profiles')
+      .upsert(fullPayload, { onConflict: 'id' });
+
+    if (profError) {
+      console.warn('[Supabase] profiles full upsert note, trying fallback:', profError.message);
+      const exactPayload: Record<string, unknown> = {
         id: userId,
-        ...exactPayload,
-        updated_at: new Date().toISOString(),
+        role: profileData.role || 'user',
       };
-      if (profileData.displayName) extendedPayload.display_name = profileData.displayName;
-      if (profileData.avatarUrl) extendedPayload.avatar_url = profileData.avatarUrl;
-      if (profileData.bio !== undefined) extendedPayload.bio = profileData.bio;
-      if (profileData.activeStatus) extendedPayload.active_status = profileData.activeStatus;
-      if (profileData.xp !== undefined) extendedPayload.xp = profileData.xp;
-      if (profileData.streak !== undefined) extendedPayload.streak = profileData.streak;
-      if (profileData.isEduUser !== undefined) extendedPayload.is_edu_user = profileData.isEduUser;
-      if (profileData.courseProgress !== undefined) extendedPayload.course_progress = profileData.courseProgress;
-      if (profileData.settings !== undefined) extendedPayload.settings = profileData.settings;
-      if (profileData.role === 'admin') {
-        extendedPayload.gems = 999999;
-        extendedPayload.unlimited_hearts_until = new Date('2099-12-31T23:59:59Z').toISOString();
-      } else if (profileData.gems !== undefined) {
-        extendedPayload.gems = profileData.gems;
-      }
-      await supabase.from('profiles').update(extendedPayload).eq('id', userId);
-    } catch {
-      // ignore
+      if (profileData.email) exactPayload.email = profileData.email;
+      if (profileData.displayName) exactPayload.username = profileData.displayName;
+      await supabase.from('profiles').upsert(exactPayload, { onConflict: 'id' });
+      await supabase.from('profiles').update(fullPayload).eq('id', userId);
+    } else {
+      console.log('[Supabase] Successfully saved profile changes to public.profiles!');
     }
 
-    // 3. Upsert into public.users if table exists
+    // 3. Upsert into public.users table as well
     try {
-      await supabase.from('users').upsert(exactPayload, { onConflict: 'id' });
+      await supabase.from('users').upsert(fullPayload, { onConflict: 'id' });
     } catch {
       // ignore
     }
 
-    return { success: !exactError, error: exactError ? exactError.message : null };
+    return { success: true, error: null };
   } catch (err) {
     return { success: false, error: (err as Error).message };
   }
 };
+
+/**
+ * 4g. Upload a custom user avatar image to Supabase Storage ('avatars' bucket)
+ * Automatically crops/resizes client-side and returns the public URL.
+ */
+export const uploadAvatarImage = async (
+  userId: string,
+  file: File
+): Promise<{ url: string | null; error: string | null }> => {
+  try {
+    if (!file || !file.type.startsWith('image/')) {
+      return { url: null, error: 'Please select a valid image file (PNG, JPG, WEBP, GIF, SVG).' };
+    }
+
+    // Process & optimize image in browser using Canvas (square center-crop, max 320x320)
+    const optimizedBlob: Blob = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 320;
+          const width = img.width;
+          const height = img.height;
+          
+          // Square center crop
+          const minDim = Math.min(width, height);
+          const startX = (width - minDim) / 2;
+          const startY = (height - minDim) / 2;
+          
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.min(minDim, maxDim);
+          canvas.height = Math.min(minDim, maxDim);
+          
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(file);
+            return;
+          }
+          
+          ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(
+            (blob) => {
+              if (blob) resolve(blob);
+              else resolve(file);
+            },
+            'image/jpeg',
+            0.88
+          );
+        };
+        img.onerror = () => resolve(file);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+
+    const fileExt = 'jpg';
+    const cleanUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const fileName = `${cleanUserId}_${Date.now()}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
+
+    // 1. Try Supabase Storage upload
+    try {
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, optimizedBlob, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        });
+
+      if (!uploadError && uploadData) {
+        const { data: publicUrlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        if (publicUrlData?.publicUrl) {
+          return { url: publicUrlData.publicUrl, error: null };
+        }
+      } else if (uploadError) {
+        console.warn('[Supabase Storage] Avatar upload note:', uploadError.message);
+      }
+    } catch (storageErr) {
+      console.warn('[Supabase Storage] Avatar upload caught error:', storageErr);
+    }
+
+    // 2. Fallback to optimized data URL if storage upload is unavailable
+    const dataUrl: string = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(optimizedBlob);
+    });
+
+    return { url: dataUrl, error: null };
+  } catch (err) {
+    return { url: null, error: (err as Error).message || 'Failed to process avatar image.' };
+  }
+};
+

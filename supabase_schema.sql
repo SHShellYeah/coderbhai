@@ -238,18 +238,56 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- 8. Backfill existing users into public.profiles
-INSERT INTO public.profiles (id, username, email, role)
+-- 8. Backfill existing users into public.profiles and public.users
+INSERT INTO public.profiles (
+  id, username, email, role, display_name, avatar_url, bio, active_status, is_edu_user, xp, gems, streak, created_at, updated_at
+)
 SELECT 
   id,
   COALESCE(raw_user_meta_data->>'username', raw_user_meta_data->>'display_name', split_part(COALESCE(email, ''), '@', 1), 'ByteSized Learner'),
   email,
-  COALESCE(raw_user_meta_data->>'role', 'user')
+  COALESCE(raw_user_meta_data->>'role', 'user'),
+  COALESCE(raw_user_meta_data->>'display_name', raw_user_meta_data->>'username', split_part(COALESCE(email, ''), '@', 1), 'ByteSized Learner'),
+  COALESCE(raw_user_meta_data->>'avatar_url', 'https://api.dicebear.com/7.x/bottts/svg?seed=' || id::text),
+  COALESCE(raw_user_meta_data->>'bio', ''),
+  'online',
+  (
+    LOWER(COALESCE(email, '')) ~ '\.edu(\.[a-z]{2,})?$' OR
+    LOWER(COALESCE(email, '')) LIKE '%.edu.%' OR
+    LOWER(COALESCE(email, '')) LIKE '%.edu' OR
+    LOWER(COALESCE(email, '')) ~ '\.ac\.[a-z]{2,}$'
+  ),
+  0,
+  CASE WHEN COALESCE(raw_user_meta_data->>'role', 'user') = 'admin' THEN 999999 ELSE 0 END,
+  0,
+  created_at,
+  NOW()
 FROM auth.users
 ON CONFLICT (id) DO UPDATE SET
   username = EXCLUDED.username,
   email = EXCLUDED.email,
-  role = EXCLUDED.role;
+  role = EXCLUDED.role,
+  display_name = EXCLUDED.display_name,
+  avatar_url = EXCLUDED.avatar_url,
+  updated_at = NOW();
 
--- 9. Refresh schema cache
+-- 9. Storage Bucket: avatars (for custom profile picture uploads)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+DROP POLICY IF EXISTS "Avatar public select" ON storage.objects;
+CREATE POLICY "Avatar public select" ON storage.objects FOR SELECT USING (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Avatar insert" ON storage.objects;
+CREATE POLICY "Avatar insert" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Avatar update" ON storage.objects;
+CREATE POLICY "Avatar update" ON storage.objects FOR UPDATE USING (bucket_id = 'avatars') WITH CHECK (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Avatar delete" ON storage.objects;
+CREATE POLICY "Avatar delete" ON storage.objects FOR DELETE USING (bucket_id = 'avatars');
+
+-- 10. Refresh schema cache
 NOTIFY pgrst, 'reload schema';
+

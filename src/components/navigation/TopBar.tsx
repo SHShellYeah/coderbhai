@@ -86,18 +86,18 @@ export const TopBar: React.FC<Props> = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#0B0F19]/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 transition-colors w-full max-w-full">
-      <div className="max-w-7xl w-full mx-auto px-2 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-1 sm:gap-4 overflow-x-auto no-scrollbar">
+    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#0B0F19]/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 transition-colors w-full">
+      <div className="w-full mx-auto px-2 sm:px-4 lg:px-6 h-14 sm:h-16 flex items-center justify-between gap-1 sm:gap-2 overflow-x-auto md:overflow-visible no-scrollbar">
         {/* Left: Brand Mascot & Course Switcher */}
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Logo: Compact Cat Face on mobile, text on desktop */}
           <div
             onClick={() => sound.playMeow()}
-            className="flex items-center gap-1.5 sm:gap-2 select-none cursor-pointer group"
+            className="flex items-center gap-1.5 sm:gap-2 select-none cursor-pointer group shrink-0"
             title="ByteSized - Click Byte to hear a meow!"
           >
             <CatFace size="sm" mood="happy" className="transform group-hover:scale-110 transition-transform" />
-            <span className="hidden md:inline font-black text-xl sm:text-2xl tracking-tight text-brand-primary">
+            <span className="hidden sm:inline font-black text-xl sm:text-2xl tracking-tight text-brand-primary">
               ByteSized
             </span>
           </div>
@@ -185,8 +185,8 @@ export const TopBar: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Quick IdeaZone & CodeZone Launches - Desktop only to preserve mobile topbar space */}
-          <div className="hidden sm:flex items-center gap-1 sm:gap-1.5 ml-0.5 sm:ml-1">
+          {/* Quick IdeaZone & CodeZone Launches - Compact on laptops to prevent topbar crowding */}
+          <div className="hidden sm:flex items-center gap-1 ml-0.5">
             {onOpenIdeaZone && (
               <button
                 type="button"
@@ -194,11 +194,11 @@ export const TopBar: React.FC<Props> = ({
                   sound.playClick();
                   onOpenIdeaZone();
                 }}
-                className="btn-3d flex items-center gap-1 sm:gap-1.5 px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-xs font-black transition-all cursor-pointer"
+                className="btn-3d flex items-center gap-1 px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-xs font-black transition-all cursor-pointer shrink-0"
                 title="IdeaZone - Notepad & Brainstorming Vault"
               >
                 <Lightbulb className="w-3.5 h-3.5 text-amber-500 fill-amber-500/20" />
-                <span className="hidden md:inline">{t.ideaZone || 'IdeaZone'}</span>
+                <span className="hidden xl:inline">{t.ideaZone || 'IdeaZone'}</span>
               </button>
             )}
 
@@ -209,18 +209,18 @@ export const TopBar: React.FC<Props> = ({
                   sound.playClick();
                   onOpenCodeZone();
                 }}
-                className="btn-3d flex items-center gap-1 sm:gap-1.5 px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-black transition-all cursor-pointer"
+                className="btn-3d flex items-center gap-1 px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-black transition-all cursor-pointer shrink-0"
                 title="CodeZone - Live Coding Environment"
               >
                 <Terminal className="w-3.5 h-3.5 text-emerald-500" />
-                <span className="hidden md:inline">{t.codeZone || 'CodeZone'}</span>
+                <span className="hidden xl:inline">{t.codeZone || 'CodeZone'}</span>
               </button>
             )}
           </div>
         </div>
 
         {/* Right: Gamification Stats Bar & Action Toggles */}
-        <div className="flex items-center gap-1 sm:gap-2.5 select-none shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 select-none shrink-0">
           {/* Daily Streak (🔥) */}
           <div
             className="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-brand-orange font-black text-xs sm:text-sm"
@@ -357,16 +357,17 @@ export const TopBar: React.FC<Props> = ({
               isAdmin
                 ? 'bg-gradient-to-r from-amber-400/20 via-yellow-400/20 to-amber-500/20 text-amber-300 border border-amber-400/40 shadow-sm'
                 : 'bg-sky-500/10 dark:bg-sky-500/20 text-brand-accent'
-            } font-black text-xs sm:text-sm`}
+            } font-black text-xs sm:text-sm shrink-0`}
             title={isAdmin ? '👑 Admin Unlimited Diamonds' : `${state.gems} ${t.gems}`}
           >
             <span>💎</span>
-            <span>{isAdmin ? '♾️ Unlimited' : state.gems}</span>
+            <span className="hidden xl:inline">{isAdmin ? '♾️ Unlimited' : state.gems}</span>
+            <span className="xl:hidden">{isAdmin ? '♾️' : state.gems}</span>
           </div>
 
-          {/* XP (⚡) - Desktop only */}
+          {/* XP (⚡) - Display on xl screens to preserve desktop topbar space */}
           <div
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 dark:text-amber-400 font-black text-xs sm:text-sm"
+            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 dark:text-amber-400 font-black text-xs sm:text-sm shrink-0"
             title={`${state.xp} ${t.totalXp}`}
           >
             <Zap className="w-4 h-4 fill-current" />
@@ -379,7 +380,7 @@ export const TopBar: React.FC<Props> = ({
           <button
             type="button"
             onClick={toggleLanguage}
-            className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-xl text-xs font-black bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary transition-all cursor-pointer border border-brand-primary/30"
+            className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-xl text-xs font-black bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary transition-all cursor-pointer border border-brand-primary/30 shrink-0"
             title={state.language === 'en' ? 'বাংলা ভাষায় পরিবর্তন করুন (Switch to Bangla)' : 'Switch to English'}
           >
             <Languages className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-brand-primary" />
@@ -395,7 +396,7 @@ export const TopBar: React.FC<Props> = ({
               sound.playClick();
               toggleDarkMode();
             }}
-            className="p-1 sm:p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1 sm:p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
             title={state.darkMode ? t.lightMode : t.darkMode}
           >
             {state.darkMode ? (
@@ -461,7 +462,7 @@ export const TopBar: React.FC<Props> = ({
                   className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 shadow-sm shrink-0"
                   title={`Account: ${state.authUser.displayName || state.authUser.email} (Status: ${state.activeStatus || 'online'})`}
                 >
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     <img
                       src={state.authUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.authUser.id}`}
                       alt="Avatar"
@@ -483,15 +484,15 @@ export const TopBar: React.FC<Props> = ({
                       <span className="absolute -top-1 -right-1 text-[8px]" title=".EDU Student Verified">🎓</span>
                     )}
                   </div>
-                  <span className="hidden md:inline font-bold text-xs truncate max-w-[80px]">
+                  <span className="inline-block font-bold text-xs truncate max-w-[70px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[150px] lg:max-w-[180px]">
                     {state.authUser.displayName || state.authUser.email.split('@')[0]}
                   </span>
                   {isAdmin ? (
-                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-sm border border-amber-300">
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-sm border border-amber-300 shrink-0">
                       👑 Admin
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40">
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40 shrink-0">
                       User
                     </span>
                   )}
