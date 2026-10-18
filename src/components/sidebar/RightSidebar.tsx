@@ -72,7 +72,7 @@ export const RightSidebar: React.FC<Props> = ({
 
   return (
     <aside className="w-full lg:w-80 flex flex-col gap-5 py-4 lg:py-6 px-3 sm:px-4">
-      {/* Cloud Account & Student .EDU Perks Card */}
+      {/* ByteSized Account & Student .EDU Perks Card */}
       {onOpenAuth && (filter === 'all' || filter === 'practice' || filter === 'settings') && (
         <div className="relative overflow-hidden p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-amber-500/10 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-slate-900/40 border-2 border-indigo-500/20 dark:border-indigo-500/30 shadow-sm text-left flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -87,7 +87,7 @@ export const RightSidebar: React.FC<Props> = ({
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <h4 className="text-sm font-black text-slate-800 dark:text-slate-100 leading-tight truncate">
-                    {state.authUser ? (state.authUser.displayName || state.authUser.email?.split('@')[0]) : 'Student & Cloud Pass'}
+                    {state.authUser ? (state.authUser.displayName || state.authUser.email?.split('@')[0]) : 'ByteSized Account'}
                   </h4>
                   {isAdmin ? (
                     <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 border border-amber-300">
@@ -106,10 +106,10 @@ export const RightSidebar: React.FC<Props> = ({
                     </span>
                   ) : state.authUser ? (
                     <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
-                      <Cloud className="w-3 h-3" /> Cloud Synced
+                      <CheckCircle className="w-3 h-3" /> Synced
                     </span>
                   ) : (
-                    <span>Backup progress anywhere</span>
+                    <span>Save your learning progress</span>
                   )}
                 </div>
               </div>
@@ -160,8 +160,8 @@ export const RightSidebar: React.FC<Props> = ({
               </>
             ) : (
               <>
-                <Crown className="w-3.5 h-3.5 text-amber-300" />
-                <span>Sign Up / Choose Role (User or Admin)</span>
+                <User className="w-3.5 h-3.5" />
+                <span>Sign In / Sign Up</span>
               </>
             )}
           </button>

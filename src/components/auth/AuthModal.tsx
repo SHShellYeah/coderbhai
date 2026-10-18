@@ -112,7 +112,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
         sound.playSuccess();
         if (res.user?.role === 'admin') {
           fireSuccessConfetti();
-          setSuccessMsg('👑 Admin Verified! Granted Golden Nametag, Unlimited Hearts ♾️ & Unlimited Diamonds 💎 via set_admin_role RPC!');
+          setSuccessMsg('👑 Admin Verified! Unlimited Hearts ♾️ & Unlimited Diamonds 💎 granted via set_admin_role RPC!');
         } else if (res.adminVerificationFailed) {
           setErrorMsg(res.error || '⚠️ Admin security key verification failed. Registered as regular User.');
         } else if (res.isEduBonus) {
@@ -134,11 +134,11 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
         sound.playSuccess();
         if (res.user?.role === 'admin') {
           fireSuccessConfetti();
-          setSuccessMsg('👑 Admin Verified! Logged in with Golden Nametag, Unlimited Hearts ♾️ & Unlimited Diamonds 💎 via set_admin_role RPC!');
+          setSuccessMsg('👑 Admin Verified! Logged in with Unlimited Hearts ♾️ & Unlimited Diamonds 💎 via set_admin_role RPC!');
         } else if (res.adminVerificationFailed) {
           setErrorMsg(res.error || '⚠️ Admin security key verification failed. Logged in as regular User.');
         } else {
-          setSuccessMsg('✅ Logged in successfully! Profile and cloud session active.');
+          setSuccessMsg('✅ Logged in successfully! Profile and session active.');
         }
         setTimeout(() => onClose(), 2000);
       }
@@ -194,11 +194,11 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
         unlimitedHeartsUntil: new Date('2099-12-31T23:59:59Z').getTime(),
       });
       await syncCloudProgress();
-      setSuccessMsg('👑 Admin Verified! Promoted to Golden Admin with Unlimited Hearts ♾️ & Unlimited Diamonds 💎 via set_admin_role RPC!');
+      setSuccessMsg('👑 Admin Verified! Promoted to Admin with Unlimited Hearts ♾️ & Unlimited Diamonds 💎 via set_admin_role RPC!');
       setUpgradeAdminKey('');
     } else {
       sound.playError();
-      setErrorMsg('⚠️ Invalid Admin Security Key. Passcode @dm1n.D1u required for Admin privileges.');
+      setErrorMsg('⚠️ Invalid Admin Security Key.');
     }
     setIsUpgradingRole(false);
   };
@@ -210,14 +210,14 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
         <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-[#111C35] sticky top-0 z-10">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-2xl bg-brand-primary/15 text-brand-primary flex items-center justify-center shadow-inner">
-              <Cloud className="w-5 h-5 stroke-[2.5]" />
+              <User className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
               <h3 className="text-base font-black tracking-tight leading-none">
-                {state.authUser ? 'Your Account & Cloud Profile' : 'ByteSized Cloud Account'}
+                {state.authUser ? 'Your Account' : 'ByteSized Account'}
               </h3>
               <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
-                {state.authUser ? 'Synced with Supabase Cloud' : 'Save your XP, streak & notes across devices'}
+                {state.authUser ? 'Account details & progress' : 'Save your XP, streak & notes across devices'}
               </p>
             </div>
           </div>
@@ -368,59 +368,70 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
             {/* Role Status & Role Switcher in Logged-In Profile */}
             <div className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 space-y-2.5">
               <div className="flex items-center justify-between">
-                <label htmlFor="logged-in-role-select" className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Crown className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Account Role Dropdown</span>
-                </label>
+                  <span>Account Role</span>
+                </span>
                 {isAdminUser ? (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-sm border border-amber-300">
-                    👑 Golden Admin
+                    <Crown className="w-3 h-3 fill-current" />
+                    Admin
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40">
-                    💜 Standard User
+                    User
                   </span>
                 )}
               </div>
 
               {!isAdminUser ? (
                 <div className="space-y-2">
-                  <div className="relative">
-                    <select
-                      id="logged-in-role-select"
-                      aria-label="Account Role Drop Down"
-                      value={upgradeRole}
-                      onChange={(e) => {
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
                         sound.playClick();
-                        setUpgradeRole(e.target.value as UserRole);
+                        setUpgradeRole('user');
                         setErrorMsg(null);
                       }}
-                      className="w-full appearance-none rounded-xl px-3.5 py-2.5 pr-10 text-xs font-black transition-all cursor-pointer border-2 bg-amber-500/10 border-amber-400/70 text-amber-300 focus:outline-none"
+                      className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                        upgradeRole === 'user'
+                          ? 'bg-purple-600 text-white border-purple-500 shadow-sm'
+                          : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700'
+                      }`}
                     >
-                      <option value="user" className="bg-white dark:bg-[#0F172A] text-purple-400 font-bold">
-                        💜 Current: User (Standard Learner - Purple Nametag)
-                      </option>
-                      <option value="admin" className="bg-white dark:bg-[#0F172A] text-amber-400 font-bold">
-                        👑 Upgrade to: Admin (Special Privileges - Golden Nametag)
-                      </option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
-                      <ChevronDown className="w-4 h-4 stroke-[2.5]" />
-                    </div>
+                      User
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sound.playClick();
+                        setUpgradeRole('admin');
+                        setErrorMsg(null);
+                      }}
+                      className={`py-2 px-2.5 rounded-xl text-xs font-black transition-all cursor-pointer border flex items-center justify-center gap-1.5 ${
+                        upgradeRole === 'admin'
+                          ? 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 border-amber-300 shadow-sm'
+                          : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <Crown className="w-3.5 h-3.5" />
+                      <span>Admin</span>
+                    </button>
                   </div>
 
                   {upgradeRole === 'admin' && (
                     <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/50 space-y-2 animate-slideUp">
                       <div className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
                         <KeyRound className="w-3.5 h-3.5" />
-                        <span>Enter Admin Security Key to Upgrade:</span>
+                        <span>Admin Security Key:</span>
                       </div>
                       <div className="flex gap-2">
                         <input
                           type="password"
                           value={upgradeAdminKey}
                           onChange={(e) => setUpgradeAdminKey(e.target.value)}
-                          placeholder="Type @dm1n.D1u..."
+                          placeholder="Enter Admin Security Key..."
                           className="flex-1 bg-slate-900 border border-amber-400/60 rounded-xl px-3 py-1.5 text-xs text-amber-200 placeholder-slate-500 font-mono focus:outline-none"
                         />
                         <button
@@ -430,7 +441,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                           className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-xs font-black hover:brightness-110 cursor-pointer shadow flex items-center gap-1 shrink-0"
                         >
                           {isUpgradingRole ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Crown className="w-3.5 h-3.5" />}
-                          <span>Upgrade</span>
+                          <span>Verify</span>
                         </button>
                       </div>
                     </div>
@@ -439,7 +450,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
               ) : (
                 <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/40 text-xs text-amber-300 font-medium flex items-center gap-2">
                   <Crown className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Your account is verified as Super Admin with permanent Golden Nametag and unlimited perks.</span>
+                  <span>Admin account active with unlimited hearts and diamonds.</span>
                 </div>
               )}
             </div>
@@ -543,60 +554,27 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-3.5">
-              {/* 1. ROLE SELECT DROPDOWN MENU (CHOOSE YOUR ROLE: ADMIN OR USER) */}
-              <div className="space-y-2 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-purple-500/10 via-slate-50 to-amber-500/10 dark:from-purple-950/40 dark:via-slate-900 dark:to-amber-950/40 border-2 border-purple-500/40 dark:border-purple-500/50 shadow-sm relative">
+              {/* ROLE SELECTOR: USER OR ADMIN */}
+              <div className="space-y-2.5 p-3.5 sm:p-4 rounded-2xl bg-slate-100/90 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <label htmlFor="role-select" className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <Crown className="w-4 h-4 text-amber-500" />
-                    <span>Choose your role: Admin or User</span>
-                  </label>
-                  {/* Live Nametag Indicator */}
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Crown className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Select Role</span>
+                  </span>
                   {selectedRole === 'admin' ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-md border border-amber-300 animate-pulse">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-md border border-amber-300">
                       <Crown className="w-3 h-3 fill-current" />
-                      Admin (Golden Nametag)
+                      Admin
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/25 text-purple-400 dark:text-purple-300 border border-purple-500/40">
-                      💜 User (Purple Nametag)
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-400 border border-purple-500/40">
+                      User
                     </span>
                   )}
                 </div>
 
-                {/* Visible, high-contrast HTML <select> dropdown element */}
-                <div className="relative mt-1">
-                  <select
-                    id="role-select"
-                    name="role"
-                    aria-label="Choose your role: Admin or User"
-                    value={selectedRole}
-                    onChange={(e) => {
-                      sound.playClick();
-                      setSelectedRole(e.target.value as UserRole);
-                      setErrorMsg(null);
-                    }}
-                    className={`w-full rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm font-black transition-all cursor-pointer border-2 shadow-sm appearance-none ${
-                      selectedRole === 'admin'
-                        ? 'bg-amber-500/20 border-amber-400 text-amber-300 focus:ring-2 focus:ring-amber-400'
-                        : 'bg-purple-500/15 border-purple-500/70 text-purple-600 dark:text-purple-300 focus:ring-2 focus:ring-purple-500'
-                    } focus:outline-none`}
-                  >
-                    <option value="user" className="bg-white dark:bg-[#0F172A] text-purple-600 dark:text-purple-300 font-extrabold py-2">
-                      💜 User (Purple Nametag - Normal Privileges)
-                    </option>
-                    <option value="admin" className="bg-white dark:bg-[#0F172A] text-amber-500 dark:text-amber-400 font-extrabold py-2">
-                      👑 Admin (Golden Nametag - Special Privileges)
-                    </option>
-                  </select>
-
-                  {/* Dropdown chevron arrow indicator */}
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400">
-                    <ChevronDown className="w-5 h-5 stroke-[2.5]" />
-                  </div>
-                </div>
-
-                {/* Interactive Role Switcher Pills */}
-                <div className="grid grid-cols-2 gap-2 pt-0.5">
+                {/* User or Admin selection buttons */}
+                <div className="grid grid-cols-2 gap-2.5">
                   <button
                     type="button"
                     onClick={() => {
@@ -604,14 +582,14 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                       setSelectedRole('user');
                       setErrorMsg(null);
                     }}
-                    className={`py-2 px-2.5 rounded-xl text-[11px] font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                    className={`py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 border transition-all cursor-pointer ${
                       selectedRole === 'user'
-                        ? 'bg-purple-600 text-white border-purple-400 shadow-md ring-2 ring-purple-500/40'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-200 dark:border-slate-700'
+                        ? 'bg-purple-600 text-white border-purple-500 shadow-md ring-2 ring-purple-500/40'
+                        : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border-slate-200 dark:border-slate-700'
                     }`}
                   >
-                    <span className="w-2.5 h-2.5 rounded-full bg-purple-300 shrink-0" />
-                    <span>💜 Select User</span>
+                    <span className={`w-2.5 h-2.5 rounded-full ${selectedRole === 'user' ? 'bg-white' : 'bg-purple-400'}`} />
+                    <span>User</span>
                   </button>
                   <button
                     type="button"
@@ -620,32 +598,16 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                       setSelectedRole('admin');
                       setErrorMsg(null);
                     }}
-                    className={`py-2 px-2.5 rounded-xl text-[11px] font-black flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                    className={`py-2.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 border transition-all cursor-pointer ${
                       selectedRole === 'admin'
                         ? 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 border-amber-300 shadow-md ring-2 ring-amber-400/40'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-200 dark:border-slate-700'
+                        : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border-slate-200 dark:border-slate-700'
                     }`}
                   >
                     <Crown className="w-3.5 h-3.5 shrink-0" />
-                    <span>👑 Select Admin</span>
+                    <span>Admin</span>
                   </button>
                 </div>
-
-                {selectedRole === 'admin' ? (
-                  <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-start gap-2 text-[11px] text-amber-300 font-medium animate-slideUp">
-                    <Crown className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold text-amber-400">Admin selected (Golden Nametag):</span> Enter Admin Security Key below to verify via <code className="font-mono bg-amber-400/20 px-1 rounded">set_admin_role</code> RPC. If correct, you get the Golden Nametag, Unlimited Hearts ♾️ and Unlimited Diamonds 💎.
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-start gap-2 text-[11px] text-purple-400 dark:text-purple-300 font-medium">
-                    <ShieldCheck className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold">User selected (Purple Nametag):</span> Standard learner with normal hearts &amp; diamonds. Type any random password in the Account Password field below to save your credentials.
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* 2. DISPLAY NAME (ONLY ON CREATE ACCOUNT TAB) */}
@@ -708,17 +670,14 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                 </div>
               </div>
 
-              {/* 5. ADMIN SECURITY KEY (Optional input field that only appears when Admin is selected as the role) */}
+              {/* ADMIN SECURITY KEY (Only appears when Admin is selected) */}
               {selectedRole === 'admin' && (
-                <div className="p-3.5 rounded-2xl bg-amber-500/10 border-2 border-amber-400/80 flex flex-col gap-1.5 animate-slideUp">
+                <div className="p-3.5 rounded-2xl bg-amber-500/10 border-2 border-amber-400/70 flex flex-col gap-1.5 animate-slideUp">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                       <KeyRound className="w-3.5 h-3.5" />
                       <span>Admin Security Key</span>
                     </label>
-                    <span className="text-[9px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold border border-amber-400/30">
-                      RPC: set_admin_role
-                    </span>
                   </div>
 
                   <div className="relative">
@@ -730,13 +689,13 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                         setAdminSecretPassword(e.target.value);
                         setErrorMsg(null);
                       }}
-                      placeholder="Enter Admin Security Key (@dm1n.D1u)..."
+                      placeholder="Enter Admin Security Key..."
                       className="w-full bg-slate-900 border border-amber-400/70 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-amber-200 placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono tracking-wider shadow-inner"
                     />
                   </div>
 
-                  <p className="text-[10px] text-slate-300 font-medium leading-tight">
-                    Enter the secret key to invoke database RPC <code className="bg-amber-400/20 text-amber-300 font-mono px-1 rounded font-bold">set_admin_role</code>. If the key matches (<span className="text-amber-400 font-mono font-bold">@dm1n.D1u</span>), you get the Golden Admin role &amp; unlimited perks. If it fails, admin access will not be granted.
+                  <p className="text-[10px] text-slate-400 dark:text-slate-300 font-medium leading-tight">
+                    Enter the secret key to verify admin authorization.
                   </p>
                 </div>
               )}

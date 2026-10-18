@@ -484,10 +484,10 @@ export const TopBar: React.FC<Props> = ({
                       onOpenAuth('register');
                     }}
                     className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:brightness-110 text-white shadow-md"
-                    title="Sign Up: Choose Admin or User role"
+                    title="Sign Up"
                   >
                     <Crown className="w-3.5 h-3.5 text-amber-300" />
-                    <span className="font-extrabold text-[11px] sm:text-xs">Sign Up (Choose Role)</span>
+                    <span className="font-extrabold text-[11px] sm:text-xs">Sign Up</span>
                   </button>
                 </>
               )}
