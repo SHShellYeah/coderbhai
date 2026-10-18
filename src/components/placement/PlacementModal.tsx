@@ -3,7 +3,7 @@ import { CourseId, Question, TapToFillQuestion, SpotTheBugQuestion, PredictOutpu
 import { COURSES } from '../../data/courses';
 import { useGame } from '../../context/GameContext';
 import { sound } from '../../utils/audio';
-import { fireSuccessConfetti } from '../../utils/confetti';
+import { fireSuccessConfetti, stopConfetti } from '../../utils/confetti';
 import { CatFace } from '../common/CatFace';
 import { Sparkles, Compass, CheckCircle, ArrowRight, X } from 'lucide-react';
 import { TapToFill } from '../lesson/TapToFill';
@@ -27,6 +27,13 @@ export const PlacementModal: React.FC<Props> = ({ courseId, onClose }) => {
   // Quiz State
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [score, setScore] = useState(0);
+
+  // Clean up any confetti when modal unmounts
+  React.useEffect(() => {
+    return () => {
+      stopConfetti();
+    };
+  }, []);
 
   // Question Inputs
   const [tapAnswers, setTapAnswers] = useState<Record<string, string>>({});

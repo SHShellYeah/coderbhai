@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { LessonNode, Question, TapToFillQuestion, SpotTheBugQuestion, PredictOutputQuestion, ConceptMatchQuestion } from '../../types';
 import { COURSES } from '../../data/courses';
 import { useGame } from '../../context/GameContext';
 import { useTranslation } from '../../data/translations';
 import { getLocalizedNode, getLocalizedQuestion } from '../../utils/lessonTranslator';
 import { sound } from '../../utils/audio';
-import { fireSmallBurst } from '../../utils/confetti';
+import { fireSmallBurst, stopConfetti } from '../../utils/confetti';
 import { CatFace, CatMood } from '../common/CatFace';
 import { TTSButton } from '../common/TTSButton';
 import { X, Heart, AlertTriangle, Lightbulb, Sparkles, BookOpen, Flame, Zap } from 'lucide-react';
@@ -69,6 +69,13 @@ export const LessonModal: React.FC<Props> = ({
   const [showIntro, setShowIntro] = useState<boolean>(!!node.teachingIntro);
   const [showConceptGuide, setShowConceptGuide] = useState<boolean>(!node.teachingIntro);
   const [showMentorTip, setShowMentorTip] = useState<boolean>(false);
+
+  // Clean up any active confetti particles when lesson modal unmounts
+  useEffect(() => {
+    return () => {
+      stopConfetti();
+    };
+  }, []);
 
   // Dopamine & Companion Mascot states
   const [catMood, setCatMood] = useState<CatMood>('idle');
@@ -498,13 +505,17 @@ export const LessonModal: React.FC<Props> = ({
           hasNextLesson={!!nextNode}
           nextLessonTitle={nextNode?.title}
           onNextLesson={() => {
+            stopConfetti();
             if (nextNode && onNextLesson) {
               onNextLesson(nextNode);
             } else {
               onClose();
             }
           }}
-          onFinish={onClose}
+          onFinish={() => {
+            stopConfetti();
+            onClose();
+          }}
         />
       )}
 

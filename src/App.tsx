@@ -13,6 +13,7 @@ import { IdeaZoneModal } from './components/ideazone/IdeaZoneModal';
 import { CodeZoneModal } from './components/codezone/CodeZoneModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { MessagingModal } from './components/chat/MessagingModal';
+import { stopConfetti } from './utils/confetti';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageSquare } from 'lucide-react';
 
@@ -222,11 +223,16 @@ const MainApp: React.FC = () => {
         <LessonModal
           key={activeLessonNode.id}
           node={activeLessonNode}
-          onClose={() => setActiveLessonNode(null)}
+          onClose={() => {
+            stopConfetti();
+            setActiveLessonNode(null);
+          }}
           onNextLesson={(nextNode) => {
+            stopConfetti();
             setActiveLessonNode(nextNode);
           }}
           onOpenPractice={() => {
+            stopConfetti();
             setActiveLessonNode(null);
             setIsPracticeOpen(true);
           }}

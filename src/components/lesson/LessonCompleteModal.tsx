@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fireSuccessConfetti } from '../../utils/confetti';
+import { fireSuccessConfetti, stopConfetti } from '../../utils/confetti';
 import { sound } from '../../utils/audio';
 import { useGame } from '../../context/GameContext';
 import { useTranslation } from '../../data/translations';
@@ -47,7 +47,10 @@ export const LessonCompleteModal: React.FC<Props> = ({
       }
     }, 30);
 
-    return () => clearInterval(interval);
+    return () => {
+      stopConfetti();
+      clearInterval(interval);
+    };
   }, [totalXp]);
 
   return (
@@ -129,6 +132,7 @@ export const LessonCompleteModal: React.FC<Props> = ({
               type="button"
               onClick={() => {
                 sound.playClick();
+                stopConfetti();
                 onNextLesson();
               }}
               className="btn-3d btn-3d-primary w-full py-4 rounded-2xl text-base font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg"
@@ -141,6 +145,7 @@ export const LessonCompleteModal: React.FC<Props> = ({
               type="button"
               onClick={() => {
                 sound.playClick();
+                stopConfetti();
                 onFinish();
               }}
               className="w-full py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
@@ -153,6 +158,7 @@ export const LessonCompleteModal: React.FC<Props> = ({
             type="button"
             onClick={() => {
               sound.playClick();
+              stopConfetti();
               onFinish();
             }}
             className="btn-3d btn-3d-primary w-full py-4 rounded-2xl text-base font-black uppercase tracking-wider cursor-pointer"

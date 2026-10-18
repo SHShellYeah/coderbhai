@@ -5,7 +5,7 @@ import 'prismjs/components/prism-cpp';
 import 'prismjs/components/prism-python';
 import { CodeLanguage } from '../../types';
 import { sound } from '../../utils/audio';
-import { fireSuccessConfetti } from '../../utils/confetti';
+import { fireSuccessConfetti, stopConfetti } from '../../utils/confetti';
 import { CatFace } from '../common/CatFace';
 import {
   Terminal,
@@ -210,6 +210,13 @@ export const CodeZoneModal: React.FC<Props> = ({
   const [executionStats, setExecutionStats] = useState<{ timeMs: number; status: 'ok' | 'error' } | null>(null);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
   const [mascotWisdom, setMascotWisdom] = useState<string | null>(null);
+
+  // Clean up any confetti when CodeZone closes
+  useEffect(() => {
+    return () => {
+      stopConfetti();
+    };
+  }, []);
 
   const editorTextareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);

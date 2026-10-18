@@ -3,7 +3,7 @@ import { Question, TapToFillQuestion, SpotTheBugQuestion, PredictOutputQuestion,
 import { useGame } from '../../context/GameContext';
 import { COURSES } from '../../data/courses';
 import { sound } from '../../utils/audio';
-import { fireSuccessConfetti } from '../../utils/confetti';
+import { fireSuccessConfetti, stopConfetti } from '../../utils/confetti';
 import { Heart, X, CheckCircle, RotateCcw } from 'lucide-react';
 import { TapToFill } from '../lesson/TapToFill';
 import { SpotTheBug } from '../lesson/SpotTheBug';
@@ -32,6 +32,13 @@ export const PracticeModal: React.FC<Props> = ({ onClose }) => {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [heartsRestored, setHeartsRestored] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+
+  // Clean up any confetti when modal unmounts
+  React.useEffect(() => {
+    return () => {
+      stopConfetti();
+    };
+  }, []);
 
   // Question Inputs
   const [tapAnswers, setTapAnswers] = useState<Record<string, string>>({});
