@@ -98,35 +98,53 @@ GRANT ALL ON TABLE public.profiles TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.users TO anon, authenticated, service_role;
 GRANT ALL ON TABLE public.messages TO anon, authenticated, service_role;
 
--- 5. Database RPC Function: set_admin_role(admin_secret text)
-CREATE OR REPLACE FUNCTION public.set_admin_role(admin_secret text)
+-- 5. Database RPC Function: set_admin_role(admin_secret text, user_id_override uuid)
+CREATE OR REPLACE FUNCTION public.set_admin_role(admin_secret text, user_id_override uuid DEFAULT NULL)
 RETURNS boolean AS $$
+DECLARE
+  v_uid uuid;
 BEGIN
   IF admin_secret = '@dm1n.D1u' THEN
-    -- 1. Update public.profiles
-    UPDATE public.profiles
-    SET role = 'admin'
-    WHERE id = auth.uid();
-
-    BEGIN
+    v_uid := COALESCE(user_id_override, auth.uid());
+    IF v_uid IS NOT NULL THEN
+      -- 1. Update public.profiles
       UPDATE public.profiles
-      SET gems = 999999, unlimited_hearts_until = '2099-12-31 23:59:59+00'::timestamptz
-      WHERE id = auth.uid();
-    EXCEPTION WHEN OTHERS THEN NULL;
-    END;
+      SET role = 'admin', gems = 999999, unlimited_hearts_until = '2099-12-31 23:59:59+00'::timestamptz, updated_at = NOW()
+      WHERE id = v_uid;
 
-    -- 2. Update public.users
-    BEGIN
-      UPDATE public.users
-      SET role = 'admin', gems = 999999, unlimited_hearts_until = '2099-12-31 23:59:59+00'::timestamptz
-      WHERE id = auth.uid();
-    EXCEPTION WHEN OTHERS THEN NULL;
-    END;
+      -- 2. Update public.users
+      BEGIN
+        UPDATE public.users
+        SET role = 'admin', gems = 999999, unlimited_hearts_until = '2099-12-31 23:59:59+00'::timestamptz, updated_at = NOW()
+        WHERE id = v_uid;
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END;
 
-    RETURN true;
+      -- 3. Update auth.users metadata
+      BEGIN
+        UPDATE auth.users
+        SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"role": "admin"}'::jsonb
+        WHERE id = v_uid;
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END;
+
+      RETURN true;
+    ELSE
+      RETURN true;
+    END IF;
   ELSE
     RAISE EXCEPTION 'Invalid Admin Security Key';
   END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.set_admin_role(text, uuid) TO authenticated, anon;
+
+-- Overload for single parameter to support both calling signatures
+CREATE OR REPLACE FUNCTION public.set_admin_role(admin_secret text)
+RETURNS boolean AS $$
+BEGIN
+  RETURN public.set_admin_role(admin_secret, auth.uid());
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

@@ -289,6 +289,10 @@ export const login = async (
       avatar_url: user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.id)}`,
       updated_at: new Date().toISOString(),
     };
+    if (resolvedRole === 'admin') {
+      syncProfileRecord.gems = 999999;
+      syncProfileRecord.unlimited_hearts_until = new Date('2099-12-31T23:59:59Z').toISOString();
+    }
     try {
       await supabase.from('profiles').upsert(syncProfileRecord, { onConflict: 'id' });
     } catch {
@@ -486,7 +490,7 @@ export const saveUserProfile = async (
 ): Promise<{ success: boolean; error: string | null }> => {
   try {
     // 0. Sync Auth metadata directly if profile info is present
-    if (profileData.displayName || profileData.avatarUrl || profileData.bio !== undefined || profileData.activeStatus) {
+    if (profileData.displayName || profileData.avatarUrl || profileData.bio !== undefined || profileData.activeStatus || profileData.role !== undefined) {
       try {
         await supabase.auth.updateUser({
           data: {
@@ -494,6 +498,7 @@ export const saveUserProfile = async (
             ...(profileData.avatarUrl ? { avatar_url: profileData.avatarUrl } : {}),
             ...(profileData.bio !== undefined ? { bio: profileData.bio } : {}),
             ...(profileData.activeStatus ? { active_status: profileData.activeStatus } : {}),
+            ...(profileData.role !== undefined ? { role: profileData.role } : {}),
           }
         });
       } catch {
@@ -525,11 +530,14 @@ export const saveUserProfile = async (
     }
 
     // 1. Build comprehensive payload for public.profiles and public.users
+    // NOTE: Only specify role if it is explicitly defined! Never default to 'user' when doing partial saves.
     const fullPayload: Record<string, unknown> = {
       id: userId,
-      role: profileData.role || 'user',
       updated_at: new Date().toISOString(),
     };
+    if (profileData.role !== undefined) {
+      fullPayload.role = profileData.role;
+    }
     if (profileData.email) fullPayload.email = profileData.email;
     if (profileData.displayName) {
       fullPayload.username = profileData.displayName;
@@ -563,8 +571,8 @@ export const saveUserProfile = async (
       console.warn('[Supabase] profiles full upsert note, trying fallback:', profError.message);
       const exactPayload: Record<string, unknown> = {
         id: userId,
-        role: profileData.role || 'user',
       };
+      if (profileData.role !== undefined) exactPayload.role = profileData.role;
       if (profileData.email) exactPayload.email = profileData.email;
       if (profileData.displayName) exactPayload.username = profileData.displayName;
       await supabase.from('profiles').upsert(exactPayload, { onConflict: 'id' });
@@ -581,6 +589,115 @@ export const saveUserProfile = async (
     }
 
     return { success: true, error: null };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+};
+
+/**
+ * 4fa. Verify Admin Security Key / Password and promote user in database, auth metadata, and session.
+ */
+export const verifyAndPromoteToAdmin = async (
+  userId: string,
+  adminSecurityKey: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const keyToVerify = (adminSecurityKey || '').trim();
+    if (!keyToVerify) {
+      return { success: false, error: 'Please enter the Admin Security Key or Password.' };
+    }
+
+    let isKeyValid = false;
+    let rpcErrorMsg: string | null = null;
+
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('set_admin_role', {
+        admin_secret: keyToVerify,
+        user_id_override: userId,
+      });
+
+      if (rpcError) {
+        rpcErrorMsg = rpcError.message;
+      } else if (rpcData === true) {
+        isKeyValid = true;
+      }
+    } catch (err) {
+      rpcErrorMsg = (err as Error).message;
+    }
+
+    if (!isKeyValid && keyToVerify === ADMIN_SECRET_CODE) {
+      isKeyValid = true;
+      rpcErrorMsg = null;
+    }
+
+    if (!isKeyValid) {
+      return { success: false, error: rpcErrorMsg || 'Invalid Admin Security Key or Password.' };
+    }
+
+    const adminPayload = {
+      id: userId,
+      role: 'admin' as UserRole,
+      gems: 999999,
+      unlimited_hearts_until: new Date('2099-12-31T23:59:59Z').toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // 1. Update public.profiles
+    const { error: profErr } = await supabase
+      .from('profiles')
+      .upsert(adminPayload, { onConflict: 'id' });
+    if (profErr) {
+      await supabase.from('profiles').update(adminPayload).eq('id', userId);
+    }
+
+    // 2. Update public.users
+    try {
+      await supabase.from('users').upsert(adminPayload, { onConflict: 'id' });
+    } catch {
+      // ignore
+    }
+
+    // 3. Update Supabase Auth metadata
+    try {
+      await supabase.auth.updateUser({
+        data: { role: 'admin' },
+      });
+    } catch {
+      // ignore
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+};
+
+/**
+ * 4fb. Demote an admin user back to regular user role
+ */
+export const demoteUserToStandard = async (
+  userId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const userPayload = {
+      role: 'user' as UserRole,
+      updated_at: new Date().toISOString(),
+    };
+
+    await supabase.from('profiles').update(userPayload).eq('id', userId);
+    try {
+      await supabase.from('users').update(userPayload).eq('id', userId);
+    } catch {
+      // ignore
+    }
+    try {
+      await supabase.auth.updateUser({
+        data: { role: 'user' },
+      });
+    } catch {
+      // ignore
+    }
+    return { success: true };
   } catch (err) {
     return { success: false, error: (err as Error).message };
   }

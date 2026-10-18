@@ -3,7 +3,7 @@ import { CourseId, CourseProgress, Question, Quest, UserState, Language, AuthUse
 import { COURSES } from '../data/courses';
 import { sound } from '../utils/audio';
 import { supabase, isEduEmail } from '../lib/supabase';
-import { loginUser, registerUser, logoutUser, fetchUserProfile, saveUserProfile } from '../services/authService';
+import { loginUser, registerUser, logoutUser, fetchUserProfile, saveUserProfile, verifyAndPromoteToAdmin, demoteUserToStandard } from '../services/authService';
 
 const STORAGE_KEY = 'bytesized_user_v1';
 const LEGACY_STORAGE_KEYS = ['coderbhai_user_v1', 'codelingo_user_v1'];
@@ -127,6 +127,8 @@ interface GameContextType {
   logout: () => Promise<void>;
   syncCloudProgress: () => Promise<void>;
   updateProfile: (updates: { displayName?: string; avatarUrl?: string; bio?: string; activeStatus?: UserActiveStatus }) => Promise<{ success: boolean; error?: string }>;
+  promoteToAdmin: (adminSecurityKey: string) => Promise<{ success: boolean; error?: string }>;
+  demoteToUser: () => Promise<{ success: boolean; error?: string }>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -251,6 +253,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               } : null,
               xp: profile.xp ?? 0,
               gems: userGems,
+              hearts: isAdmin ? 999 : prev.hearts,
               streak: profile.streak ?? 0,
               unlimitedHeartsUntil: unlimitedUntil,
               courseProgress: {
@@ -311,6 +314,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } : null,
             xp: profile.xp ?? 0,
             gems: userGems,
+            hearts: isAdmin ? 999 : prev.hearts,
             streak: profile.streak ?? 0,
             unlimitedHeartsUntil: unlimitedUntil,
             courseProgress: {
@@ -342,12 +346,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!state.authUser?.id) return;
     const timer = setTimeout(() => {
+      const isAdmin = state.role === 'admin' || state.authUser?.role === 'admin';
       saveUserProfile(state.authUser!.id, {
+        role: isAdmin ? 'admin' : 'user',
         xp: state.xp,
-        gems: state.gems,
+        gems: isAdmin ? 999999 : state.gems,
         streak: state.streak,
         isEduUser: !!state.authUser!.isEduUser,
-        unlimitedHeartsUntil: state.unlimitedHeartsUntil,
+        unlimitedHeartsUntil: isAdmin ? new Date('2099-12-31T23:59:59Z').getTime() : state.unlimitedHeartsUntil,
         courseProgress: state.courseProgress,
         settings: {
           themeColor: state.themeColor,
@@ -359,7 +365,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [state.xp, state.gems, state.streak, state.courseProgress, state.unlimitedHeartsUntil, state.authUser]);
+  }, [state.role, state.xp, state.gems, state.streak, state.courseProgress, state.unlimitedHeartsUntil, state.authUser]);
 
   const setActiveCourse = (courseId: CourseId) => {
     sound.playClick();
@@ -619,7 +625,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: res.error };
     }
     if (res.user) {
-      const userRole = res.user.role || requestedRole || 'user';
+      const isRoleAdmin = res.user.role === 'admin' || requestedRole === 'admin';
+      const userRole: UserRole = isRoleAdmin ? 'admin' : (res.user.role || requestedRole || 'user');
       const isAdmin = userRole === 'admin';
       const isEdu = !!res.user.isEduUser && !isAdmin;
       const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
@@ -631,12 +638,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authUser: res.user ? { ...res.user, role: userRole } : null,
         role: userRole,
         gems: initialGems,
+        hearts: isAdmin ? 999 : prev.hearts,
         unlimitedHeartsUntil: initialHearts,
       }));
       const profile = await fetchUserProfile(res.user.id);
       if (profile) {
         setState(prev => {
-          const effectiveRole = res.user!.role || requestedRole || profile.role || userRole;
+          const effectiveRole: UserRole = (profile.role === 'admin' || isRoleAdmin || res.user!.role === 'admin') ? 'admin' : (profile.role || userRole);
           const isProfAdmin = effectiveRole === 'admin';
           const profIsEdu = !!res.user!.isEduUser && !isProfAdmin;
           return {
@@ -645,7 +653,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             xp: profile.xp ?? 0,
             gems: isProfAdmin ? 999999 : (profIsEdu ? Math.max(200, profile.gems || 0) : (profile.gems || 0)),
             streak: profile.streak ?? 0,
+            hearts: isProfAdmin ? 999 : prev.hearts,
             unlimitedHeartsUntil: isProfAdmin ? Number.MAX_SAFE_INTEGER : (profIsEdu ? (profile.unlimitedHeartsUntil || Date.now() + twoDaysMs) : null),
+            authUser: prev.authUser ? { ...prev.authUser, role: effectiveRole } : null,
             courseProgress: {
               ...prev.courseProgress,
               ...profile.courseProgress,
@@ -728,17 +738,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const syncCloudProgress = async (): Promise<void> => {
     if (!state.authUser?.id) return;
+    const isAdmin = state.role === 'admin' || state.authUser.role === 'admin';
     await saveUserProfile(state.authUser.id, {
       displayName: state.authUser.displayName,
       avatarUrl: state.authUser.avatarUrl,
       bio: state.bio,
       activeStatus: state.activeStatus,
-      role: state.role,
+      role: isAdmin ? 'admin' : 'user',
       xp: state.xp,
-      gems: state.gems,
+      gems: isAdmin ? 999999 : state.gems,
       streak: state.streak,
       isEduUser: !!state.authUser.isEduUser,
-      unlimitedHeartsUntil: state.unlimitedHeartsUntil,
+      unlimitedHeartsUntil: isAdmin ? new Date('2099-12-31T23:59:59Z').getTime() : state.unlimitedHeartsUntil,
       courseProgress: state.courseProgress,
       settings: {
         themeColor: state.themeColor,
@@ -777,20 +788,92 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (curUserId) {
+      const isAdmin = state.role === 'admin' || state.authUser?.role === 'admin';
       const res = await saveUserProfile(curUserId, {
         displayName: updates.displayName,
         avatarUrl: updates.avatarUrl,
         bio: updates.bio,
         activeStatus: updates.activeStatus,
-        role: state.role,
+        role: isAdmin ? 'admin' : 'user',
         xp: state.xp,
-        gems: state.gems,
+        gems: isAdmin ? 999999 : state.gems,
         streak: state.streak,
         isEduUser: !!state.authUser?.isEduUser,
-        unlimitedHeartsUntil: state.unlimitedHeartsUntil,
+        unlimitedHeartsUntil: isAdmin ? new Date('2099-12-31T23:59:59Z').getTime() : state.unlimitedHeartsUntil,
       });
       return { success: res.success, error: res.error || undefined };
     }
+    return { success: true };
+  };
+
+  const promoteToAdmin = async (adminSecurityKey: string): Promise<{ success: boolean; error?: string }> => {
+    const curUserId = state.authUser?.id;
+    if (!curUserId) {
+      return { success: false, error: 'You must be logged in to verify as Admin.' };
+    }
+
+    const key = (adminSecurityKey || '').trim();
+    if (!key) {
+      return { success: false, error: 'Please enter the Admin Security Key or Password.' };
+    }
+
+    const res = await verifyAndPromoteToAdmin(curUserId, key);
+    if (!res.success) {
+      return res;
+    }
+
+    const heartsUntil = new Date('2099-12-31T23:59:59Z').getTime();
+
+    // 1. Synchronously update React state so all UI (TopBar, badges, profile) update instantly
+    setState(prev => ({
+      ...prev,
+      role: 'admin',
+      gems: 999999,
+      hearts: 999,
+      unlimitedHeartsUntil: heartsUntil,
+      authUser: prev.authUser ? { ...prev.authUser, role: 'admin' } : null,
+    }));
+
+    // 2. Persist to localStorage immediately
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const parsed = stored ? JSON.parse(stored) : {};
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        ...parsed,
+        role: 'admin',
+        gems: 999999,
+        hearts: 999,
+        unlimitedHeartsUntil: heartsUntil,
+        authUser: state.authUser ? { ...state.authUser, role: 'admin' } : null,
+      }));
+    } catch {
+      // ignore
+    }
+
+    return { success: true };
+  };
+
+  const demoteToUser = async (): Promise<{ success: boolean; error?: string }> => {
+    const curUserId = state.authUser?.id;
+    if (!curUserId) return { success: true };
+
+    const res = await demoteUserToStandard(curUserId);
+    if (!res.success) return res;
+
+    const isEdu = !!state.authUser?.isEduUser;
+    const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+    const standardHeartsUntil = isEdu ? (Date.now() + twoDaysMs) : null;
+    const standardGems = isEdu ? 200 : Math.min(state.gems, 100);
+
+    setState(prev => ({
+      ...prev,
+      role: 'user',
+      gems: standardGems,
+      hearts: 5,
+      unlimitedHeartsUntil: standardHeartsUntil,
+      authUser: prev.authUser ? { ...prev.authUser, role: 'user' } : null,
+    }));
+
     return { success: true };
   };
 
@@ -819,6 +902,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logout,
       syncCloudProgress,
       updateProfile,
+      promoteToAdmin,
+      demoteToUser,
     }),
     [state]
   );

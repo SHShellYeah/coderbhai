@@ -60,7 +60,7 @@ interface Props {
 }
 
 export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClose, onOpenMessaging }) => {
-  const { state, login, register, logout, syncCloudProgress, updateProfile } = useGame();
+  const { state, login, register, logout, syncCloudProgress, updateProfile, promoteToAdmin, demoteToUser } = useGame();
 
   // Default to 'login' (Sign In) so users immediately see Sign In form
   const [tab, setTab] = useState<'register' | 'login'>(initialTab);
@@ -245,36 +245,42 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
     sound.playClick();
 
     const key = upgradeAdminKey.trim();
-    let rpcOk = false;
-    try {
-      const { data: rpcData, error: rpcErr } = await supabase.rpc('set_admin_role', { admin_secret: key });
-      if (!rpcErr && rpcData !== false) {
-        rpcOk = true;
-      }
-    } catch {
-      // fallback
+    if (!key) {
+      setErrorMsg('Please enter the Admin Security Key or Password.');
+      sound.playError();
+      setIsUpgradingRole(false);
+      return;
     }
 
-    if (!rpcOk && key === ADMIN_SECRET_CODE) {
-      rpcOk = true;
-    }
+    const res = await promoteToAdmin(key);
+    setIsUpgradingRole(false);
 
-    if (rpcOk) {
+    if (res.success) {
       sound.playSuccess();
       fireSuccessConfetti();
-      await saveUserProfile(state.authUser.id, {
-        role: 'admin',
-        gems: 999999,
-        unlimitedHeartsUntil: new Date('2099-12-31T23:59:59Z').getTime(),
-      });
-      await syncCloudProgress();
-      setSuccessMsg('👑 Admin Verified! Promoted to Admin with Unlimited Hearts ♾️ & Unlimited Diamonds 💎 via set_admin_role RPC!');
+      setSuccessMsg('👑 Admin Verified! Successfully promoted to Admin with Unlimited Hearts ♾️ & Unlimited Diamonds 💎 in database and session!');
       setUpgradeAdminKey('');
+      setUpgradeRole('admin');
     } else {
       sound.playError();
-      setErrorMsg('⚠️ Invalid Admin Security Key.');
+      setErrorMsg(res.error || '⚠️ Invalid Admin Security Key or Password.');
     }
-    setIsUpgradingRole(false);
+  };
+
+  const handleDemoteToUser = async () => {
+    if (!state.authUser) return;
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    sound.playClick();
+    const res = await demoteToUser();
+    if (res.success) {
+      sound.playSuccess();
+      setSuccessMsg('Account switched back to standard User role.');
+      setUpgradeRole('user');
+    } else {
+      sound.playError();
+      setErrorMsg(res.error || 'Failed to switch role.');
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -880,36 +886,61 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                   </div>
 
                   {upgradeRole === 'admin' && (
-                    <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/50 space-y-2 animate-slideUp">
-                      <div className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
-                        <KeyRound className="w-3.5 h-3.5" />
-                        <span>Admin Security Key:</span>
+                    <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/15 via-yellow-500/15 to-amber-500/15 border border-amber-400/50 space-y-2.5 animate-slideUp">
+                      <div className="text-[11px] font-bold text-amber-300 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Admin Password / Security Key:</span>
+                        </span>
+                        <span className="text-[10px] text-amber-400/80 font-mono">(@dm1n.D1u)</span>
                       </div>
                       <div className="flex gap-2">
                         <input
                           type="password"
                           value={upgradeAdminKey}
                           onChange={(e) => setUpgradeAdminKey(e.target.value)}
-                          placeholder="Enter Admin Security Key..."
-                          className="flex-1 bg-slate-900 border border-amber-400/60 rounded-xl px-3 py-1.5 text-xs text-amber-200 placeholder-slate-500 font-mono focus:outline-none"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleUpgradeToAdmin();
+                            }
+                          }}
+                          placeholder="Enter admin password / key..."
+                          className="flex-1 bg-slate-900 border border-amber-400/60 rounded-xl px-3 py-2 text-xs text-amber-200 placeholder-slate-500 font-mono focus:outline-none focus:ring-1 focus:ring-amber-400"
                         />
                         <button
                           type="button"
                           onClick={handleUpgradeToAdmin}
                           disabled={isUpgradingRole}
-                          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-xs font-black hover:brightness-110 cursor-pointer shadow flex items-center gap-1 shrink-0"
+                          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 text-xs font-black hover:brightness-110 cursor-pointer shadow-md flex items-center gap-1.5 shrink-0 transition-transform active:scale-95"
                         >
-                          {isUpgradingRole ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Crown className="w-3.5 h-3.5" />}
-                          <span>Verify</span>
+                          {isUpgradingRole ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Crown className="w-3.5 h-3.5 fill-current" />}
+                          <span>Verify &amp; Promote</span>
                         </button>
                       </div>
+                      <p className="text-[10px] text-amber-300/80 leading-tight">
+                        Enter the admin password to instantly grant Admin privileges, unlimited diamonds, and infinite hearts in your database and session.
+                      </p>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/40 text-xs text-amber-300 font-medium flex items-center gap-2">
-                  <Crown className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>Admin account active with unlimited hearts and diamonds.</span>
+                <div className="space-y-2">
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-amber-500/20 border border-amber-400/40 text-xs text-amber-300 font-medium flex items-center justify-between gap-2 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <Crown className="w-4 h-4 text-amber-400 shrink-0 fill-current" />
+                      <span className="font-bold">Admin account active with unlimited hearts &amp; 999,999 diamonds.</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleDemoteToUser}
+                      className="text-[11px] font-bold text-slate-400 hover:text-rose-400 hover:underline transition-colors cursor-pointer"
+                    >
+                      Switch back to standard User role
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
