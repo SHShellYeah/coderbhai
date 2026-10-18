@@ -84,7 +84,7 @@ export const TopBar: React.FC<Props> = ({
 
   return (
     <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#0B0F19]/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 transition-colors w-full max-w-full">
-      <div className="max-w-7xl w-full mx-auto px-2 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-1 sm:gap-4">
+      <div className="max-w-7xl w-full mx-auto px-2 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-1 sm:gap-4 overflow-x-auto no-scrollbar">
         {/* Left: Brand Mascot & Course Switcher */}
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Logo: Compact Cat Face on mobile, text on desktop */}
@@ -182,8 +182,8 @@ export const TopBar: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Quick IdeaZone & CodeZone Launches */}
-          <div className="flex items-center gap-1 sm:gap-1.5 ml-0.5 sm:ml-1">
+          {/* Quick IdeaZone & CodeZone Launches - Desktop only to preserve mobile topbar space */}
+          <div className="hidden sm:flex items-center gap-1 sm:gap-1.5 ml-0.5 sm:ml-1">
             {onOpenIdeaZone && (
               <button
                 type="button"
@@ -402,24 +402,24 @@ export const TopBar: React.FC<Props> = ({
             )}
           </button>
 
-          {/* Theme & Sound Customizer - ALWAYS VISIBLE AND CLICKABLE ON ALL SCREENS */}
+          {/* Theme & Sound Customizer - Desktop only */}
           <button
             type="button"
             onClick={() => {
               sound.playClick();
               onOpenSettings();
             }}
-            className="p-1 sm:p-2 rounded-xl text-brand-secondary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="hidden sm:inline-flex p-1 sm:p-2 rounded-xl text-brand-secondary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
             title={t.themesAndSounds}
           >
             <Palette className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-brand-secondary" />
           </button>
 
-          {/* Sound Toggle - ALWAYS VISIBLE AND CLICKABLE ON ALL SCREENS */}
+          {/* Sound Toggle - Desktop only */}
           <button
             type="button"
             onClick={toggleSound}
-            className="p-1 sm:p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="hidden sm:inline-flex p-1 sm:p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
             title={state.soundEnabled ? t.muteSound : t.enableSound}
           >
             {state.soundEnabled ? (
@@ -429,9 +429,9 @@ export const TopBar: React.FC<Props> = ({
             )}
           </button>
 
-          {/* Account / Sign In & Sign Up Buttons */}
+          {/* Account / Sign In & Sign Up Buttons - ALWAYS VISIBLE ON MOBILE AND DESKTOP */}
           {onOpenAuth && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               {state.authUser ? (
                 <button
                   type="button"
@@ -439,7 +439,7 @@ export const TopBar: React.FC<Props> = ({
                     sound.playClick();
                     onOpenAuth('login');
                   }}
-                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 shadow-sm"
+                  className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 shadow-sm shrink-0"
                   title={`Account: ${state.authUser.displayName || state.authUser.email} (Role: ${state.role || state.authUser.role})`}
                 >
                   <div className="relative">
@@ -473,9 +473,9 @@ export const TopBar: React.FC<Props> = ({
                       sound.playClick();
                       onOpenAuth('login');
                     }}
-                    className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 sm:py-1.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 transition-all cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 transition-all cursor-pointer shrink-0"
                   >
-                    <span>Sign In</span>
+                    <span className="text-[11px] sm:text-xs">Sign In</span>
                   </button>
                   <button
                     type="button"
@@ -483,7 +483,7 @@ export const TopBar: React.FC<Props> = ({
                       sound.playClick();
                       onOpenAuth('register');
                     }}
-                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:brightness-110 text-white shadow-md"
+                    className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:brightness-110 text-white shadow-md shrink-0"
                     title="Sign Up"
                   >
                     <Crown className="w-3.5 h-3.5 text-amber-300" />
