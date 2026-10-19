@@ -5,6 +5,7 @@ import { sound } from './utils/audio';
 import { LessonNode, CodeLanguage } from './types';
 import { TopBar } from './components/navigation/TopBar';
 import { WindingPath } from './components/path/WindingPath';
+import { LeftSidebar } from './components/sidebar/LeftSidebar';
 import { RightSidebar } from './components/sidebar/RightSidebar';
 import { LessonModal } from './components/lesson/LessonModal';
 import { PracticeModal } from './components/practice/PracticeModal';
@@ -176,43 +177,64 @@ const MainApp: React.FC = () => {
           </button>
         </div>
 
-        {/* Learning Path (The Winding Map) */}
-        <div
-          className={`flex-1 flex flex-col items-center max-w-2xl w-full border-r-0 lg:border-r-2 border-slate-200 dark:border-slate-800/80 ${
-            mobileTab !== 'learn' ? 'hidden lg:flex' : 'flex'
-          }`}
-        >
-          <WindingPath
-            courseId={state.activeCourseId}
-            onSelectNode={node => setActiveLessonNode(node)}
-          />
-        </div>
+        {/* 3-Column Balanced Desktop Layout: Left Nav + Centered Lessons + Right Stats */}
+        <div className="w-full flex justify-center items-start gap-4 lg:gap-6 xl:gap-8 px-2 sm:px-4">
+          {/* Left Navigation Sidebar (Desktop Only - balances page so lessons are dead center!) */}
+          <div className="hidden xl:block w-64 shrink-0 sticky top-20">
+            <LeftSidebar
+              onOpenPractice={() => setIsPracticeOpen(true)}
+              onOpenPlacement={() => setIsPlacementOpen(true)}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenIdeaZone={() => {
+                setIdeaZoneSeedNote(undefined);
+                setIsIdeaZoneOpen(true);
+              }}
+              onOpenCodeZone={() => {
+                setCodeZoneSnippet(undefined);
+                setIsCodeZoneOpen(true);
+              }}
+              onOpenMessaging={handleOpenMessaging}
+            />
+          </div>
 
-        {/* Sidebars (Quests, Leaderboards, Weak areas, Settings) */}
-        <div
-          className={`shrink-0 ${
-            mobileTab === 'learn' ? 'hidden lg:block' : 'block w-full max-w-lg mx-auto'
-          }`}
-        >
-          <RightSidebar
-            onOpenPractice={() => setIsPracticeOpen(true)}
-            onOpenPlacement={() => setIsPlacementOpen(true)}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenIdeaZone={() => {
-              setIdeaZoneSeedNote(undefined);
-              setIsIdeaZoneOpen(true);
-            }}
-            onOpenCodeZone={() => {
-              setCodeZoneSnippet(undefined);
-              setIsCodeZoneOpen(true);
-            }}
-            onOpenAuth={(tab = 'register') => {
-              setAuthInitialTab(tab);
-              setIsAuthOpen(true);
-            }}
-            onOpenMessaging={handleOpenMessaging}
-            filter={mobileTab === 'learn' ? 'all' : mobileTab}
-          />
+          {/* Learning Path (The Winding Map - CENTRALLY ALIGNED) */}
+          <div
+            className={`flex-1 flex flex-col items-center max-w-xl w-full mx-auto ${
+              mobileTab !== 'learn' ? 'hidden lg:flex' : 'flex'
+            }`}
+          >
+            <WindingPath
+              courseId={state.activeCourseId}
+              onSelectNode={node => setActiveLessonNode(node)}
+            />
+          </div>
+
+          {/* Right Sidebar (Quests, Leaderboards, Weak areas, Settings) */}
+          <div
+            className={`shrink-0 w-full lg:w-80 ${
+              mobileTab === 'learn' ? 'hidden lg:block' : 'block w-full max-w-lg mx-auto'
+            }`}
+          >
+            <RightSidebar
+              onOpenPractice={() => setIsPracticeOpen(true)}
+              onOpenPlacement={() => setIsPlacementOpen(true)}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenIdeaZone={() => {
+                setIdeaZoneSeedNote(undefined);
+                setIsIdeaZoneOpen(true);
+              }}
+              onOpenCodeZone={() => {
+                setCodeZoneSnippet(undefined);
+                setIsCodeZoneOpen(true);
+              }}
+              onOpenAuth={(tab = 'register') => {
+                setAuthInitialTab(tab);
+                setIsAuthOpen(true);
+              }}
+              onOpenMessaging={handleOpenMessaging}
+              filter={mobileTab === 'learn' ? 'all' : mobileTab}
+            />
+          </div>
         </div>
       </div>
 

@@ -44,9 +44,9 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Winding horizontal offsets for the nodes (responsive so mobile screens never overflow)
-  const xOffsetsDesktop = [0, -45, -75, -45, 0, 45, 75, 45];
-  const xOffsetsMobile = [0, -22, -38, -22, 0, 22, 38, 22];
+  // Symmetrical serpentine curve oscillating evenly around dead center (0px)
+  const xOffsetsDesktop = [0, -38, 0, 38, 0, -38, 0, 38];
+  const xOffsetsMobile = [0, -20, 0, 20, 0, -20, 0, 20];
   const xOffsets = isMobile ? xOffsetsMobile : xOffsetsDesktop;
 
   const getNodeIcon = (node: LessonNode, isCompleted: boolean, isCurrent: boolean) => {
