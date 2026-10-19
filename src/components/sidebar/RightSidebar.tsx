@@ -198,7 +198,7 @@ export const RightSidebar: React.FC<Props> = ({
   return (
     <aside className="w-full lg:w-80 flex flex-col gap-5 py-4 lg:py-6 px-3 sm:px-4">
       {/* ByteSized Account & Student .EDU Perks Card */}
-      {onOpenAuth && (filter === 'all' || filter === 'practice' || filter === 'settings') && (
+      {onOpenAuth && (filter === 'all' || filter === 'practice' || filter === 'settings' || !state.authUser) && (
         <div className="relative overflow-hidden p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-amber-500/10 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-slate-900/40 border-2 border-indigo-500/20 dark:border-indigo-500/30 shadow-sm text-left flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">

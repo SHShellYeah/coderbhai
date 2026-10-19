@@ -21,7 +21,9 @@ import {
   Settings,
   Lock,
   Swords,
-  BookOpen
+  BookOpen,
+  User,
+  Crown
 } from 'lucide-react';
 
 interface Props {
@@ -34,6 +36,7 @@ interface Props {
   onOpenArena?: () => void;
   onOpenQuestionBank?: () => void;
   onOpenTraining?: () => void;
+  onOpenAuth?: (tab?: 'login' | 'register') => void;
 }
 
 export const LeftSidebar: React.FC<Props> = ({
@@ -46,6 +49,7 @@ export const LeftSidebar: React.FC<Props> = ({
   onOpenArena,
   onOpenQuestionBank,
   onOpenTraining,
+  onOpenAuth,
 }) => {
   const { state, setActiveCourse } = useGame();
   const t = useTranslation(state.language);
@@ -320,6 +324,84 @@ export const LeftSidebar: React.FC<Props> = ({
           </button>
         )}
       </nav>
+
+      {/* Account / Sign In & Sign Up Card - Always Accessible */}
+      {onOpenAuth && !state.authUser && (
+        <div className="p-3.5 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-amber-500/10 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-slate-900 border-2 border-indigo-500/25 dark:border-indigo-500/40 shadow-sm flex flex-col gap-2.5 text-left">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center font-black shadow-sm text-sm shrink-0">
+              <User className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-xs font-black text-slate-800 dark:text-slate-100 block leading-tight">
+                ByteSized Account
+              </span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold truncate block">
+                Save streaks, gems &amp; rank
+              </span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onOpenAuth('login');
+              }}
+              className="py-1.5 px-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition-all cursor-pointer text-center"
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onOpenAuth('register');
+              }}
+              className="py-1.5 px-2 rounded-xl text-xs font-black text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 shadow-sm transition-all cursor-pointer text-center"
+            >
+              Sign Up
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* When Logged In: Profile Banner */}
+      {onOpenAuth && state.authUser && (
+        <button
+          type="button"
+          onClick={() => {
+            sound.playClick();
+            onOpenAuth('login');
+          }}
+          className="p-3 rounded-3xl bg-white dark:bg-slate-900/90 border-2 border-slate-200/90 dark:border-slate-800 shadow-sm hover:border-brand-primary/50 transition-all cursor-pointer flex items-center justify-between gap-2 text-left group"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="relative shrink-0">
+              <img
+                src={state.authUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.authUser.id}`}
+                alt="Avatar"
+                className="w-9 h-9 rounded-2xl bg-slate-900 border border-brand-primary object-cover"
+              />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white dark:border-slate-900" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100 truncate block">
+                  {state.authUser.username ? `@${state.authUser.username}` : (state.authUser.displayName || state.authUser.email.split('@')[0])}
+                </span>
+                {state.role === 'admin' || state.authUser.role === 'admin' ? (
+                  <span className="px-1 py-0.2 rounded text-[8px] font-black bg-amber-400 text-slate-950 shrink-0">👑</span>
+                ) : null}
+              </div>
+              <span className="text-[10px] text-brand-primary font-bold block">
+                Manage Profile
+              </span>
+            </div>
+          </div>
+          <ChevronDown className="w-3.5 h-3.5 text-slate-400 -rotate-90 group-hover:translate-x-0.5 transition-transform shrink-0" />
+        </button>
+      )}
 
       {/* Byte the Cat Interactive Companion Card */}
       <div className="p-3.5 rounded-3xl bg-gradient-to-br from-slate-100 via-white to-slate-100 dark:from-slate-900 dark:via-[#111827] dark:to-slate-900 border-2 border-slate-200/90 dark:border-slate-800 shadow-sm flex flex-col gap-2">

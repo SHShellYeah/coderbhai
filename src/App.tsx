@@ -20,7 +20,7 @@ import { QuestionBankModal } from './components/arena/QuestionBankModal';
 import { TrainingModal } from './components/training/TrainingModal';
 import { stopConfetti } from './utils/confetti';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageSquare, Swords, BookOpen, Zap } from 'lucide-react';
+import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageSquare, Swords, BookOpen, Zap, User, Crown } from 'lucide-react';
 import { ArenaChallenge } from './types';
 
 const MainApp: React.FC = () => {
@@ -166,6 +166,27 @@ const MainApp: React.FC = () => {
           <button
             type="button"
             onClick={() => {
+              setAuthInitialTab(state.authUser ? 'login' : 'register');
+              setIsAuthOpen(true);
+            }}
+            className="flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 text-white shadow-sm hover:brightness-110"
+          >
+            {state.authUser ? (
+              <>
+                <User className="w-3.5 h-3.5" />
+                <span className="max-w-[70px] truncate">{state.authUser.username ? `@${state.authUser.username}` : (state.authUser.displayName || 'Account')}</span>
+              </>
+            ) : (
+              <>
+                <Crown className="w-3.5 h-3.5 text-amber-300" />
+                <span>Sign In / Join</span>
+              </>
+            )}
+          </button>
+          <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 shrink-0 mx-0.5" />
+          <button
+            type="button"
+            onClick={() => {
               setIdeaZoneSeedNote(undefined);
               setIsIdeaZoneOpen(true);
             }}
@@ -251,6 +272,10 @@ const MainApp: React.FC = () => {
                 setIsTrainingOpen(true);
               }}
               onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
+              onOpenAuth={(tab = 'register') => {
+                setAuthInitialTab(tab);
+                setIsAuthOpen(true);
+              }}
             />
           </div>
 
