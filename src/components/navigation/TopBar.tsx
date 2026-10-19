@@ -39,6 +39,7 @@ interface Props {
   onOpenMessaging?: () => void;
   onOpenArena?: () => void;
   onOpenQuestionBank?: () => void;
+  onOpenTraining?: () => void;
 }
 
 export const TopBar: React.FC<Props> = ({
@@ -51,6 +52,7 @@ export const TopBar: React.FC<Props> = ({
   onOpenMessaging,
   onOpenArena,
   onOpenQuestionBank,
+  onOpenTraining,
 }) => {
   const { state, setActiveCourse, toggleSound, toggleDarkMode, toggleLanguage, refillHearts } = useGame();
   const t = useTranslation(state.language);
@@ -220,6 +222,52 @@ export const TopBar: React.FC<Props> = ({
               >
                 <Terminal className="w-3.5 h-3.5 text-emerald-500" />
                 <span className="hidden xl:inline">{t.codeZone || 'CodeZone'}</span>
+              </button>
+            )}
+
+            {onOpenArena && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  onOpenArena();
+                }}
+                className="btn-3d flex items-center gap-1 px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30 text-xs font-black transition-all cursor-pointer shrink-0"
+                title="Coding Arena - Live Duels & Battles"
+              >
+                <Swords className="w-3.5 h-3.5 text-purple-500" />
+                <span className="hidden xl:inline">Arena</span>
+              </button>
+            )}
+
+            {onOpenTraining && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  onOpenTraining();
+                }}
+                className="btn-3d flex items-center gap-1 px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-xs font-black transition-all cursor-pointer shrink-0"
+                title="Speed Training - Compete Against Yourself & Personal Best (NeetCode 75/150)"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500/30" />
+                <span className="hidden xl:inline">Training</span>
+                <span className="text-[9px] font-black uppercase px-1 py-0.2 rounded bg-amber-500/20 text-amber-500 hidden 2xl:inline">PB</span>
+              </button>
+            )}
+
+            {onOpenQuestionBank && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  onOpenQuestionBank();
+                }}
+                className="btn-3d flex items-center gap-1 px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30 text-xs font-black transition-all cursor-pointer shrink-0"
+                title="Question Bank - Browse & Submit Coding Challenges"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-sky-500" />
+                <span className="hidden xl:inline">Bank</span>
               </button>
             )}
           </div>

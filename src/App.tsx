@@ -17,9 +17,10 @@ import { AuthModal } from './components/auth/AuthModal';
 import { MessagingModal } from './components/chat/MessagingModal';
 import { CodingArenaModal } from './components/arena/CodingArenaModal';
 import { QuestionBankModal } from './components/arena/QuestionBankModal';
+import { TrainingModal } from './components/training/TrainingModal';
 import { stopConfetti } from './utils/confetti';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageSquare, Swords, BookOpen } from 'lucide-react';
+import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageSquare, Swords, BookOpen, Zap } from 'lucide-react';
 import { ArenaChallenge } from './types';
 
 const MainApp: React.FC = () => {
@@ -35,6 +36,8 @@ const MainApp: React.FC = () => {
   const [isMessagingOpen, setIsMessagingOpen] = useState<boolean>(false);
   const [isArenaOpen, setIsArenaOpen] = useState<boolean>(false);
   const [isQuestionBankOpen, setIsQuestionBankOpen] = useState<boolean>(false);
+  const [isTrainingOpen, setIsTrainingOpen] = useState<boolean>(false);
+  const [trainingInitialProblemId, setTrainingInitialProblemId] = useState<string | undefined>(undefined);
   const [arenaInitialChallenge, setArenaInitialChallenge] = useState<ArenaChallenge | null>(null);
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('register');
   const [codeZoneSnippet, setCodeZoneSnippet] = useState<{ code: string; language: CodeLanguage } | undefined>();
@@ -87,6 +90,10 @@ const MainApp: React.FC = () => {
         onOpenArena={() => {
           setArenaInitialChallenge(null);
           setIsArenaOpen(true);
+        }}
+        onOpenTraining={() => {
+          setTrainingInitialProblemId(undefined);
+          setIsTrainingOpen(true);
         }}
         onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
       />
@@ -199,6 +206,17 @@ const MainApp: React.FC = () => {
           </button>
           <button
             type="button"
+            onClick={() => {
+              setTrainingInitialProblemId(undefined);
+              setIsTrainingOpen(true);
+            }}
+            className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/30"
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-500" />
+            <span>Training</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setIsQuestionBankOpen(true)}
             className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 border border-sky-500/30"
           >
@@ -227,6 +245,10 @@ const MainApp: React.FC = () => {
               onOpenArena={() => {
                 setArenaInitialChallenge(null);
                 setIsArenaOpen(true);
+              }}
+              onOpenTraining={() => {
+                setTrainingInitialProblemId(undefined);
+                setIsTrainingOpen(true);
               }}
               onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
             />
@@ -270,6 +292,10 @@ const MainApp: React.FC = () => {
               onOpenArena={() => {
                 setArenaInitialChallenge(null);
                 setIsArenaOpen(true);
+              }}
+              onOpenTraining={() => {
+                setTrainingInitialProblemId(undefined);
+                setIsTrainingOpen(true);
               }}
               onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
               filter={mobileTab === 'learn' ? 'all' : mobileTab}
@@ -423,10 +449,29 @@ const MainApp: React.FC = () => {
           setArenaInitialChallenge(challenge);
           setIsArenaOpen(true);
         }}
+        onSelectForTraining={(challenge) => {
+          setIsQuestionBankOpen(false);
+          setTrainingInitialProblemId(challenge.id);
+          setIsTrainingOpen(true);
+        }}
         onOpenCodeZone={(starterCode, language) => {
           setIsQuestionBankOpen(false);
           setCodeZoneSnippet({ code: starterCode, language });
           setIsCodeZoneOpen(true);
+        }}
+      />
+
+      {/* Speed Training & Personal Best Challenge Modal */}
+      <TrainingModal
+        isOpen={isTrainingOpen}
+        initialProblemId={trainingInitialProblemId}
+        onClose={() => {
+          setIsTrainingOpen(false);
+          setTrainingInitialProblemId(undefined);
+        }}
+        onOpenArena={() => {
+          setIsTrainingOpen(false);
+          setIsArenaOpen(true);
         }}
       />
     </div>

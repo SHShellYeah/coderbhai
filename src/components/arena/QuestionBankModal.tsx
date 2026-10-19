@@ -32,13 +32,15 @@ import {
   Layers,
   ArrowRight,
   ExternalLink,
-  Crown
+  Crown,
+  Zap
 } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSelectForArena?: (challenge: ArenaChallenge) => void;
+  onSelectForTraining?: (challenge: ArenaChallenge) => void;
   onOpenCodeZone?: (starterCode: string, language: CodeLanguage) => void;
 }
 
@@ -46,6 +48,7 @@ export const QuestionBankModal: React.FC<Props> = ({
   isOpen,
   onClose,
   onSelectForArena,
+  onSelectForTraining,
   onOpenCodeZone
 }) => {
   const { state } = useGame();
@@ -898,6 +901,22 @@ print("result")
                   >
                     <Code2 className="w-4 h-4" />
                     <span>Practice in CodeZone</span>
+                  </button>
+                )}
+
+                {onSelectForTraining && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      onSelectForTraining(selectedChallenge);
+                      setSelectedChallenge(null);
+                      onClose();
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-black text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/30 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Zap className="w-4 h-4 text-amber-500" />
+                    <span>Train &amp; Beat PB</span>
                   </button>
                 )}
 

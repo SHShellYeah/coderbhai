@@ -316,6 +316,23 @@ export interface ArenaChallenge {
   createdAt: string;
   updatedAt?: string;
   isCommunity?: boolean;
+  sheets?: ('neetcode75' | 'neetcode150' | 'questionbank')[];
+}
+
+export type ProblemSheet = 'all' | 'neetcode75' | 'neetcode150' | 'questionbank';
+
+export interface PersonalBestRecord {
+  problemId: string;
+  bestTimeSeconds: number;
+  achievedAt: string;
+  attemptsCount: number;
+  language: CodeLanguage;
+}
+
+export interface TrainingStats {
+  totalSolved: number;
+  recordsBeaten: number;
+  totalTrainingTimeSeconds: number;
 }
 
 export interface ArenaPlayer {

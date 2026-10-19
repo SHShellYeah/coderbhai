@@ -33,6 +33,7 @@ interface Props {
   onOpenMessaging?: () => void;
   onOpenArena?: () => void;
   onOpenQuestionBank?: () => void;
+  onOpenTraining?: () => void;
 }
 
 export const LeftSidebar: React.FC<Props> = ({
@@ -44,6 +45,7 @@ export const LeftSidebar: React.FC<Props> = ({
   onOpenMessaging,
   onOpenArena,
   onOpenQuestionBank,
+  onOpenTraining,
 }) => {
   const { state, setActiveCourse } = useGame();
   const t = useTranslation(state.language);
@@ -281,6 +283,25 @@ export const LeftSidebar: React.FC<Props> = ({
             </div>
             <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">
               DUELS
+            </span>
+          </button>
+        )}
+
+        {onOpenTraining && (
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              onOpenTraining();
+            }}
+            className="w-full px-3 py-2 rounded-2xl text-xs font-black transition-all flex items-center justify-between text-amber-500 dark:text-amber-400 hover:bg-amber-500/10 cursor-pointer group"
+          >
+            <div className="flex items-center gap-3">
+              <Zap className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+              <span>Speed Training</span>
+            </div>
+            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              PBs
             </span>
           </button>
         )}
