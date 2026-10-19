@@ -23,8 +23,10 @@ import {
   Swords,
   BookOpen,
   User,
-  Crown
+  Crown,
+  Brain
 } from 'lucide-react';
+import { DsaRoadmapId } from '../../types/dsa';
 
 interface Props {
   onOpenPractice: () => void;
@@ -34,8 +36,10 @@ interface Props {
   onOpenCodeZone?: () => void;
   onOpenMessaging?: () => void;
   onOpenArena?: () => void;
+  onOpenSpeedTraining?: () => void;
   onOpenQuestionBank?: () => void;
   onOpenTraining?: () => void;
+  onOpenRoadmap?: (roadmapId: DsaRoadmapId) => void;
   onOpenAuth?: (tab?: 'login' | 'register' | 'forgot' | 'update-password') => void;
 }
 
@@ -47,8 +51,10 @@ export const LeftSidebar: React.FC<Props> = ({
   onOpenCodeZone,
   onOpenMessaging,
   onOpenArena,
+  onOpenSpeedTraining,
   onOpenQuestionBank,
   onOpenTraining,
+  onOpenRoadmap,
   onOpenAuth,
 }) => {
   const { state, setActiveCourse } = useGame();
@@ -291,6 +297,7 @@ export const LeftSidebar: React.FC<Props> = ({
           </button>
         )}
 
+        {/* Existing Personal Best Training */}
         {onOpenTraining && (
           <button
             type="button"
@@ -302,7 +309,7 @@ export const LeftSidebar: React.FC<Props> = ({
           >
             <div className="flex items-center gap-3">
               <Zap className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
-              <span>Speed Training</span>
+              <span>Personal Best Training</span>
             </div>
             <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
               PBs
@@ -310,18 +317,62 @@ export const LeftSidebar: React.FC<Props> = ({
           </button>
         )}
 
-        {onOpenQuestionBank && (
+        {/* Unified Speed Training Hub */}
+        {onOpenSpeedTraining && (
           <button
             type="button"
             onClick={() => {
               sound.playClick();
-              onOpenQuestionBank();
+              onOpenSpeedTraining();
             }}
-            className="w-full px-3 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-3 text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 cursor-pointer"
+            className="w-full px-3 py-2 rounded-2xl text-xs font-black transition-all flex items-center justify-between text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 cursor-pointer group"
           >
-            <BookOpen className="w-4 h-4 text-sky-500" />
-            <span>Question Bank</span>
+            <div className="flex items-center gap-3">
+              <Zap className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform fill-current" />
+              <span>Speed Training</span>
+            </div>
+            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+              HUB
+            </span>
           </button>
+        )}
+
+        {/* Standalone fallbacks only when the hub is unavailable */}
+        {!onOpenSpeedTraining && (
+          <>
+            {onOpenQuestionBank && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  onOpenQuestionBank();
+                }}
+                className="w-full px-3 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-3 text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 cursor-pointer"
+              >
+                <BookOpen className="w-4 h-4 text-sky-500" />
+                <span>Question Bank</span>
+              </button>
+            )}
+
+            {onOpenRoadmap && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  onOpenRoadmap('blind75');
+                }}
+                className="w-full px-3 py-2 rounded-2xl text-xs font-black transition-all flex items-center justify-between text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <Brain className="w-4 h-4 text-indigo-500" />
+                  <span>DSA Roadmaps</span>
+                </div>
+                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20">
+                  75 &amp; 150
+                </span>
+              </button>
+            )}
+          </>
         )}
       </nav>
 

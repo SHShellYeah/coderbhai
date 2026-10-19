@@ -33,7 +33,8 @@ import {
   ArrowRight,
   ExternalLink,
   Crown,
-  Zap
+  Zap,
+  ArrowLeft
 } from 'lucide-react';
 
 interface Props {
@@ -42,6 +43,7 @@ interface Props {
   onSelectForArena?: (challenge: ArenaChallenge) => void;
   onSelectForTraining?: (challenge: ArenaChallenge) => void;
   onOpenCodeZone?: (starterCode: string, language: CodeLanguage) => void;
+  onBackToSpeedTraining?: () => void;
 }
 
 export const QuestionBankModal: React.FC<Props> = ({
@@ -49,7 +51,8 @@ export const QuestionBankModal: React.FC<Props> = ({
   onClose,
   onSelectForArena,
   onSelectForTraining,
-  onOpenCodeZone
+  onOpenCodeZone,
+  onBackToSpeedTraining
 }) => {
   const { state } = useGame();
   const isAdmin = state.role === 'admin' || state.authUser?.role === 'admin';
@@ -269,17 +272,33 @@ print("result")
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              sound.playClick();
-              stopConfetti();
-              onClose();
-            }}
-            className="p-2 rounded-2xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onBackToSpeedTraining && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  stopConfetti();
+                  onBackToSpeedTraining();
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/30 flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Speed Training Hub</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                stopConfetti();
+                onClose();
+              }}
+              className="p-2 rounded-2xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {/* Navigation Tabs */}

@@ -19,16 +19,16 @@ import {
   Moon,
   Sun,
   Terminal,
-  Code2,
   GraduationCap,
   User,
-  Cloud,
   Crown,
   MessageSquare,
   Lock,
-  Swords,
-  BookOpen
+  Swords
 } from 'lucide-react';
+
+import { DsaRoadmapId } from '../../types/dsa';
+import { SpeedTrainingSidebarSection } from '../speed-training/SpeedTrainingSidebarSection';
 
 interface Props {
   onOpenPractice: () => void;
@@ -39,8 +39,10 @@ interface Props {
   onOpenAuth?: (tab?: 'login' | 'register') => void;
   onOpenMessaging?: () => void;
   onOpenArena?: () => void;
+  onOpenSpeedTraining?: () => void;
   onOpenQuestionBank?: () => void;
   onOpenTraining?: () => void;
+  onOpenRoadmap?: (roadmapId: DsaRoadmapId) => void;
   filter?: 'all' | 'practice' | 'quests' | 'leaderboard' | 'settings';
 }
 
@@ -53,8 +55,10 @@ export const RightSidebar: React.FC<Props> = ({
   onOpenAuth,
   onOpenMessaging,
   onOpenArena,
+  onOpenSpeedTraining,
   onOpenQuestionBank,
   onOpenTraining,
+  onOpenRoadmap,
   filter = 'all',
 }) => {
   const { state, toggleDarkMode } = useGame();
@@ -328,6 +332,15 @@ export const RightSidebar: React.FC<Props> = ({
           </div>
           <ChevronRight className="w-4 h-4 text-indigo-400 group-hover:translate-x-1 transition-transform shrink-0" />
         </button>
+      )}
+
+      {/* Speed Training Zone (DSA Roadmaps & Question Bank) */}
+      {(onOpenSpeedTraining || onOpenRoadmap) && (filter === 'all' || filter === 'practice') && (
+        <SpeedTrainingSidebarSection
+          onOpenSpeedTraining={onOpenSpeedTraining || (() => onOpenRoadmap?.('blind75'))}
+          onOpenRoadmap={onOpenRoadmap}
+          onOpenQuestionBank={onOpenQuestionBank}
+        />
       )}
 
       {/* Coding Arena Battle Card */}
