@@ -19,7 +19,9 @@ import {
   Zap,
   Flame,
   Settings,
-  Lock
+  Lock,
+  Swords,
+  BookOpen
 } from 'lucide-react';
 
 interface Props {
@@ -29,6 +31,8 @@ interface Props {
   onOpenIdeaZone?: () => void;
   onOpenCodeZone?: () => void;
   onOpenMessaging?: () => void;
+  onOpenArena?: () => void;
+  onOpenQuestionBank?: () => void;
 }
 
 export const LeftSidebar: React.FC<Props> = ({
@@ -38,6 +42,8 @@ export const LeftSidebar: React.FC<Props> = ({
   onOpenIdeaZone,
   onOpenCodeZone,
   onOpenMessaging,
+  onOpenArena,
+  onOpenQuestionBank,
 }) => {
   const { state, setActiveCourse } = useGame();
   const t = useTranslation(state.language);
@@ -255,6 +261,41 @@ export const LeftSidebar: React.FC<Props> = ({
             ) : (
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             )}
+          </button>
+        )}
+
+        <div className="h-px bg-slate-200 dark:bg-slate-800 my-1 mx-2" />
+
+        {onOpenArena && (
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              onOpenArena();
+            }}
+            className="w-full px-3 py-2 rounded-2xl text-xs font-black transition-all flex items-center justify-between text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 cursor-pointer group"
+          >
+            <div className="flex items-center gap-3">
+              <Swords className="w-4 h-4 text-purple-500 group-hover:rotate-12 transition-transform" />
+              <span>Coding Arena</span>
+            </div>
+            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30">
+              DUELS
+            </span>
+          </button>
+        )}
+
+        {onOpenQuestionBank && (
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              onOpenQuestionBank();
+            }}
+            className="w-full px-3 py-2 rounded-2xl text-xs font-black transition-all flex items-center gap-3 text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 cursor-pointer"
+          >
+            <BookOpen className="w-4 h-4 text-sky-500" />
+            <span>Question Bank</span>
           </button>
         )}
       </nav>

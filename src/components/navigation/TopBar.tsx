@@ -24,7 +24,9 @@ import {
   User,
   Cloud,
   Crown,
-  MessageSquare
+  MessageSquare,
+  Swords,
+  BookOpen
 } from 'lucide-react';
 
 interface Props {
@@ -35,6 +37,8 @@ interface Props {
   onOpenCodeZone?: () => void;
   onOpenAuth?: (tab?: 'login' | 'register') => void;
   onOpenMessaging?: () => void;
+  onOpenArena?: () => void;
+  onOpenQuestionBank?: () => void;
 }
 
 export const TopBar: React.FC<Props> = ({
@@ -45,6 +49,8 @@ export const TopBar: React.FC<Props> = ({
   onOpenCodeZone,
   onOpenAuth,
   onOpenMessaging,
+  onOpenArena,
+  onOpenQuestionBank,
 }) => {
   const { state, setActiveCourse, toggleSound, toggleDarkMode, toggleLanguage, refillHearts } = useGame();
   const t = useTranslation(state.language);
@@ -432,6 +438,24 @@ export const TopBar: React.FC<Props> = ({
               <VolumeX className="w-4.5 sm:w-5 h-4.5 sm:h-5 text-slate-400" />
             )}
           </button>
+
+          {/* Coding Arena Launcher */}
+          {onOpenArena && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onOpenArena();
+              }}
+              className="relative p-1 sm:p-2 rounded-xl text-purple-500 hover:text-purple-400 hover:bg-purple-500/10 transition-colors cursor-pointer shrink-0"
+              title="⚔️ Coding Arena (Stopwatch & Takedown Duels)"
+            >
+              <Swords className="w-4.5 sm:w-5 h-4.5 sm:h-5" />
+              <span className="absolute -top-0.5 -right-0.5 px-1 py-0.2 rounded-full text-[8px] font-black bg-purple-600 text-white leading-none">
+                VS
+              </span>
+            </button>
+          )}
 
           {/* Community Chat Launcher */}
           {onOpenMessaging && (

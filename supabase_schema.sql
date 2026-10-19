@@ -336,6 +336,71 @@ CREATE POLICY "Avatar update" ON storage.objects FOR UPDATE USING (bucket_id = '
 DROP POLICY IF EXISTS "Avatar delete" ON storage.objects;
 CREATE POLICY "Avatar delete" ON storage.objects FOR DELETE USING (bucket_id = 'avatars');
 
--- 10. Refresh schema cache
+-- 10. Question Bank Segment (Community Challenge Submissions & Admin Verification)
+CREATE TABLE IF NOT EXISTS public.question_bank (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  slug TEXT,
+  description TEXT NOT NULL,
+  difficulty TEXT NOT NULL DEFAULT 'easy' CHECK (difficulty IN ('easy', 'medium', 'hard')),
+  category TEXT NOT NULL DEFAULT 'General',
+  author_id UUID,
+  author_name TEXT NOT NULL DEFAULT 'Community Contributor',
+  author_streak INTEGER DEFAULT 0,
+  constraints JSONB DEFAULT '[]'::jsonb,
+  sample_cases JSONB NOT NULL DEFAULT '[]'::jsonb,
+  hidden_cases JSONB NOT NULL DEFAULT '[]'::jsonb,
+  starter_templates JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  reviewer_name TEXT,
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 11. Coding Arena Custom Rooms (Stopwatch & Takedown Duels)
+CREATE TABLE IF NOT EXISTS public.arena_rooms (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_code TEXT NOT NULL UNIQUE,
+  mode TEXT NOT NULL CHECK (mode IN ('stopwatch', 'takedown')),
+  host_id TEXT NOT NULL,
+  host_name TEXT NOT NULL,
+  host_avatar TEXT,
+  time_limit_seconds INTEGER DEFAULT 180,
+  question_ids JSONB DEFAULT '[]'::jsonb,
+  status TEXT DEFAULT 'waiting' CHECK (status IN ('waiting', 'active', 'finished')),
+  host_score INTEGER DEFAULT 0,
+  guest_score INTEGER DEFAULT 0,
+  guest_id TEXT,
+  guest_name TEXT,
+  guest_avatar TEXT,
+  winner_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS & Grants for question_bank and arena_rooms
+ALTER TABLE public.question_bank ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.arena_rooms ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow select question_bank" ON public.question_bank;
+CREATE POLICY "Allow select question_bank" ON public.question_bank FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow insert question_bank" ON public.question_bank;
+CREATE POLICY "Allow insert question_bank" ON public.question_bank FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow update question_bank" ON public.question_bank;
+CREATE POLICY "Allow update question_bank" ON public.question_bank FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Allow delete question_bank" ON public.question_bank;
+CREATE POLICY "Allow delete question_bank" ON public.question_bank FOR DELETE USING (true);
+
+DROP POLICY IF EXISTS "Allow all arena_rooms" ON public.arena_rooms;
+CREATE POLICY "Allow all arena_rooms" ON public.arena_rooms FOR ALL USING (true) WITH CHECK (true);
+
+GRANT ALL ON TABLE public.question_bank TO anon, authenticated, service_role;
+GRANT ALL ON TABLE public.arena_rooms TO anon, authenticated, service_role;
+
+-- 12. Refresh schema cache
 NOTIFY pgrst, 'reload schema';
 

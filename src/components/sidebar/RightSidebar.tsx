@@ -25,7 +25,9 @@ import {
   Cloud,
   Crown,
   MessageSquare,
-  Lock
+  Lock,
+  Swords,
+  BookOpen
 } from 'lucide-react';
 
 interface Props {
@@ -36,6 +38,8 @@ interface Props {
   onOpenCodeZone?: () => void;
   onOpenAuth?: (tab?: 'login' | 'register') => void;
   onOpenMessaging?: () => void;
+  onOpenArena?: () => void;
+  onOpenQuestionBank?: () => void;
   filter?: 'all' | 'practice' | 'quests' | 'leaderboard' | 'settings';
 }
 
@@ -47,6 +51,8 @@ export const RightSidebar: React.FC<Props> = ({
   onOpenCodeZone,
   onOpenAuth,
   onOpenMessaging,
+  onOpenArena,
+  onOpenQuestionBank,
   filter = 'all',
 }) => {
   const { state, toggleDarkMode } = useGame();
@@ -319,6 +325,38 @@ export const RightSidebar: React.FC<Props> = ({
             </div>
           </div>
           <ChevronRight className="w-4 h-4 text-indigo-400 group-hover:translate-x-1 transition-transform shrink-0" />
+        </button>
+      )}
+
+      {/* Coding Arena Battle Card */}
+      {onOpenArena && (filter === 'all' || filter === 'practice') && (
+        <button
+          type="button"
+          onClick={() => {
+            sound.playClick();
+            onOpenArena();
+          }}
+          className="btn-3d p-4 rounded-3xl bg-gradient-to-r from-purple-600/10 via-pink-600/10 to-indigo-600/10 dark:from-purple-950/40 dark:via-pink-950/30 dark:to-indigo-950/30 border-2 border-purple-500/25 hover:border-purple-500/50 text-left transition-all cursor-pointer group flex items-center justify-between shadow-sm"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 text-white flex items-center justify-center shadow-md shadow-purple-500/20 shrink-0 group-hover:scale-105 transition-transform">
+              <Swords className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h4 className="text-sm font-black text-slate-800 dark:text-slate-100 leading-tight">
+                  Coding Arena
+                </h4>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-400 font-black uppercase tracking-wider shrink-0 border border-purple-500/30">
+                  DUELS
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
+                Stopwatch race &amp; Takedown knockout battles
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-purple-400 group-hover:translate-x-1 transition-transform shrink-0" />
         </button>
       )}
 

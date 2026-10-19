@@ -170,6 +170,9 @@ export interface AuthUser {
   activeStatus?: UserActiveStatus;
   isEduUser?: boolean;
   role?: UserRole;
+  streak?: number;
+  xp?: number;
+  gems?: number;
 }
 
 export interface UserProfile {
@@ -281,3 +284,72 @@ export interface IdeaNote {
 
 export type CodeLanguage = 'c' | 'cpp' | 'python' | 'javascript';
 
+// Arena & Question Bank System
+export type ArenaMode = 'stopwatch' | 'takedown';
+export type ChallengeDifficulty = 'easy' | 'medium' | 'hard';
+
+export interface TestCase {
+  id: string;
+  input: string;
+  output: string;
+  isHidden?: boolean;
+  explanation?: string;
+}
+
+export interface ArenaChallenge {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  difficulty: ChallengeDifficulty;
+  category: string;
+  authorId?: string;
+  authorName: string;
+  authorStreak?: number;
+  constraints: string[];
+  sampleCases: TestCase[];
+  hiddenCases: TestCase[];
+  starterTemplates: Record<CodeLanguage, string>;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewerName?: string;
+  reviewedAt?: string;
+  createdAt: string;
+  updatedAt?: string;
+  isCommunity?: boolean;
+}
+
+export interface ArenaPlayer {
+  id: string;
+  name: string;
+  avatar?: string;
+  isBot?: boolean;
+  score: number;
+  currentQuestionIndex: number;
+  solvedQuestionIds: string[];
+  currentCode?: string;
+}
+
+export interface ArenaMatch {
+  id: string;
+  roomCode: string;
+  mode: ArenaMode;
+  timeLimitSeconds: number; // For stopwatch mode (e.g. 180 = 3 mins)
+  selectedQuestionIds: string[];
+  host: ArenaPlayer;
+  opponent?: ArenaPlayer;
+  status: 'lobby' | 'in_progress' | 'finished';
+  winnerId?: string | 'tie';
+  startedAt?: number;
+  expiresAt?: number;
+}
+
+export interface QuestionSubmission {
+  title: string;
+  description: string;
+  difficulty: ChallengeDifficulty;
+  category: string;
+  constraints: string[];
+  sampleCases: TestCase[];
+  hiddenCases: TestCase[];
+  starterTemplates: Record<CodeLanguage, string>;
+}

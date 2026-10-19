@@ -15,9 +15,12 @@ import { IdeaZoneModal } from './components/ideazone/IdeaZoneModal';
 import { CodeZoneModal } from './components/codezone/CodeZoneModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { MessagingModal } from './components/chat/MessagingModal';
+import { CodingArenaModal } from './components/arena/CodingArenaModal';
+import { QuestionBankModal } from './components/arena/QuestionBankModal';
 import { stopConfetti } from './utils/confetti';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageSquare } from 'lucide-react';
+import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageSquare, Swords, BookOpen } from 'lucide-react';
+import { ArenaChallenge } from './types';
 
 const MainApp: React.FC = () => {
   const { state } = useGame();
@@ -30,6 +33,9 @@ const MainApp: React.FC = () => {
   const [isCodeZoneOpen, setIsCodeZoneOpen] = useState<boolean>(false);
   const [isAuthOpen, setIsAuthOpen] = useState<boolean>(false);
   const [isMessagingOpen, setIsMessagingOpen] = useState<boolean>(false);
+  const [isArenaOpen, setIsArenaOpen] = useState<boolean>(false);
+  const [isQuestionBankOpen, setIsQuestionBankOpen] = useState<boolean>(false);
+  const [arenaInitialChallenge, setArenaInitialChallenge] = useState<ArenaChallenge | null>(null);
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('register');
   const [codeZoneSnippet, setCodeZoneSnippet] = useState<{ code: string; language: CodeLanguage } | undefined>();
   const [ideaZoneSeedNote, setIdeaZoneSeedNote] = useState<{
@@ -78,6 +84,11 @@ const MainApp: React.FC = () => {
           setIsAuthOpen(true);
         }}
         onOpenMessaging={handleOpenMessaging}
+        onOpenArena={() => {
+          setArenaInitialChallenge(null);
+          setIsArenaOpen(true);
+        }}
+        onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -175,6 +186,25 @@ const MainApp: React.FC = () => {
             <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
             <span>Chat</span>
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setArenaInitialChallenge(null);
+              setIsArenaOpen(true);
+            }}
+            className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 border border-purple-500/30"
+          >
+            <Swords className="w-3.5 h-3.5 text-purple-500" />
+            <span>Arena</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsQuestionBankOpen(true)}
+            className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 border border-sky-500/30"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-sky-500" />
+            <span>Bank</span>
+          </button>
         </div>
 
         {/* 3-Column Balanced Desktop Layout: Left Nav + Centered Lessons + Right Stats */}
@@ -194,6 +224,11 @@ const MainApp: React.FC = () => {
                 setIsCodeZoneOpen(true);
               }}
               onOpenMessaging={handleOpenMessaging}
+              onOpenArena={() => {
+                setArenaInitialChallenge(null);
+                setIsArenaOpen(true);
+              }}
+              onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
             />
           </div>
 
@@ -232,6 +267,11 @@ const MainApp: React.FC = () => {
                 setIsAuthOpen(true);
               }}
               onOpenMessaging={handleOpenMessaging}
+              onOpenArena={() => {
+                setArenaInitialChallenge(null);
+                setIsArenaOpen(true);
+              }}
+              onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
               filter={mobileTab === 'learn' ? 'all' : mobileTab}
             />
           </div>
@@ -356,6 +396,36 @@ const MainApp: React.FC = () => {
           } else {
             setCodeZoneSnippet(undefined);
           }
+          setIsCodeZoneOpen(true);
+        }}
+      />
+
+      {/* Coding Arena Live Duels Modal */}
+      <CodingArenaModal
+        isOpen={isArenaOpen}
+        initialChallenge={arenaInitialChallenge}
+        onClose={() => {
+          setIsArenaOpen(false);
+          setArenaInitialChallenge(null);
+        }}
+        onOpenQuestionBank={() => {
+          setIsArenaOpen(false);
+          setIsQuestionBankOpen(true);
+        }}
+      />
+
+      {/* Question Bank Explorer & Community Authoring Modal */}
+      <QuestionBankModal
+        isOpen={isQuestionBankOpen}
+        onClose={() => setIsQuestionBankOpen(false)}
+        onSelectForArena={(challenge) => {
+          setIsQuestionBankOpen(false);
+          setArenaInitialChallenge(challenge);
+          setIsArenaOpen(true);
+        }}
+        onOpenCodeZone={(starterCode, language) => {
+          setIsQuestionBankOpen(false);
+          setCodeZoneSnippet({ code: starterCode, language });
           setIsCodeZoneOpen(true);
         }}
       />
