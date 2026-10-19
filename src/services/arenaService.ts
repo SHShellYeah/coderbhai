@@ -260,6 +260,126 @@ export function generateStrangerOpponent(): ArenaPlayer {
   };
 }
 
+const STORAGE_KEY_CUSTOM_ROOMS = 'bytesized_arena_custom_rooms';
+
+/**
+ * Saves a custom arena room locally and syncs to Supabase public.arena_rooms.
+ */
+export async function saveCustomArenaRoom(match: ArenaMatch): Promise<void> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_ROOMS);
+    const rooms: Record<string, ArenaMatch> = raw ? JSON.parse(raw) : {};
+    rooms[match.roomCode.toUpperCase()] = match;
+    localStorage.setItem(STORAGE_KEY_CUSTOM_ROOMS, JSON.stringify(rooms));
+  } catch (err) {
+    console.warn('Failed saving arena room locally:', err);
+  }
+
+  try {
+    await supabase.from('arena_rooms').upsert([
+      {
+        room_code: match.roomCode.toUpperCase(),
+        mode: match.mode,
+        host_id: match.host.id,
+        host_name: match.host.name,
+        host_avatar: match.host.avatar,
+        time_limit_seconds: match.timeLimitSeconds,
+        question_ids: match.selectedQuestionIds,
+        status: match.status,
+        host_score: match.host.score
+      }
+    ]);
+  } catch (err) {
+    console.warn('Failed saving arena room to Supabase:', err);
+  }
+}
+
+/**
+ * Retrieves a custom arena room by its 6-character room code.
+ */
+export async function getCustomArenaRoom(roomCode: string): Promise<ArenaMatch | null> {
+  const code = roomCode.trim().toUpperCase();
+
+  // Check local first
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_ROOMS);
+    if (raw) {
+      const rooms: Record<string, ArenaMatch> = JSON.parse(raw);
+      if (rooms[code]) return rooms[code];
+    }
+  } catch {
+    // ignore
+  }
+
+  // Check Supabase
+  try {
+    const { data, error } = await supabase
+      .from('arena_rooms')
+      .select('*')
+      .eq('room_code', code)
+      .single();
+
+    if (!error && data) {
+      return {
+        id: data.id,
+        roomCode: data.room_code,
+        mode: data.mode as ArenaMode,
+        timeLimitSeconds: data.time_limit_seconds || 180,
+        selectedQuestionIds: Array.isArray(data.question_ids) ? data.question_ids : [],
+        host: {
+          id: data.host_id,
+          name: data.host_name,
+          avatar: data.host_avatar,
+          score: data.host_score || 0,
+          currentQuestionIndex: 0,
+          solvedQuestionIds: []
+        },
+        status: data.status as 'lobby' | 'in_progress' | 'finished'
+      };
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
+/**
+ * Sends an in-app Arena duel invitation message to chat so the friend receives the room invite!
+ */
+export function sendArenaFriendInvite(
+  hostName: string,
+  hostAvatar: string | undefined,
+  hostId: string,
+  friendUsername: string,
+  roomCode: string,
+  mode: ArenaMode
+): void {
+  try {
+    const CHAT_STORAGE_KEY = 'bytesized_chat_messages_v1';
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    const messages = raw ? JSON.parse(raw) : [];
+
+    const inviteMsg = {
+      id: `invite-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      channelId: 'general',
+      senderId: hostId,
+      senderName: hostName,
+      senderAvatar: hostAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${hostName}`,
+      senderRole: 'user',
+      senderStatus: 'online',
+      content: `⚔️ **ARENA DUEL CHALLENGE!** @${hostName} has challenged @${friendUsername} to a **${mode.toUpperCase()}** battle!\n🔑 **Room Code**: \`${roomCode}\`\nOpen Coding Arena and enter the code to accept the fight!`,
+      timestamp: Date.now(),
+      reactions: { '⚔️': 1, '🔥': 1 }
+    };
+
+    messages.push(inviteMsg);
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+  } catch (err) {
+    console.warn('Failed to dispatch arena chat invite:', err);
+  }
+}
+
 // Local storage helpers
 function getLocalCommunityQuestions(): ArenaChallenge[] {
   try {

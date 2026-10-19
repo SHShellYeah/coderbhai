@@ -12,13 +12,21 @@ import {
   ArenaMode,
   ArenaPlayer,
   CodeLanguage,
-  TestCase
+  TestCase,
+  FriendProfile
 } from '../../types';
 import {
   getApprovedChallenges,
   createArenaMatch,
-  generateStrangerOpponent
+  generateStrangerOpponent,
+  saveCustomArenaRoom,
+  getCustomArenaRoom,
+  sendArenaFriendInvite
 } from '../../services/arenaService';
+import {
+  fetchUserFriends,
+  searchUsersByUsername
+} from '../../services/authService';
 import {
   executeCodeSandbox,
   evaluateTestCases,
@@ -52,7 +60,13 @@ import {
   HelpCircle,
   FileCode,
   ShieldAlert,
-  Send
+  Send,
+  UserPlus,
+  Search,
+  Share2,
+  Key,
+  UserCheck,
+  Lock
 } from 'lucide-react';
 
 interface Props {
@@ -81,9 +95,17 @@ export const CodingArenaModal: React.FC<Props> = ({
   const [selectedMode, setSelectedMode] = useState<ArenaMode>('stopwatch');
   const [stopwatchMinutes, setStopwatchMinutes] = useState<number>(3); // 2, 3, 5, 10
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<string[]>([]);
-  const [matchType, setMatchType] = useState<'bot' | 'room'>('bot');
+  const [opponentChoice, setOpponentChoice] = useState<'bot' | 'friend' | 'room'>('bot');
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
+  const [friendsList, setFriendsList] = useState<FriendProfile[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [friendSearchQuery, setFriendSearchQuery] = useState('');
+  const [searchedUsers, setSearchedUsers] = useState<FriendProfile[]>([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  const [inviteToast, setInviteToast] = useState<string | null>(null);
+  const [joinRoomError, setJoinRoomError] = useState<string | null>(null);
+  const [customRoomCreated, setCustomRoomCreated] = useState<ArenaMatch | null>(null);
 
   // Active Match State
   const [currentMatch, setCurrentMatch] = useState<ArenaMatch | null>(null);
@@ -127,12 +149,48 @@ export const CodingArenaModal: React.FC<Props> = ({
     }
   }, [isOpen]);
 
-  // When initialChallenge prop is passed, select it
   useEffect(() => {
     if (initialChallenge) {
       setSelectedQuestionIds([initialChallenge.id]);
     }
   }, [initialChallenge]);
+
+  // Load user's friend list on open
+  useEffect(() => {
+    if (isOpen && state.authUser?.id) {
+      setLoadingFriends(true);
+      fetchUserFriends(state.authUser.id)
+        .then(res => setFriendsList(res))
+        .finally(() => setLoadingFriends(false));
+    }
+  }, [isOpen, state.authUser?.id]);
+
+  // Debounced search for learners by username to invite to arena
+  useEffect(() => {
+    if (friendSearchQuery.trim().length >= 2) {
+      setSearchingUsers(true);
+      const timer = setTimeout(() => {
+        searchUsersByUsername(friendSearchQuery.trim(), state.authUser?.id)
+          .then(res => setSearchedUsers(res))
+          .finally(() => setSearchingUsers(false));
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      setSearchedUsers([]);
+    }
+  }, [friendSearchQuery, state.authUser?.id]);
+
+  // Check URL query for arena_room code (e.g. ?arena_room=BYTE7X)
+  useEffect(() => {
+    if (isOpen && typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const roomParam = params.get('arena_room');
+      if (roomParam) {
+        setRoomCodeInput(roomParam.toUpperCase());
+        setOpponentChoice('room');
+      }
+    }
+  }, [isOpen]);
 
   // Current problem being solved
   const activeProblems: ArenaChallenge[] = useMemo(() => {
@@ -187,39 +245,13 @@ export const CodingArenaModal: React.FC<Props> = ({
     }
   };
 
-  // Start Battle
-  const handleStartMatch = () => {
-    sound.playClick();
-    if (activeProblems.length === 0) return;
-
-    const hostPlayer: ArenaPlayer = {
-      id: state.authUser?.id || 'host-user',
-      name: state.authUser?.username || state.authUser?.displayName || 'You',
-      avatar: state.authUser?.avatarUrl,
-      score: 0,
-      currentQuestionIndex: 0,
-      solvedQuestionIds: []
-    };
-
-    const opponentPlayer: ArenaPlayer = generateStrangerOpponent();
-
-    const initialTime = selectedMode === 'stopwatch' ? stopwatchMinutes * 60 : 600; // 10m for takedown
-    const match = createArenaMatch(
-      selectedMode,
-      initialTime,
-      activeProblems.map(p => p.id),
-      hostPlayer
-    );
-    match.opponent = opponentPlayer;
-    match.status = 'in_progress';
-    match.startedAt = Date.now();
-    match.expiresAt = Date.now() + initialTime * 1000;
-
+  // Core match starter
+  const startMatchWithData = (match: ArenaMatch) => {
     setCurrentMatch(match);
     setCurrentProblemIndex(0);
-    setTimeLeftSeconds(initialTime);
+    setTimeLeftSeconds(match.timeLimitSeconds);
     setScreen('battle');
-    setBattleNotice(`⚔️ Match started against ${opponentPlayer.name}! First to conquer wins!`);
+    setBattleNotice(`⚔️ Match started against ${match.opponent?.name || 'Challenger'}! First to conquer wins!`);
 
     // Launch countdown timer
     if (timerRef.current) clearInterval(timerRef.current);
@@ -233,7 +265,7 @@ export const CodingArenaModal: React.FC<Props> = ({
       });
     }, 1000);
 
-    // Launch simulated rival solving progress
+    // Launch simulated rival solving progress (for bot/practice opponents or simulated pacing)
     if (botIntervalRef.current) clearInterval(botIntervalRef.current);
     botIntervalRef.current = setInterval(() => {
       setCurrentMatch(prev => {
@@ -273,6 +305,195 @@ export const CodingArenaModal: React.FC<Props> = ({
         return prev;
       });
     }, 7000);
+  };
+
+  // 1. Quick Match against Bot / Stranger
+  const handleStartQuickMatch = () => {
+    sound.playClick();
+    if (activeProblems.length === 0) return;
+
+    const hostPlayer: ArenaPlayer = {
+      id: state.authUser?.id || 'host-user',
+      name: state.authUser?.username || state.authUser?.displayName || 'You',
+      avatar: state.authUser?.avatarUrl,
+      score: 0,
+      currentQuestionIndex: 0,
+      solvedQuestionIds: []
+    };
+
+    const opponentPlayer: ArenaPlayer = generateStrangerOpponent();
+    const initialTime = selectedMode === 'stopwatch' ? stopwatchMinutes * 60 : 600;
+    const match = createArenaMatch(
+      selectedMode,
+      initialTime,
+      activeProblems.map(p => p.id),
+      hostPlayer
+    );
+    match.opponent = opponentPlayer;
+    match.status = 'in_progress';
+    match.startedAt = Date.now();
+    match.expiresAt = Date.now() + initialTime * 1000;
+
+    startMatchWithData(match);
+  };
+
+  // 2. Invite Friend to Custom Arena Match
+  const handleInviteFriend = async (friend: FriendProfile) => {
+    sound.playClick();
+    if (activeProblems.length === 0) return;
+
+    const hostPlayer: ArenaPlayer = {
+      id: state.authUser?.id || 'host-user',
+      name: state.authUser?.username || state.authUser?.displayName || 'You',
+      avatar: state.authUser?.avatarUrl,
+      score: 0,
+      currentQuestionIndex: 0,
+      solvedQuestionIds: []
+    };
+
+    const opponentPlayer: ArenaPlayer = {
+      id: friend.id,
+      name: friend.username || friend.displayName,
+      avatar: friend.avatarUrl,
+      isBot: false,
+      score: 0,
+      currentQuestionIndex: 0,
+      solvedQuestionIds: []
+    };
+
+    const initialTime = selectedMode === 'stopwatch' ? stopwatchMinutes * 60 : 600;
+    const match = createArenaMatch(
+      selectedMode,
+      initialTime,
+      activeProblems.map(p => p.id),
+      hostPlayer
+    );
+    match.opponent = opponentPlayer;
+    match.status = 'in_progress';
+    match.startedAt = Date.now();
+    match.expiresAt = Date.now() + initialTime * 1000;
+
+    // Save room in database & local storage
+    await saveCustomArenaRoom(match);
+
+    // Send in-app chat invite
+    sendArenaFriendInvite(
+      hostPlayer.name,
+      hostPlayer.avatar,
+      hostPlayer.id,
+      friend.username,
+      match.roomCode,
+      selectedMode
+    );
+
+    // Copy direct invite link to clipboard
+    const inviteUrl = `${window.location.origin}${window.location.pathname}?arena_room=${match.roomCode}`;
+    try {
+      await navigator.clipboard.writeText(
+        `⚔️ Accept my duel in ByteSized Coding Arena! Room Code: ${match.roomCode} -> ${inviteUrl}`
+      );
+    } catch {
+      // ignore
+    }
+
+    setInviteToast(`🎉 Duel invitation dispatched to @${friend.username}! Room code ${match.roomCode} copied to clipboard.`);
+    sound.playSuccess();
+    fireSuccessConfetti();
+
+    // Start battle immediately with friend as named opponent!
+    startMatchWithData(match);
+  };
+
+  // 3. Create Custom Room Code & Link Only
+  const handleCreateCustomRoomOnly = async () => {
+    sound.playClick();
+    if (activeProblems.length === 0) return;
+
+    const hostPlayer: ArenaPlayer = {
+      id: state.authUser?.id || 'host-user',
+      name: state.authUser?.username || state.authUser?.displayName || 'You',
+      avatar: state.authUser?.avatarUrl,
+      score: 0,
+      currentQuestionIndex: 0,
+      solvedQuestionIds: []
+    };
+
+    const initialTime = selectedMode === 'stopwatch' ? stopwatchMinutes * 60 : 600;
+    const match = createArenaMatch(
+      selectedMode,
+      initialTime,
+      activeProblems.map(p => p.id),
+      hostPlayer
+    );
+
+    await saveCustomArenaRoom(match);
+    setCustomRoomCreated(match);
+
+    const inviteUrl = `${window.location.origin}${window.location.pathname}?arena_room=${match.roomCode}`;
+    try {
+      await navigator.clipboard.writeText(
+        `⚔️ Join my ByteSized Coding Arena room (Code: ${match.roomCode}): ${inviteUrl}`
+      );
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    } catch {
+      // ignore
+    }
+
+    sound.playSuccess();
+  };
+
+  // 4. Join Custom Room via 6-digit Code
+  const handleJoinWithCode = async (customCode?: string) => {
+    const code = (customCode || roomCodeInput).trim().toUpperCase();
+    if (!code) {
+      setJoinRoomError('Please enter a 6-character room code.');
+      return;
+    }
+
+    setJoinRoomError(null);
+    sound.playClick();
+
+    const foundRoom = await getCustomArenaRoom(code);
+    if (!foundRoom) {
+      sound.playError();
+      setJoinRoomError(`Room "${code}" not found. Verify the room code with your friend.`);
+      return;
+    }
+
+    // Set configuration from the room
+    setSelectedMode(foundRoom.mode);
+    setSelectedQuestionIds(foundRoom.selectedQuestionIds);
+    setTimeLeftSeconds(foundRoom.timeLimitSeconds);
+
+    const guestPlayer: ArenaPlayer = {
+      id: state.authUser?.id || 'guest-user',
+      name: state.authUser?.username || state.authUser?.displayName || 'You',
+      avatar: state.authUser?.avatarUrl,
+      score: 0,
+      currentQuestionIndex: 0,
+      solvedQuestionIds: []
+    };
+
+    const match: ArenaMatch = {
+      ...foundRoom,
+      opponent: {
+        id: foundRoom.host.id,
+        name: foundRoom.host.name,
+        avatar: foundRoom.host.avatar,
+        score: 0,
+        currentQuestionIndex: 0,
+        solvedQuestionIds: []
+      },
+      host: guestPlayer,
+      status: 'in_progress',
+      startedAt: Date.now(),
+      expiresAt: Date.now() + foundRoom.timeLimitSeconds * 1000
+    };
+
+    sound.playSuccess();
+    fireSuccessConfetti();
+    startMatchWithData(match);
   };
 
   // Timer expiration
@@ -695,33 +916,347 @@ export const CodingArenaModal: React.FC<Props> = ({
                 </div>
               )}
 
-              {/* Step 3: Matchmaking / Opponent Type */}
-              <div className="p-4 sm:p-5 rounded-3xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
-                    <Users className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200">
-                      Matchmaking Mode
-                    </h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Instantly pair with an active online coder or bot simulation
-                    </p>
-                  </div>
+              {/* Step 3: Matchmaking / Opponent Type & Friend Invitation */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                    Step 3: Choose Opponent &amp; Invite Friends
+                  </h3>
+                  {inviteToast && (
+                    <span className="text-[11px] font-bold text-emerald-400 animate-fadeIn">
+                      {inviteToast}
+                    </span>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/* Opponent Selection Tabs */}
+                <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
                   <button
                     type="button"
-                    onClick={handleStartMatch}
-                    disabled={selectedMode === 'takedown' && selectedQuestionIds.length === 0}
-                    className="btn-3d btn-3d-primary px-6 py-3 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-lg"
+                    onClick={() => {
+                      sound.playClick();
+                      setOpponentChoice('bot');
+                    }}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                      opponentChoice === 'bot'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
                   >
-                    <Play className="w-4 h-4 fill-current" />
-                    <span>Enter Battle Arena Now</span>
+                    <span>🤖 Instant Quick Match</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setOpponentChoice('friend');
+                    }}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                      opponentChoice === 'friend'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>👥 Invite &amp; Challenge Friend</span>
+                    {friendsList.length > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-purple-400 text-slate-950">
+                        {friendsList.length}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setOpponentChoice('room');
+                    }}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                      opponentChoice === 'room'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Key className="w-3.5 h-3.5" />
+                    <span>🔑 Join with Code</span>
                   </button>
                 </div>
+
+                {/* TAB 1: QUICK MATCH */}
+                {opponentChoice === 'bot' && (
+                  <div className="p-4 sm:p-5 rounded-3xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fadeIn">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                        <Users className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200">
+                          Instant Matchmaking
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Instantly duel an online challenger from the global rankings with live simulated progress
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleStartQuickMatch}
+                      disabled={selectedMode === 'takedown' && selectedQuestionIds.length === 0}
+                      className="btn-3d btn-3d-primary px-6 py-3 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-lg shrink-0"
+                    >
+                      <Play className="w-4 h-4 fill-current" />
+                      <span>Start Instant Match</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* TAB 2: INVITE & CHALLENGE FRIEND */}
+                {opponentChoice === 'friend' && (
+                  <div className="space-y-4 animate-fadeIn">
+                    {/* Notice & Private Room Code Generator */}
+                    <div className="p-4 rounded-3xl bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-transparent border border-purple-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-xs font-black uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Custom Match Room Link</span>
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          Generate a private 6-character room code and share the link with any friend on WhatsApp or Discord!
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {customRoomCreated ? (
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-black text-sm px-3 py-1.5 rounded-xl bg-purple-500 text-white shadow-sm">
+                              {customRoomCreated.roomCode}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const url = `${window.location.origin}${window.location.pathname}?arena_room=${customRoomCreated.roomCode}`;
+                                navigator.clipboard.writeText(`⚔️ Join my Coding Arena match (Code: ${customRoomCreated.roomCode}): ${url}`);
+                                sound.playClick();
+                                setCopiedCode(true);
+                                setTimeout(() => setCopiedCode(false), 2000);
+                              }}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700 flex items-center gap-1 cursor-pointer"
+                            >
+                              {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                              <span>{copiedCode ? 'Copied!' : 'Copy Link'}</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleCreateCustomRoomOnly}
+                            disabled={selectedMode === 'takedown' && selectedQuestionIds.length === 0}
+                            className="px-4 py-2 rounded-xl text-xs font-black bg-purple-600 hover:bg-purple-500 text-white transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                          >
+                            <Key className="w-3.5 h-3.5" />
+                            <span>Create Private Room Code</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Friend Search Bar */}
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={friendSearchQuery}
+                        onChange={e => setFriendSearchQuery(e.target.value)}
+                        placeholder="Search friend by unique @username to invite..."
+                        className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-brand-primary"
+                      />
+                      {friendSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setFriendSearchQuery('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Search Results (if searching) */}
+                    {friendSearchQuery.trim().length >= 2 && (
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          Search Results ({searchedUsers.length}):
+                        </span>
+                        {searchingUsers ? (
+                          <div className="py-4 text-center text-xs text-slate-400 font-bold">
+                            Searching learners...
+                          </div>
+                        ) : searchedUsers.length === 0 ? (
+                          <div className="py-4 text-center text-xs text-slate-400 font-bold">
+                            No learner found with username matching &quot;{friendSearchQuery}&quot;
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {searchedUsers.map(user => (
+                              <div
+                                key={user.id}
+                                className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shadow-xs"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <img
+                                    src={user.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.id}`}
+                                    alt={user.username}
+                                    className="w-8 h-8 rounded-xl bg-slate-800 shrink-0 object-cover"
+                                  />
+                                  <div className="min-w-0">
+                                    <h5 className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">
+                                      {user.displayName || user.username}
+                                    </h5>
+                                    <span className="text-[10px] font-mono text-purple-400 block truncate">
+                                      @{user.username}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleInviteFriend(user)}
+                                  disabled={selectedMode === 'takedown' && selectedQuestionIds.length === 0}
+                                  className="btn-3d btn-3d-primary px-3 py-1.5 rounded-xl text-xs font-black uppercase flex items-center gap-1 cursor-pointer shrink-0"
+                                >
+                                  <Swords className="w-3 h-3" />
+                                  <span>Challenge</span>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Saved Friends List */}
+                    {friendSearchQuery.trim().length < 2 && (
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          Your Friends List ({friendsList.length}):
+                        </span>
+
+                        {loadingFriends ? (
+                          <div className="py-6 text-center text-xs text-slate-400 font-bold">
+                            Loading your friends...
+                          </div>
+                        ) : friendsList.length === 0 ? (
+                          <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-center space-y-2">
+                            <Users className="w-8 h-8 mx-auto text-slate-400 opacity-60" />
+                            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                              You haven&apos;t added any friends yet. Use the search box above to find friends by their @username, or share a private room code!
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-56 overflow-y-auto p-1">
+                            {friendsList.map(friend => (
+                              <div
+                                key={friend.id}
+                                className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shadow-xs hover:border-purple-500/50 transition-all"
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="relative shrink-0">
+                                    <img
+                                      src={friend.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${friend.id}`}
+                                      alt={friend.username}
+                                      className="w-9 h-9 rounded-xl bg-slate-800 object-cover"
+                                    />
+                                    <span
+                                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-1 ring-white dark:ring-slate-900 ${
+                                        friend.activeStatus === 'online' ? 'bg-emerald-500' : 'bg-slate-400'
+                                      }`}
+                                    />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h5 className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">
+                                      {friend.displayName || friend.username}
+                                    </h5>
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                      <span className="text-[10px] font-mono text-purple-400 truncate">
+                                        @{friend.username}
+                                      </span>
+                                      {friend.streak ? (
+                                        <span className="text-[9px] font-bold text-amber-500 flex items-center">
+                                          <Flame className="w-2.5 h-2.5 fill-current" />
+                                          {friend.streak}d
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleInviteFriend(friend)}
+                                  disabled={selectedMode === 'takedown' && selectedQuestionIds.length === 0}
+                                  className="btn-3d btn-3d-primary px-3 py-1.5 rounded-xl text-xs font-black uppercase flex items-center gap-1 cursor-pointer shrink-0 shadow-xs"
+                                  title="Invite to custom match"
+                                >
+                                  <Swords className="w-3 h-3" />
+                                  <span>Duel</span>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* TAB 3: JOIN WITH ROOM CODE */}
+                {opponentChoice === 'room' && (
+                  <div className="p-5 rounded-3xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-4 animate-fadeIn">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                        <Key className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200">
+                          Join Friend&apos;s Private Room
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Enter the 6-character room code shared by your friend to jump into their custom duel
+                        </p>
+                      </div>
+                    </div>
+
+                    {joinRoomError && (
+                      <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-500 text-xs font-bold flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <span>{joinRoomError}</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-3 max-w-md">
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={roomCodeInput}
+                        onChange={e => setRoomCodeInput(e.target.value.toUpperCase())}
+                        placeholder="e.g. BYTE7X"
+                        className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-sm font-black tracking-widest text-slate-800 dark:text-slate-100 uppercase focus:outline-none focus:border-brand-primary"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => handleJoinWithCode()}
+                        className="btn-3d btn-3d-green px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shrink-0 shadow-md"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>Join Battle</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
