@@ -44,7 +44,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onOpenCodeZone?: (code?: string, lang?: CodeLanguage) => void;
-  onOpenAuth?: (tab?: 'login' | 'register') => void;
+  onOpenAuth?: (tab?: 'login' | 'register' | 'forgot' | 'update-password') => void;
 }
 
 const STORAGE_KEY = 'bytesized_chat_messages_v1';

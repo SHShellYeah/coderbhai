@@ -36,7 +36,7 @@ interface Props {
   onOpenArena?: () => void;
   onOpenQuestionBank?: () => void;
   onOpenTraining?: () => void;
-  onOpenAuth?: (tab?: 'login' | 'register') => void;
+  onOpenAuth?: (tab?: 'login' | 'register' | 'forgot' | 'update-password') => void;
 }
 
 export const LeftSidebar: React.FC<Props> = ({

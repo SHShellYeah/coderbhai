@@ -39,7 +39,19 @@ const MainApp: React.FC = () => {
   const [isTrainingOpen, setIsTrainingOpen] = useState<boolean>(false);
   const [trainingInitialProblemId, setTrainingInitialProblemId] = useState<string | undefined>(undefined);
   const [arenaInitialChallenge, setArenaInitialChallenge] = useState<ArenaChallenge | null>(null);
-  const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('register');
+  const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register' | 'forgot' | 'update-password'>('register');
+
+  // Check for password recovery link in URL params or hash and auto-launch AuthModal in update-password mode
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash || '';
+      const search = window.location.search || '';
+      if (hash.includes('type=recovery') || search.includes('type=recovery')) {
+        setAuthInitialTab('update-password');
+        setIsAuthOpen(true);
+      }
+    }
+  }, []);
   const [codeZoneSnippet, setCodeZoneSnippet] = useState<{ code: string; language: CodeLanguage } | undefined>();
   const [ideaZoneSeedNote, setIdeaZoneSeedNote] = useState<{
     title: string;

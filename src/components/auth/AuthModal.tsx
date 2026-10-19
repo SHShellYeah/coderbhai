@@ -3,7 +3,15 @@ import { useGame } from '../../context/GameContext';
 import { supabase, isEduEmail } from '../../lib/supabase';
 import { sound } from '../../utils/audio';
 import { fireSuccessConfetti } from '../../utils/confetti';
-import { ADMIN_SECRET_CODE, saveUserProfile, uploadAvatarImage, checkUsernameAvailability } from '../../services/authService';
+import {
+  ADMIN_SECRET_CODE,
+  saveUserProfile,
+  uploadAvatarImage,
+  checkUsernameAvailability,
+  sendPasswordResetEmail,
+  verifyRecoveryOtp,
+  updateUserPassword
+} from '../../services/authService';
 import { UserRole, UserActiveStatus } from '../../types';
 import {
   X,
@@ -54,7 +62,7 @@ const STATUS_CONFIG: Record<UserActiveStatus, { label: string; dot: string; bg: 
 
 interface Props {
   isOpen: boolean;
-  initialTab?: 'login' | 'register';
+  initialTab?: 'login' | 'register' | 'forgot' | 'update-password';
   onClose: () => void;
   onOpenMessaging?: () => void;
 }
@@ -63,12 +71,22 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
   const { state, login, register, logout, syncCloudProgress, updateProfile, promoteToAdmin, demoteToUser } = useGame();
 
   // Default to 'login' (Sign In) so users immediately see Sign In form
-  const [tab, setTab] = useState<'register' | 'login'>(initialTab);
+  const [tab, setTab] = useState<'register' | 'login' | 'forgot' | 'update-password'>(initialTab);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('user');
   const [adminSecretPassword, setAdminSecretPassword] = useState('');
+
+  // Password recovery states
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetOtp, setResetOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [isSendingReset, setIsSendingReset] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [resetSentSuccess, setResetSentSuccess] = useState(false);
+  const [showOtpInput, setShowOtpInput] = useState(false);
 
   // Logged-in profile editing state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -153,6 +171,8 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
       setErrorMsg(null);
       setSuccessMsg(null);
       setIsEditingProfile(false);
+      setResetSentSuccess(false);
+      setShowOtpInput(false);
       if (state.authUser) {
         setEditDisplayName(state.authUser.displayName || '');
         setEditBio(state.bio || state.authUser.bio || '');
@@ -161,6 +181,31 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
       }
     }
   }, [isOpen, initialTab, state.authUser, state.bio, state.activeStatus]);
+
+  // Listen for Supabase password recovery redirection
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash || '';
+      const search = window.location.search || '';
+      if (hash.includes('type=recovery') || search.includes('type=recovery')) {
+        setTab('update-password');
+        setErrorMsg(null);
+        setSuccessMsg('Account recovery verified! Please set your new password below.');
+      }
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setTab('update-password');
+        setErrorMsg(null);
+        setSuccessMsg('Account recovery verified! Please set your new password below.');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const isEduDetected = useMemo(() => isEduEmail(email), [email]);
 
@@ -371,6 +416,107 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
       setSuccessMsg('🎉 Profile & Bio updated successfully!');
       setIsEditingProfile(false);
       setTimeout(() => setSuccessMsg(null), 3500);
+    }
+  };
+
+  // 1. Send password reset link to user email
+  const handleSendReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = (resetEmail.trim() || email.trim()).toLowerCase();
+    if (!cleanEmail) {
+      setErrorMsg('Please enter your account email address.');
+      sound.playError();
+      return;
+    }
+
+    setIsSendingReset(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    sound.playClick();
+
+    const res = await sendPasswordResetEmail(cleanEmail);
+    setIsSendingReset(false);
+
+    if (res.success) {
+      sound.playSuccess();
+      setResetSentSuccess(true);
+      setSuccessMsg(`Password reset instructions sent to ${cleanEmail}! Please check your email inbox (and spam folder) to reset your password.`);
+    } else {
+      sound.playError();
+      setErrorMsg(res.error || 'Failed to send password reset email. Please verify your address and try again.');
+    }
+  };
+
+  // 2. Verify 6-digit OTP code if user has one
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = (resetEmail.trim() || email.trim()).toLowerCase();
+    const cleanOtp = resetOtp.trim();
+
+    if (!cleanEmail) {
+      setErrorMsg('Please enter your account email address.');
+      sound.playError();
+      return;
+    }
+    if (!cleanOtp) {
+      setErrorMsg('Please enter the 6-digit recovery code.');
+      sound.playError();
+      return;
+    }
+
+    setIsSendingReset(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    sound.playClick();
+
+    const res = await verifyRecoveryOtp(cleanEmail, cleanOtp);
+    setIsSendingReset(false);
+
+    if (res.success) {
+      sound.playSuccess();
+      setTab('update-password');
+      setSuccessMsg('Recovery code verified! Please set your new password below.');
+    } else {
+      sound.playError();
+      setErrorMsg(res.error || 'Invalid or expired recovery code. Please try again.');
+    }
+  };
+
+  // 3. Set and save the new password
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      setErrorMsg('New password must be at least 6 characters.');
+      sound.playError();
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setErrorMsg('Passwords do not match. Please verify and retype.');
+      sound.playError();
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    sound.playClick();
+
+    const res = await updateUserPassword(newPassword);
+    setIsUpdatingPassword(false);
+
+    if (res.success) {
+      sound.playSuccess();
+      fireSuccessConfetti();
+      setSuccessMsg('🎉 Password reset successfully! You can now sign in with your new password.');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setTimeout(() => {
+        setTab('login');
+        setSuccessMsg(null);
+      }, 2200);
+    } else {
+      sound.playError();
+      setErrorMsg(res.error || 'Failed to update password. Your recovery session may have expired.');
     }
   };
 
@@ -1038,6 +1184,280 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
             </div>
           </div>
         )
+      ) : tab === 'forgot' ? (
+          /* FORGOT PASSWORD VIEW */
+          <div className="p-5 sm:p-6 space-y-4 animate-fadeIn text-left">
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setTab('login');
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-black text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Sign In</span>
+            </button>
+
+            <div className="text-center space-y-1.5 pt-1">
+              <div className="w-14 h-14 mx-auto rounded-3xl bg-amber-500/15 text-amber-500 flex items-center justify-center shadow-inner">
+                <KeyRound className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 dark:text-slate-100">
+                Reset Your Password
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                Enter your registered account email and we&apos;ll send you a password recovery link to restore access.
+              </p>
+            </div>
+
+            {/* Error & Success Alerts */}
+            {errorMsg && (
+              <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-2 animate-shake">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {successMsg && (
+              <div className="p-3.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-start gap-2.5 animate-slideUp">
+                <CheckCircle2 className="w-4.5 h-4.5 text-emerald-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p>{successMsg}</p>
+                  <p className="text-[11px] text-emerald-400/80 font-normal">
+                    Click the recovery link in your email to open the password reset form directly, or enter your 6-digit OTP code below.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!showOtpInput ? (
+              <form onSubmit={handleSendReset} className="space-y-3.5">
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                    Registered Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                    <input
+                      type="email"
+                      required
+                      value={resetEmail || email}
+                      onChange={e => {
+                        setResetEmail(e.target.value);
+                        setEmail(e.target.value);
+                      }}
+                      placeholder="you@example.com"
+                      className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-brand-primary"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSendingReset}
+                  className="btn-3d btn-3d-primary w-full py-3 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg mt-2"
+                >
+                  {isSendingReset ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Sending Reset Link...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-4 h-4" />
+                      <span>Send Password Reset Link</span>
+                    </>
+                  )}
+                </button>
+
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setShowOtpInput(true);
+                      setErrorMsg(null);
+                    }}
+                    className="text-xs font-bold text-amber-500 hover:text-amber-400 hover:underline cursor-pointer"
+                  >
+                    Have a 6-digit recovery code? Enter it here →
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOtp} className="space-y-3.5">
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                    Account Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                    <input
+                      type="email"
+                      required
+                      value={resetEmail || email}
+                      onChange={e => {
+                        setResetEmail(e.target.value);
+                        setEmail(e.target.value);
+                      }}
+                      placeholder="you@example.com"
+                      className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-brand-primary"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                    6-Digit Recovery Code / Token
+                  </label>
+                  <div className="relative">
+                    <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                    <input
+                      type="text"
+                      required
+                      value={resetOtp}
+                      onChange={e => setResetOtp(e.target.value)}
+                      placeholder="e.g. 123456"
+                      className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-mono font-bold tracking-widest text-slate-800 dark:text-white focus:outline-none focus:border-brand-primary"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSendingReset}
+                  className="btn-3d btn-3d-primary w-full py-3 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg mt-2"
+                >
+                  {isSendingReset ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Verifying Code...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Verify Code &amp; Set New Password</span>
+                    </>
+                  )}
+                </button>
+
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setShowOtpInput(false);
+                      setErrorMsg(null);
+                    }}
+                    className="text-xs font-bold text-slate-400 hover:text-slate-200 hover:underline cursor-pointer"
+                  >
+                    ← Back to Email Reset Link
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+      ) : tab === 'update-password' ? (
+          /* SET NEW PASSWORD VIEW */
+          <div className="p-5 sm:p-6 space-y-4 animate-fadeIn text-left">
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setTab('login');
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-black text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Sign In</span>
+            </button>
+
+            <div className="text-center space-y-1.5 pt-1">
+              <div className="w-14 h-14 mx-auto rounded-3xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shadow-inner">
+                <ShieldCheck className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 dark:text-slate-100">
+                Set New Password
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                Create a strong, new password for your ByteSized account credentials.
+              </p>
+            </div>
+
+            {/* Error & Success Alerts */}
+            {errorMsg && (
+              <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-2 animate-shake">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {successMsg && (
+              <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-2 animate-bounceShort">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{successMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSetNewPassword} className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                  New Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                  <input
+                    type="password"
+                    required
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    placeholder="Enter new password (at least 6 characters)"
+                    className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-brand-primary"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                  Confirm New Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                  <input
+                    type="password"
+                    required
+                    value={confirmNewPassword}
+                    onChange={e => setConfirmNewPassword(e.target.value)}
+                    placeholder="Re-type new password to confirm"
+                    className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-slate-800 dark:text-white focus:outline-none focus:border-brand-primary"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isUpdatingPassword}
+                className="btn-3d btn-3d-primary w-full py-3.5 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg mt-2"
+              >
+                {isUpdatingPassword ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Updating Password...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Save &amp; Update Password</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
       ) : (
           <div className="p-5 sm:p-6 space-y-4">
             {/* Mode Switcher Tabs */}
@@ -1259,9 +1679,26 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
                   <label className="text-[11px] font-black uppercase tracking-wider text-slate-400">
                     {tab === 'register' ? 'Account Password' : 'Password'}
                   </label>
-                  <span className="text-[10px] text-slate-500">
-                    {selectedRole === 'user' ? 'Save any password' : 'Your login credentials'}
-                  </span>
+                  {tab === 'login' ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sound.playClick();
+                        setResetEmail(email.trim());
+                        setTab('forgot');
+                        setErrorMsg(null);
+                        setSuccessMsg(null);
+                        setResetSentSuccess(false);
+                      }}
+                      className="text-[11px] font-bold text-brand-primary hover:underline cursor-pointer"
+                    >
+                      Forgot password?
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-slate-500">
+                      {selectedRole === 'user' ? 'Save any password' : 'Your login credentials'}
+                    </span>
+                  )}
                 </div>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />

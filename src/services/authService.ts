@@ -1092,3 +1092,100 @@ export const removeFriend = async (
   }
 };
 
+/**
+ * 4l. Send password reset email via Supabase Auth
+ */
+export const sendPasswordResetEmail = async (
+  email: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail) {
+      return { success: false, error: 'Please enter your account email address.' };
+    }
+
+    const redirectUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}/?type=recovery`
+      : 'http://localhost:5173/?type=recovery';
+
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo: redirectUrl,
+    });
+
+    if (error) {
+      console.warn('[Supabase] resetPasswordForEmail error:', error.message);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: (err as Error).message || 'Failed to send password reset request.',
+    };
+  }
+};
+
+/**
+ * 4m. Verify recovery token or 6-digit OTP
+ */
+export const verifyRecoveryOtp = async (
+  email: string,
+  token: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanToken = (token || '').trim();
+
+    if (!cleanEmail || !cleanToken) {
+      return { success: false, error: 'Please provide both your account email and the recovery code.' };
+    }
+
+    const { error } = await supabase.auth.verifyOtp({
+      email: cleanEmail,
+      token: cleanToken,
+      type: 'recovery',
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: (err as Error).message || 'Invalid or expired recovery code.',
+    };
+  }
+};
+
+/**
+ * 4n. Update user password
+ */
+export const updateUserPassword = async (
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'New password must be at least 6 characters.' };
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      console.warn('[Supabase] updateUser password error:', error.message);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: (err as Error).message || 'Failed to update account password.',
+    };
+  }
+};
+
