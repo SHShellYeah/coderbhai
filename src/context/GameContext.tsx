@@ -263,6 +263,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }));
           }
         });
+      } else {
+        // No active Supabase session - reset authUser to ensure guests cannot message
+        setState(prev => ({
+          ...prev,
+          authUser: null,
+          role: 'user',
+        }));
       }
     });
 

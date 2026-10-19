@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
 import { useTranslation } from './data/translations';
+import { sound } from './utils/audio';
 import { LessonNode, CodeLanguage } from './types';
 import { TopBar } from './components/navigation/TopBar';
 import { WindingPath } from './components/path/WindingPath';
@@ -46,6 +47,16 @@ const MainApp: React.FC = () => {
     }
   }, [state.activeCourseId, state.courseProgress]);
 
+  const handleOpenMessaging = () => {
+    if (!state.authUser) {
+      sound.playError();
+      setAuthInitialTab('login');
+      setIsAuthOpen(true);
+      return;
+    }
+    setIsMessagingOpen(true);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0B0F19] text-slate-800 dark:text-slate-100 transition-colors w-full max-w-full overflow-x-hidden">
       {/* Top Stats & Course Bar */}
@@ -65,83 +76,84 @@ const MainApp: React.FC = () => {
           setAuthInitialTab(tab);
           setIsAuthOpen(true);
         }}
-        onOpenMessaging={() => setIsMessagingOpen(true)}
+        onOpenMessaging={handleOpenMessaging}
       />
 
       {/* Main Content Area */}
       <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col lg:flex-row justify-center pb-20 lg:pb-8">
         {/* Mobile View Switching Tabs - Complete Feature Access on Mobile */}
-        <div className="lg:hidden flex items-center justify-around border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111827] py-2 px-1.5 sticky top-16 z-20 w-full overflow-x-auto gap-1">
+        <div className="lg:hidden flex items-center justify-around border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md py-2 px-2 sticky top-[57px] sm:top-[65px] z-20 w-full overflow-x-auto gap-1 scrollbar-none shadow-xs">
           <button
             type="button"
             onClick={() => setMobileTab('learn')}
-            className={`flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
               mobileTab === 'learn'
-                ? 'bg-brand-primary text-white shadow-md'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                ? 'bg-brand-primary text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
             }`}
           >
             <Map className="w-3.5 h-3.5" />
-            {t.learn}
+            <span>{t.learn}</span>
           </button>
           <button
             type="button"
             onClick={() => setMobileTab('practice')}
-            className={`flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
               mobileTab === 'practice'
-                ? 'bg-brand-purple text-white shadow-md'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                ? 'bg-brand-primary text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
             }`}
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            {t.practice}
+            <span>{t.practice}</span>
           </button>
           <button
             type="button"
             onClick={() => setMobileTab('quests')}
-            className={`flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
               mobileTab === 'quests'
-                ? 'bg-brand-gold text-amber-950 shadow-md'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                ? 'bg-brand-primary text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
             }`}
           >
             <Target className="w-3.5 h-3.5" />
-            {t.quests}
+            <span>{t.quests}</span>
           </button>
           <button
             type="button"
             onClick={() => setMobileTab('leaderboard')}
-            className={`flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
               mobileTab === 'leaderboard'
-                ? 'bg-amber-500 text-white shadow-md'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                ? 'bg-brand-primary text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
             }`}
           >
             <Trophy className="w-3.5 h-3.5" />
-            {t.rankings}
+            <span>{t.rankings}</span>
           </button>
           <button
             type="button"
             onClick={() => setMobileTab('settings')}
-            className={`flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
               mobileTab === 'settings'
-                ? 'bg-brand-accent text-white shadow-md'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700'
+                ? 'bg-brand-primary text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
             }`}
           >
             <Settings className="w-3.5 h-3.5" />
-            {t.themes}
+            <span>{t.themes}</span>
           </button>
+          <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 shrink-0 mx-0.5" />
           <button
             type="button"
             onClick={() => {
               setIdeaZoneSeedNote(undefined);
               setIsIdeaZoneOpen(true);
             }}
-            className="flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+            className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/30"
           >
             <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-            {t.ideaZone || 'IdeaZone'}
+            <span>{t.ideaZone || 'IdeaZone'}</span>
           </button>
           <button
             type="button"
@@ -149,15 +161,15 @@ const MainApp: React.FC = () => {
               setCodeZoneSnippet(undefined);
               setIsCodeZoneOpen(true);
             }}
-            className="flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+            className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/30"
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-500" />
-            {t.codeZone || 'CodeZone'}
+            <span>{t.codeZone || 'CodeZone'}</span>
           </button>
           <button
             type="button"
-            onClick={() => setIsMessagingOpen(true)}
-            className="flex items-center gap-1 text-[11px] font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30"
+            onClick={handleOpenMessaging}
+            className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 border border-indigo-500/30"
           >
             <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
             <span>Chat</span>
@@ -198,7 +210,7 @@ const MainApp: React.FC = () => {
               setAuthInitialTab(tab);
               setIsAuthOpen(true);
             }}
-            onOpenMessaging={() => setIsMessagingOpen(true)}
+            onOpenMessaging={handleOpenMessaging}
             filter={mobileTab === 'learn' ? 'all' : mobileTab}
           />
         </div>

@@ -90,8 +90,10 @@ class TextToSpeechService {
     let clean = rawText
       // Remove multi-line code blocks
       .replace(/```[\s\S]*?```/g, ' কোড অংশ দেখে নাও ')
-      // Remove repeated parenthetical English name like "নিয়ান (Nyan)" -> "নিয়ান"
-      .replace(/নিয়ান\s*\([^\)]*Nyan[^\)]*\)/gi, 'নিয়ান')
+      // Remove repeated parenthetical English name like "বাইট (Byte)" -> "বাইট"
+      .replace(/বাইট\s*\([^\)]*Byte[^\)]*\)/gi, 'বাইট')
+      .replace(/\([^\)]*Byte[^\)]*\)/gi, '')
+      .replace(/নিয়ান\s*\([^\)]*Nyan[^\)]*\)/gi, 'বাইট')
       .replace(/\([^\)]*Nyan[^\)]*\)/gi, '')
       // Transcribe English/C++ terms into natural Bengali phonetics
       .replace(/\bC\+\+/g, 'সি প্লাস প্লাস')
@@ -105,7 +107,8 @@ class TextToSpeechService {
       .replace(/\bstd::\b/g, 'স্ট্যান্ডার্ড ')
       .replace(/\bint\b/g, 'ইন্ট')
       .replace(/\bmain\(\)/g, 'মেইন ফাংশন')
-      .replace(/\bNyan\b/g, 'নিয়ান')
+      .replace(/\bByte\b/g, 'বাইট')
+      .replace(/\bNyan\b/g, 'বাইট')
       // Inline code quotes `xyz` -> xyz
       .replace(/`([^`]+)`/g, '$1')
       // Markdown formatting: bold, italic, headings

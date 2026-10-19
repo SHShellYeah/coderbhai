@@ -442,10 +442,14 @@ export const TopBar: React.FC<Props> = ({
                 onOpenMessaging();
               }}
               className="relative p-1 sm:p-2 rounded-xl text-indigo-500 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors cursor-pointer shrink-0"
-              title="Community Chat & Code Share"
+              title={state.authUser ? "Community Chat & Code Share" : "Community Chat (Sign In Required)"}
             >
               <MessageSquare className="w-4.5 sm:w-5 h-4.5 sm:h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              {state.authUser ? (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              ) : (
+                <span className="absolute -top-0.5 -right-0.5 text-[10px]">🔒</span>
+              )}
             </button>
           )}
 
@@ -460,7 +464,7 @@ export const TopBar: React.FC<Props> = ({
                     onOpenAuth('login');
                   }}
                   className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 shadow-sm shrink-0"
-                  title={`Account: ${state.authUser.displayName || state.authUser.email} (Status: ${state.activeStatus || 'online'})`}
+                  title={`Account: ${state.authUser.username ? `@${state.authUser.username}` : (state.authUser.displayName || state.authUser.email)} (Status: ${state.activeStatus || 'online'})`}
                 >
                   <div className="relative shrink-0">
                     <img
@@ -485,7 +489,7 @@ export const TopBar: React.FC<Props> = ({
                     )}
                   </div>
                   <span className="inline-block font-bold text-xs truncate max-w-[70px] xs:max-w-[95px] sm:max-w-[120px] md:max-w-[150px] lg:max-w-[180px]">
-                    {state.authUser.displayName || state.authUser.email.split('@')[0]}
+                    {state.authUser.username ? `@${state.authUser.username}` : (state.authUser.displayName || state.authUser.email.split('@')[0])}
                   </span>
                   {isAdmin ? (
                     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-sm border border-amber-300 shrink-0">

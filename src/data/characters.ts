@@ -3,7 +3,7 @@ import { Character, CharacterId } from '../types';
 export const CHARACTERS: Record<CharacterId, Character> = {
   byte: {
     id: 'byte',
-    name: 'Nyan',
+    name: 'Byte',
     title: 'Lead Code Companion & Black Cat Hacker',
     avatar: '🐾',
     role: 'Your clever black cat companion who prowls through tricky CS syntax and makes code purrfect.',

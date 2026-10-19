@@ -2602,7 +2602,7 @@ export const COURSES: Record<CourseId, Course> = {
                 {
                   "characterId": "byte",
                   "characterMood": "teaching",
-                  "speech": "Hey coder! 🐈‍⬛ I'm Nyan, your black cat coding companion. Welcome to C++!\n\nBefore we quiz you on anything, let's learn how to actually make the computer talk to the screen. In C++, we do this using a command called std::cout (pronounced 'see-out')!",
+                  "speech": "Hey coder! 🐈‍⬛ I'm Byte, your black cat coding companion. Welcome to C++!\n\nBefore we quiz you on anything, let's learn how to actually make the computer talk to the screen. In C++, we do this using a command called std::cout (pronounced 'see-out')!",
                   "codeSnippet": "std::cout << \"Hello, World!\" << std::endl;"
                 },
                 {
@@ -2639,7 +2639,7 @@ export const COURSES: Record<CourseId, Course> = {
                 {
                   "characterId": "junior",
                   "characterMood": "thinking",
-                  "speech": "Wait Nyan! 🧢 Why are the arrows pointing to the left (<<) instead of to the right?",
+                  "speech": "Wait Byte! 🧢 Why are the arrows pointing to the left (<<) instead of to the right?",
                   "anatomy": [
                     {
                       "token": "std::cout << \"Data\"",

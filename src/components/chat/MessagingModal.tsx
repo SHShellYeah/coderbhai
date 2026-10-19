@@ -587,10 +587,75 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-fade">
       <div className="w-full h-full sm:h-[88vh] max-w-4xl bg-white dark:bg-[#0B0F19] sm:border-2 border-slate-200 dark:border-slate-800 rounded-none sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-800 dark:text-slate-100 relative">
         
-        {/* =====================================================================
-            TOP CHAT HEADER BAR - ALWAYS CONTAINS A UNMISSABLE CLOSE BUTTON
-            ===================================================================== */}
-        <div className="px-3.5 py-2.5 sm:px-5 sm:py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-[#111827] z-10 shrink-0">
+        {!state.authUser ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-10 text-center relative overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-[#0B0F19] dark:via-[#0E1526] dark:to-[#0B0F19]">
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute top-4 right-4 p-2.5 rounded-2xl bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Glowing Icon & Lock Badge */}
+            <div className="relative mb-6">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-4xl shadow-xl shadow-indigo-500/25 ring-4 ring-indigo-500/20">
+                🐱
+              </div>
+              <div className="absolute -bottom-2 -right-2 w-9 h-9 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-900">
+                <Lock className="w-4 h-4 stroke-[2.5]" />
+              </div>
+            </div>
+
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-black uppercase tracking-wider mb-3">
+              <Shield className="w-3.5 h-3.5" />
+              <span>Members Only Community</span>
+            </div>
+
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white max-w-md leading-tight">
+              Sign In Required to Access Community Chat
+            </h2>
+
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mt-2.5 leading-relaxed">
+              Anonymous messaging is completely turned off to keep our learning community clean, safe, and helpful. Sign in or register your unique @username to chat, ask DSA questions, and share code.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3 mt-7 w-full max-w-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  onClose();
+                  if (onOpenAuth) onOpenAuth('login');
+                }}
+                className="w-full py-3 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs sm:text-sm shadow-lg shadow-indigo-600/30 transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
+              >
+                <UserIcon className="w-4 h-4" />
+                <span>Sign In</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sound.playClick();
+                  onClose();
+                  if (onOpenAuth) onOpenAuth('register');
+                }}
+                className="w-full py-3 px-5 rounded-2xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-black text-xs sm:text-sm transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>Register Account</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* =====================================================================
+                TOP CHAT HEADER BAR - ALWAYS CONTAINS A UNMISSABLE CLOSE BUTTON
+                ===================================================================== */}
+            <div className="px-3.5 py-2.5 sm:px-5 sm:py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-[#111827] z-10 shrink-0">
           
           {/* Left Side: Channel / View Info */}
           <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden pr-2">
@@ -1491,6 +1556,8 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
     </div>
   );

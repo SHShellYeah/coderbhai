@@ -24,7 +24,8 @@ import {
   User,
   Cloud,
   Crown,
-  MessageSquare
+  MessageSquare,
+  Lock
 } from 'lucide-react';
 
 interface Props {
@@ -303,10 +304,17 @@ export const RightSidebar: React.FC<Props> = ({
                 <span className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">
                   Community Chat
                 </span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                {state.authUser ? (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                ) : (
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-500 font-bold uppercase tracking-wider shrink-0 flex items-center gap-0.5">
+                    <Lock className="w-2.5 h-2.5" />
+                    <span>Sign In</span>
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
-                Live discussion, DSA &amp; code share
+                {state.authUser ? 'Live discussion, DSA & code share' : 'Members only • Sign in to chat & share code'}
               </p>
             </div>
           </div>
