@@ -36,7 +36,7 @@ interface Props {
   onOpenCodeZone?: () => void;
   onOpenMessaging?: () => void;
   onOpenArena?: () => void;
-  onOpenSpeedTraining?: () => void;
+  onOpenSpeedTraining?: (tab?: 'hub' | 'timed-training') => void;
   onOpenQuestionBank?: () => void;
   onOpenTraining?: () => void;
   onOpenRoadmap?: (roadmapId: DsaRoadmapId) => void;
@@ -297,25 +297,6 @@ export const LeftSidebar: React.FC<Props> = ({
           </button>
         )}
 
-        {/* Existing Personal Best Training */}
-        {onOpenTraining && (
-          <button
-            type="button"
-            onClick={() => {
-              sound.playClick();
-              onOpenTraining();
-            }}
-            className="w-full px-3 py-2 rounded-2xl text-xs font-black transition-all flex items-center justify-between text-amber-500 dark:text-amber-400 hover:bg-amber-500/10 cursor-pointer group"
-          >
-            <div className="flex items-center gap-3">
-              <Zap className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
-              <span>Personal Best Training</span>
-            </div>
-            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-              PBs
-            </span>
-          </button>
-        )}
 
         {/* Unified Speed Training Hub */}
         {onOpenSpeedTraining && (

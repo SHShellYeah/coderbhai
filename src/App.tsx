@@ -17,7 +17,6 @@ import { AuthModal } from './components/auth/AuthModal';
 import { MessagingModal } from './components/chat/MessagingModal';
 import { CodingArenaModal } from './components/arena/CodingArenaModal';
 import { QuestionBankModal } from './components/arena/QuestionBankModal';
-import { TrainingModal } from './components/training/TrainingModal';
 import { DsaRoadmapModal } from './components/dsa/DsaRoadmapModal';
 import { SpeedTrainingModal } from './components/speed-training/SpeedTrainingModal';
 import { DsaProgressProvider, useDsaProgress } from './context/DsaProgressContext';
@@ -42,9 +41,9 @@ const MainApp: React.FC = () => {
   const [isMessagingOpen, setIsMessagingOpen] = useState<boolean>(false);
   const [isArenaOpen, setIsArenaOpen] = useState<boolean>(false);
   const [isQuestionBankOpen, setIsQuestionBankOpen] = useState<boolean>(false);
-  const [isTrainingOpen, setIsTrainingOpen] = useState<boolean>(false);
-  const [trainingInitialProblemId, setTrainingInitialProblemId] = useState<string | undefined>(undefined);
   const [isSpeedTrainingOpen, setIsSpeedTrainingOpen] = useState<boolean>(false);
+  const [speedTrainingInitialProblemId, setSpeedTrainingInitialProblemId] = useState<string | undefined>(undefined);
+  const [speedTrainingInitialTab, setSpeedTrainingInitialTab] = useState<'hub' | 'timed-training'>('hub');
   const [arenaInitialChallenge, setArenaInitialChallenge] = useState<ArenaChallenge | null>(null);
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register' | 'forgot' | 'update-password'>('register');
 
@@ -114,9 +113,10 @@ const MainApp: React.FC = () => {
           setArenaInitialChallenge(null);
           setIsArenaOpen(true);
         }}
-        onOpenTraining={() => {
-          setTrainingInitialProblemId(undefined);
-          setIsTrainingOpen(true);
+        onOpenSpeedTraining={() => {
+          setSpeedTrainingInitialProblemId(undefined);
+          setSpeedTrainingInitialTab('hub');
+          setIsSpeedTrainingOpen(true);
         }}
         onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
       />
@@ -251,18 +251,9 @@ const MainApp: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              setTrainingInitialProblemId(undefined);
-              setIsTrainingOpen(true);
-            }}
-            className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/30"
-          >
-            <Zap className="w-3.5 h-3.5 text-amber-500" />
-            <span>Training</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
               sound.playClick();
+              setSpeedTrainingInitialProblemId(undefined);
+              setSpeedTrainingInitialTab('hub');
               setIsSpeedTrainingOpen(true);
             }}
             className="flex items-center gap-1.5 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/30"
@@ -293,11 +284,11 @@ const MainApp: React.FC = () => {
                 setArenaInitialChallenge(null);
                 setIsArenaOpen(true);
               }}
-              onOpenTraining={() => {
-                setTrainingInitialProblemId(undefined);
-                setIsTrainingOpen(true);
+              onOpenSpeedTraining={() => {
+                setSpeedTrainingInitialProblemId(undefined);
+                setSpeedTrainingInitialTab('hub');
+                setIsSpeedTrainingOpen(true);
               }}
-              onOpenSpeedTraining={() => setIsSpeedTrainingOpen(true)}
               onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
               onOpenRoadmap={(roadmapId) => setActiveDsaRoadmap(roadmapId)}
               onOpenAuth={(tab = 'register') => {
@@ -346,11 +337,11 @@ const MainApp: React.FC = () => {
                 setArenaInitialChallenge(null);
                 setIsArenaOpen(true);
               }}
-              onOpenTraining={() => {
-                setTrainingInitialProblemId(undefined);
-                setIsTrainingOpen(true);
+              onOpenSpeedTraining={(tab) => {
+                setSpeedTrainingInitialProblemId(undefined);
+                setSpeedTrainingInitialTab(tab || 'hub');
+                setIsSpeedTrainingOpen(true);
               }}
-              onOpenSpeedTraining={() => setIsSpeedTrainingOpen(true)}
               onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
               onOpenRoadmap={(roadmapId) => setActiveDsaRoadmap(roadmapId)}
               filter={mobileTab === 'learn' ? 'all' : mobileTab}
@@ -515,10 +506,16 @@ const MainApp: React.FC = () => {
         }}
       />
 
-      {/* Speed Training Hub Modal (Unifying DSA Roadmaps & Question Bank) */}
+      {/* Unified Speed Training Hub Modal (Timed PBs, DSA Roadmaps & Question Bank) */}
       <SpeedTrainingModal
         isOpen={isSpeedTrainingOpen}
-        onClose={() => setIsSpeedTrainingOpen(false)}
+        initialTab={speedTrainingInitialTab}
+        initialProblemId={speedTrainingInitialProblemId}
+        onClose={() => {
+          setIsSpeedTrainingOpen(false);
+          setSpeedTrainingInitialProblemId(undefined);
+          setSpeedTrainingInitialTab('hub');
+        }}
         onOpenBankPractice={() => {
           setIsSpeedTrainingOpen(false);
           setIsQuestionBankOpen(true);
@@ -533,6 +530,11 @@ const MainApp: React.FC = () => {
           setDsaReturnRoadmap(roadmapId);
           setIsSpeedTrainingOpen(false);
           setIsCodeZoneOpen(true);
+        }}
+        onOpenArena={() => {
+          setIsSpeedTrainingOpen(false);
+          setArenaInitialChallenge(null);
+          setIsArenaOpen(true);
         }}
       />
 
@@ -551,27 +553,14 @@ const MainApp: React.FC = () => {
         }}
         onSelectForTraining={(challenge) => {
           setIsQuestionBankOpen(false);
-          setTrainingInitialProblemId(challenge.id);
-          setIsTrainingOpen(true);
+          setSpeedTrainingInitialProblemId(challenge.id);
+          setSpeedTrainingInitialTab('timed-training');
+          setIsSpeedTrainingOpen(true);
         }}
         onOpenCodeZone={(starterCode, language) => {
           setIsQuestionBankOpen(false);
           setCodeZoneSnippet({ code: starterCode, language });
           setIsCodeZoneOpen(true);
-        }}
-      />
-
-      {/* Speed Training & Personal Best Challenge Modal */}
-      <TrainingModal
-        isOpen={isTrainingOpen}
-        initialProblemId={trainingInitialProblemId}
-        onClose={() => {
-          setIsTrainingOpen(false);
-          setTrainingInitialProblemId(undefined);
-        }}
-        onOpenArena={() => {
-          setIsTrainingOpen(false);
-          setIsArenaOpen(true);
         }}
       />
 

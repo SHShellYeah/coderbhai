@@ -39,7 +39,7 @@ interface Props {
   onOpenAuth?: (tab?: 'login' | 'register') => void;
   onOpenMessaging?: () => void;
   onOpenArena?: () => void;
-  onOpenSpeedTraining?: () => void;
+  onOpenSpeedTraining?: (tab?: 'hub' | 'timed-training') => void;
   onOpenQuestionBank?: () => void;
   onOpenTraining?: () => void;
   onOpenRoadmap?: (roadmapId: DsaRoadmapId) => void;
@@ -375,37 +375,7 @@ export const RightSidebar: React.FC<Props> = ({
         </button>
       )}
 
-      {/* Speed Training & Personal Best Card */}
-      {onOpenTraining && (filter === 'all' || filter === 'practice') && (
-        <button
-          type="button"
-          onClick={() => {
-            sound.playClick();
-            onOpenTraining();
-          }}
-          className="btn-3d p-4 rounded-3xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-yellow-500/10 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/30 border-2 border-amber-500/25 hover:border-amber-500/50 text-left transition-all cursor-pointer group flex items-center justify-between shadow-sm"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 shrink-0 group-hover:scale-105 transition-transform">
-              <Zap className="w-5 h-5 fill-white" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <h4 className="text-sm font-black text-slate-800 dark:text-slate-100 leading-tight">
-                  Speed Training
-                </h4>
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-500 font-black uppercase tracking-wider shrink-0 border border-amber-500/30">
-                  NEETCODE &amp; PBS
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
-                Compete against your personal best times
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-amber-500 group-hover:translate-x-1 transition-transform shrink-0" />
-        </button>
-      )}
+
 
       {/* Dev Hub: IdeaZone & CodeZone */}
       {(filter === 'all' || filter === 'practice') && (

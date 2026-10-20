@@ -138,7 +138,8 @@
     @apply bg-brand-rose text-white border-b-4 border-brand-rose-dark hover:brightness-110 active:border-b-0 active:translate-y-1;
   }
 
-  .btn-3d-gold {
+  .btn-3d-gold,
+  .btn-3d-yellow {
     @apply bg-brand-gold text-amber-950 border-b-4 border-brand-gold-dark hover:brightness-110 active:border-b-0 active:translate-y-1;
   }
 

@@ -2,10 +2,10 @@ import React from 'react';
 import { useDsaProgress } from '../../context/DsaProgressContext';
 import { DsaRoadmapId } from '../../types/dsa';
 import { sound } from '../../utils/audio';
-import { Zap, Brain, BookOpen, ChevronRight, CheckCircle2, Clock } from 'lucide-react';
+import { Zap, BookOpen, ChevronRight } from 'lucide-react';
 
 interface Props {
-  onOpenSpeedTraining: () => void;
+  onOpenSpeedTraining: (tab?: 'hub' | 'timed-training') => void;
   onOpenRoadmap?: (roadmapId: DsaRoadmapId) => void;
   onOpenQuestionBank?: () => void;
 }
@@ -33,7 +33,7 @@ export const SpeedTrainingSidebarSection: React.FC<Props> = ({
               Speed Training
             </h4>
             <span className="text-[11px] font-semibold text-slate-400">
-              DSA Roadmaps &amp; Bank
+              PBs, Roadmaps &amp; Bank
             </span>
           </div>
         </div>
@@ -47,7 +47,7 @@ export const SpeedTrainingSidebarSection: React.FC<Props> = ({
         type="button"
         onClick={() => {
           sound.playClick();
-          onOpenSpeedTraining();
+          onOpenSpeedTraining('hub');
         }}
         className="btn-3d p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 dark:from-amber-950/30 dark:via-purple-950/30 dark:to-indigo-950/20 border border-amber-500/30 hover:border-amber-500/60 text-left transition-all cursor-pointer group flex items-center justify-between"
       >
@@ -67,14 +67,30 @@ export const SpeedTrainingSidebarSection: React.FC<Props> = ({
         <ChevronRight className="w-4 h-4 text-amber-500 group-hover:translate-x-1 transition-transform shrink-0" />
       </button>
 
-      {/* Quick Access Sub-Cards */}
+      {/* Timed Training & PBs Quick Launch */}
+      <button
+        type="button"
+        onClick={() => {
+          sound.playClick();
+          onOpenSpeedTraining('timed-training');
+        }}
+        className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/25 flex items-center justify-between transition-all cursor-pointer group"
+      >
+        <div className="flex items-center gap-2">
+          <Zap className="w-3.5 h-3.5 text-amber-500 fill-current" />
+          <span>Timed Training &amp; PBs</span>
+        </div>
+        <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+      </button>
+
+      {/* Quick Access Sub-Cards for Roadmaps */}
       <div className="grid grid-cols-2 gap-2">
         {/* Blind 75 */}
         <div
           onClick={() => {
             sound.playClick();
             if (onOpenRoadmap) onOpenRoadmap('blind75');
-            else onOpenSpeedTraining();
+            else onOpenSpeedTraining('hub');
           }}
           className="p-3 rounded-2xl bg-purple-500/5 dark:bg-purple-950/20 border border-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer group flex flex-col justify-between"
         >
@@ -104,7 +120,7 @@ export const SpeedTrainingSidebarSection: React.FC<Props> = ({
           onClick={() => {
             sound.playClick();
             if (onOpenRoadmap) onOpenRoadmap('neetcode150');
-            else onOpenSpeedTraining();
+            else onOpenSpeedTraining('hub');
           }}
           className="p-3 rounded-2xl bg-indigo-500/5 dark:bg-indigo-950/20 border border-indigo-500/20 hover:border-indigo-500/40 transition-all cursor-pointer group flex flex-col justify-between"
         >

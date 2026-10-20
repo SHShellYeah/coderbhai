@@ -1,12 +1,15 @@
 import { CodeLanguage, TestCase } from '../types/index';
 import { SubmissionVerdict } from '../types/dsa';
 
+export type ExecutionErrorCategory = 'compilation' | 'runtime' | 'timeout' | 'infrastructure';
+
 export interface RunResult {
   stdout: string;
   stderr?: string;
   executionTimeMs: number;
   hasError: boolean;
   errorMessage?: string;
+  errorCategory?: ExecutionErrorCategory;
 }
 
 export interface TestCaseResult {
@@ -18,6 +21,7 @@ export interface TestCaseResult {
   isHidden: boolean;
   executionTimeMs: number;
   errorMessage?: string;
+  errorCategory?: ExecutionErrorCategory;
 }
 
 export interface EvaluationSummary {
@@ -29,6 +33,37 @@ export interface EvaluationSummary {
   totalTimeMs: number;
   firstFailedIndex?: number;
   errorMessage?: string;
+}
+
+/**
+ * Safely normalizes an unknown thrown exception into a clean string message.
+ * Handles null, undefined, strings, numbers, Error instances, and arbitrary objects safely
+ * without throwing secondary exceptions.
+ */
+export function normalizeError(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message || err.name || 'Unknown Error';
+  }
+  if (typeof err === 'string') {
+    return err.trim() || 'Unknown error occurred';
+  }
+  if (err === null || err === undefined) {
+    return 'Unknown error (null or undefined exception)';
+  }
+  if (typeof err === 'number' || typeof err === 'boolean' || typeof err === 'bigint') {
+    return String(err);
+  }
+  if (typeof err === 'object') {
+    try {
+      if ('message' in err && typeof (err as { message: unknown }).message === 'string') {
+        return (err as { message: string }).message;
+      }
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
 }
 
 /**
@@ -76,6 +111,10 @@ function transpilePythonToJs(code: string): string {
       if (comment) jsLines.push(comment);
       continue;
     }
+    if (/^(import\s+\w+|from\s+\w+\s+import)/.test(trimmed)) {
+      throw new Error(`Module imports ('${trimmed}') are not supported in the client sandbox. Use built-in Python constructs or connect a remote execution backend.`);
+    }
+
     let indent = line.search(/\S/);
     if (indent === -1) indent = 0;
 
@@ -200,6 +239,7 @@ export async function executeCodeSandbox(
     try {
       const outputLines: string[] = [];
       const errorLines: string[] = [];
+      let errorCategory: ExecutionErrorCategory | undefined;
 
       if (language === 'javascript') {
         const originalLog = console.log;
@@ -222,7 +262,10 @@ export async function executeCodeSandbox(
           const runner = new Function('stdin', 'input', guardedCode);
           runner(stdinInput, stdinInput);
         } catch (err) {
-          errorLines.push((err as Error).message);
+          const errMsg = normalizeError(err);
+          const isCompile = (err instanceof SyntaxError) || (err instanceof Error && err.name === 'SyntaxError') || errMsg.includes('SyntaxError');
+          errorCategory = isCompile ? 'compilation' : 'runtime';
+          errorLines.push(isCompile ? `[Syntax/Compilation Error] ${errMsg}` : errMsg);
         } finally {
           console.log = originalLog;
           console.error = originalError;
@@ -264,7 +307,10 @@ export async function executeCodeSandbox(
           }
           outputLines.push(...rawLines);
         } catch (pyErr) {
-          errorLines.push(`[Python Error] ${(pyErr as Error).message}`);
+          const errMsg = normalizeError(pyErr);
+          const isCompile = (pyErr instanceof SyntaxError) || (pyErr instanceof Error && pyErr.name === 'SyntaxError') || errMsg.includes('transpile') || errMsg.includes('not supported');
+          errorCategory = isCompile ? 'compilation' : 'runtime';
+          errorLines.push(isCompile ? `[Python Compilation Error] ${errMsg}` : `[Python Error] ${errMsg}`);
         }
       } else if (language === 'c' || language === 'cpp') {
         let cStdout = '';
@@ -351,8 +397,14 @@ export async function executeCodeSandbox(
           }
           outputLines.push(...rawLines);
         } catch (cErr) {
-          errorLines.push(`[Compiler/Runtime Error] ${(cErr as Error).message}`);
+          const errMsg = normalizeError(cErr);
+          const isCompile = (cErr instanceof SyntaxError) || (cErr instanceof Error && cErr.name === 'SyntaxError') || errMsg.includes('Compiler');
+          errorCategory = isCompile ? 'compilation' : 'runtime';
+          errorLines.push(isCompile ? `[C/C++ Compilation Error] ${errMsg}` : `[Compiler/Runtime Error] ${errMsg}`);
         }
+      } else {
+        errorCategory = 'compilation';
+        errorLines.push(`[Unsupported Language Error] Client execution sandbox only supports JavaScript, Python, C++, and C. Language '${language}' is not supported.`);
       }
 
       const endTime = performance.now();
@@ -364,16 +416,19 @@ export async function executeCodeSandbox(
         stderr: errorLines.join('\n'),
         executionTimeMs,
         hasError,
-        errorMessage: hasError ? errorLines.join('\n') : undefined
+        errorMessage: hasError ? errorLines.join('\n') : undefined,
+        errorCategory: hasError ? errorCategory : undefined
       });
     } catch (unhandled) {
       const endTime = performance.now();
+      const errMsg = normalizeError(unhandled);
       resolve({
         stdout: '',
-        stderr: (unhandled as Error).message,
+        stderr: errMsg,
         executionTimeMs: Math.max(1, Math.round(endTime - startTime)),
         hasError: true,
-        errorMessage: (unhandled as Error).message
+        errorMessage: errMsg,
+        errorCategory: 'runtime'
       });
     }
   });
@@ -385,7 +440,8 @@ export async function executeCodeSandbox(
         stderr: `Time Limit Exceeded: execution exceeded ${timeoutMs}ms limit.`,
         executionTimeMs: timeoutMs,
         hasError: true,
-        errorMessage: `Time Limit Exceeded: execution exceeded ${timeoutMs}ms limit.`
+        errorMessage: `Time Limit Exceeded: execution exceeded ${timeoutMs}ms limit.`,
+        errorCategory: 'timeout'
       });
     }, timeoutMs);
   });
@@ -396,9 +452,13 @@ export async function executeCodeSandbox(
 /**
  * Normalizes output string for fair diffing (strips trailing whitespace & standardizes line breaks)
  */
-export function normalizeOutput(str: string): string {
-  return str
+export function normalizeOutput(str: string | unknown): string {
+  if (typeof str !== 'string') {
+    str = str == null ? '' : String(str);
+  }
+  return (str as string)
     .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
     .split('\n')
     .map(line => line.trimEnd())
     .join('\n')
@@ -479,23 +539,108 @@ export class Judge0ProxyAdapter implements ExecutionAdapter {
           executionTimeMs: Math.round(performance.now() - startTime),
           hasError: true,
           errorMessage: `Judge0 Proxy HTTP ${resp.status}`,
+          errorCategory: 'infrastructure'
         };
       }
       const data = await resp.json();
+      const rawStatusId = data.status?.id ?? data.status_id;
+      const statusId = typeof rawStatusId === 'number' ? rawStatusId : (rawStatusId ? Number(rawStatusId) : undefined);
+
+      let hasError = false;
+      let errorCategory: ExecutionErrorCategory | undefined;
+      let errorMessage: string | undefined = data.errorMessage || data.message;
+      const stderr = data.stderr || data.compile_output || '';
+
+      if (statusId !== undefined && !Number.isNaN(statusId)) {
+        switch (statusId) {
+          case 3: // Accepted
+            hasError = !!data.hasError || !!stderr;
+            if (hasError) {
+              errorCategory = data.errorCategory || 'runtime';
+              errorMessage = errorMessage || stderr || 'Execution error';
+            }
+            break;
+          case 4: // Wrong Answer
+            hasError = !!data.hasError || !!stderr;
+            if (hasError) {
+              errorCategory = data.errorCategory || 'runtime';
+              errorMessage = errorMessage || stderr || 'Execution error';
+            }
+            break;
+          case 5: // Time Limit Exceeded
+            hasError = true;
+            errorCategory = 'timeout';
+            errorMessage = errorMessage || stderr || data.status?.description || 'Time Limit Exceeded';
+            break;
+          case 6: // Compilation Error
+            hasError = true;
+            errorCategory = 'compilation';
+            errorMessage = errorMessage || stderr || data.status?.description || 'Compilation Error';
+            break;
+          case 7: // Runtime Error (SIGSEGV)
+          case 8: // Runtime Error (SIGXFSZ)
+          case 9: // Runtime Error (SIGFPE)
+          case 10: // Runtime Error (SIGABRT)
+          case 11: // Runtime Error (NZEC)
+          case 12: // Runtime Error (Other)
+            hasError = true;
+            errorCategory = 'runtime';
+            errorMessage = errorMessage || stderr || data.status?.description || 'Runtime Error';
+            break;
+          case 1: // In Queue (Pending)
+          case 2: // Processing (Pending)
+            hasError = true;
+            errorCategory = 'infrastructure';
+            errorMessage = errorMessage || data.status?.description || `Execution pending (${statusId === 1 ? 'In Queue' : 'Processing'}).`;
+            break;
+          case 13: // Internal Error
+            hasError = true;
+            errorCategory = 'infrastructure';
+            errorMessage = errorMessage || stderr || data.status?.description || 'Judge0 Internal Error';
+            break;
+          case 14: // Exec Format Error
+            hasError = true;
+            errorCategory = 'infrastructure';
+            errorMessage = errorMessage || stderr || data.status?.description || 'Exec Format Error';
+            break;
+          default:
+            // Unknown status must NEVER be treated as successful execution
+            hasError = true;
+            errorCategory = 'infrastructure';
+            errorMessage = `Unknown Judge0 status (${statusId})${data.status?.description ? `: ${data.status?.description}` : (errorMessage ? `: ${errorMessage}` : '')}`;
+            break;
+        }
+      } else {
+        // Fallback when no statusId is provided (e.g. custom proxy or legacy response)
+        if (data.hasError || stderr || data.error) {
+          hasError = true;
+          errorCategory = data.errorCategory || 'runtime';
+          errorMessage = errorMessage || stderr || data.error || 'Execution error';
+        } else if (data.stdout === undefined && !data.output) {
+          // Missing status and output cannot be treated as successful execution
+          hasError = true;
+          errorCategory = 'infrastructure';
+          errorMessage = 'Malformed execution response: missing status and output.';
+        }
+      }
+
       return {
         stdout: data.stdout || '',
-        stderr: data.stderr || '',
+        stderr,
         executionTimeMs: data.executionTimeMs || Math.round(performance.now() - startTime),
-        hasError: !!data.hasError || !!data.stderr,
-        errorMessage: data.errorMessage || (data.stderr ? data.stderr : undefined),
+        hasError,
+        errorMessage: hasError ? (errorMessage || stderr || 'Execution error') : undefined,
+        errorCategory: hasError ? errorCategory : undefined
       };
     } catch (fetchErr) {
+      const errMsg = normalizeError(fetchErr);
       return {
         stdout: '',
-        stderr: (fetchErr as Error).message,
+        stderr: errMsg,
         executionTimeMs: Math.round(performance.now() - startTime),
         hasError: true,
-        errorMessage: (fetchErr as Error).message,
+        errorMessage: errMsg,
+        errorCategory: 'infrastructure'
       };
     }
   }
@@ -522,6 +667,41 @@ export async function evaluateTestCases(
   adapter: ExecutionAdapter = getDefaultExecutionAdapter()
 ): Promise<EvaluationSummary> {
   const startTime = performance.now();
+
+  // Pre-validate suite and all test cases before accessing properties
+  if (!Array.isArray(testCases) || testCases.length === 0) {
+    return {
+      verdict: 'Runtime Error',
+      allPassed: false,
+      passedCount: 0,
+      totalCount: 0,
+      results: [],
+      totalTimeMs: 0,
+      errorMessage: 'Empty or malformed test suite: no test cases provided.'
+    };
+  }
+
+  for (let i = 0; i < testCases.length; i++) {
+    const tc = testCases[i];
+    if (
+      !tc ||
+      typeof tc !== 'object' ||
+      typeof tc.input !== 'string' ||
+      typeof tc.output !== 'string'
+    ) {
+      return {
+        verdict: 'Runtime Error',
+        allPassed: false,
+        passedCount: 0,
+        totalCount: testCases.length,
+        results: [],
+        totalTimeMs: 0,
+        firstFailedIndex: i,
+        errorMessage: `Malformed test case at index ${i}: test case must be an object with string input and output.`
+      };
+    }
+  }
+
   const results: TestCaseResult[] = [];
   let passedCount = 0;
   let firstFailedIndex: number | undefined;
@@ -530,10 +710,36 @@ export async function evaluateTestCases(
 
   for (let idx = 0; idx < testCases.length; idx++) {
     const tc = testCases[idx];
-    const res = await adapter.execute(code, language, tc.input);
+    let res: RunResult;
+    try {
+      res = await adapter.execute(code, language, tc.input);
+    } catch (err) {
+      const errMsg = normalizeError(err);
+      res = {
+        stdout: '',
+        stderr: errMsg,
+        executionTimeMs: 0,
+        hasError: true,
+        errorMessage: errMsg,
+        errorCategory: 'runtime'
+      };
+    }
+
+    if (!res || typeof res !== 'object') {
+      res = {
+        stdout: '',
+        stderr: 'Malformed execution result from adapter',
+        executionTimeMs: 0,
+        hasError: true,
+        errorMessage: 'Malformed execution result from adapter',
+        errorCategory: 'infrastructure'
+      };
+    }
+
     const normalizedActual = normalizeOutput(res.stdout);
     const normalizedExpected = normalizeOutput(tc.output);
 
+    // Empty stdout can only pass when execution genuinely succeeded (no error) and expected is empty
     const passed = !res.hasError && normalizedActual === normalizedExpected;
     if (passed) {
       passedCount++;
@@ -541,20 +747,33 @@ export async function evaluateTestCases(
       if (firstFailedIndex === undefined) {
         firstFailedIndex = idx;
         if (res.hasError) {
-          firstErrorMessage = res.errorMessage;
-          const msg = (res.errorMessage || '').toLowerCase();
-          if (msg.includes('time limit exceeded')) {
+          firstErrorMessage = res.errorMessage || res.stderr;
+          // Prefer structured error category when provided by adapter
+          if (res.errorCategory === 'timeout') {
             firstErrorVerdict = 'Time Limit Exceeded';
-          } else if (
-            msg.includes('compiler') ||
-            msg.includes('compilation') ||
-            msg.includes('syntax') ||
-            msg.includes("expected ';'") ||
-            msg.includes('semicolon')
-          ) {
+          } else if (res.errorCategory === 'compilation') {
             firstErrorVerdict = 'Compilation Error';
-          } else {
+          } else if (res.errorCategory === 'runtime') {
             firstErrorVerdict = 'Runtime Error';
+          } else if (res.errorCategory === 'infrastructure') {
+            firstErrorVerdict = 'Infrastructure Error';
+          } else {
+            // Safe fallback for legacy adapters without errorCategory
+            const msg = (firstErrorMessage || '').toLowerCase();
+            if (msg.includes('time limit exceeded')) {
+              firstErrorVerdict = 'Time Limit Exceeded';
+            } else if (
+              msg.includes('compiler') ||
+              msg.includes('compilation') ||
+              msg.includes('syntax') ||
+              msg.includes('unexpected') ||
+              msg.includes("expected ';'") ||
+              msg.includes('semicolon')
+            ) {
+              firstErrorVerdict = 'Compilation Error';
+            } else {
+              firstErrorVerdict = 'Runtime Error';
+            }
           }
         } else {
           firstErrorVerdict = 'Wrong Answer';
@@ -562,26 +781,28 @@ export async function evaluateTestCases(
       }
     }
 
+    const isHidden = Boolean(tc.isHidden);
     // Never expose hidden test inputs or expected outputs to the frontend
-    const displayInput = tc.isHidden ? '[Hidden Test Case]' : tc.input;
-    const displayExpected = tc.isHidden ? '[Hidden Expected Output]' : tc.output;
-    const displayActual = tc.isHidden
+    const displayInput = isHidden ? '[Hidden Test Case]' : tc.input;
+    const displayExpected = isHidden ? '[Hidden Expected Output]' : tc.output;
+    const displayActual = isHidden
       ? (passed ? '[Passed]' : (res.hasError ? (res.errorMessage || 'Execution Error') : '[Wrong Output]'))
       : (res.hasError ? (res.errorMessage || 'Execution Error') : res.stdout);
 
     results.push({
-      testCaseId: tc.id,
+      testCaseId: typeof tc.id === 'string' ? tc.id : `testcase-${idx + 1}`,
       input: displayInput,
       expectedOutput: displayExpected,
       actualOutput: displayActual,
       passed,
-      isHidden: !!tc.isHidden,
+      isHidden,
       executionTimeMs: res.executionTimeMs,
-      errorMessage: res.hasError ? res.errorMessage : undefined
+      errorMessage: res.hasError ? (res.errorMessage || res.stderr) : undefined,
+      errorCategory: res.errorCategory
     });
   }
 
-  const allPassed = passedCount === testCases.length;
+  const allPassed = passedCount === testCases.length && testCases.length > 0;
   const verdict: SubmissionVerdict = allPassed
     ? 'Accepted'
     : (firstErrorVerdict || 'Wrong Answer');
