@@ -82,28 +82,43 @@ export const TopBar: React.FC<Props> = ({
 
   return (
     <header className="sticky top-0 z-30 bg-[#131F24] border-b border-[#263843] text-white transition-colors w-full select-none">
-      <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
-        {/* Left: Course Flag / Badge Pill with Level */}
-        <div className="relative shrink-0" ref={dropdownRef}>
-          <button
-            type="button"
-            onClick={() => {
-              sound.playClick();
-              setCourseDropdownOpen(!courseDropdownOpen);
-            }}
-            className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#18252D] hover:bg-[#20313B] border border-[#263843] text-white text-xs sm:text-sm font-extrabold transition-all cursor-pointer shadow-xs active:translate-y-0.5"
-            title="Switch Language / Course"
-            aria-label="Course Switcher"
+      <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
+        {/* Left: ByteSized Logo & Course Flag */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* ByteSized Brand Logo */}
+          <div
+            onClick={() => sound.playMeow()}
+            className="flex items-center gap-1.5 sm:gap-2 select-none cursor-pointer group shrink-0"
+            title="ByteSized - Click Byte to hear a meow!"
           >
-            {/* Mascot on desktop, Course badge on mobile */}
-            <span className="text-base sm:text-lg">{activeCourse.badge.split(' ')[0]}</span>
-            <span className="font-extrabold text-sm sm:text-base text-slate-100">
-              {courseLevel}
+            <CatFace size="sm" mood="happy" className="transform group-hover:scale-105 transition-transform" />
+            <span className="font-black text-base sm:text-lg tracking-tight text-white select-none">
+              Byte<span className="text-[#1CB0F6]">Sized</span>
             </span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-transform" />
-          </button>
+          </div>
 
-          {/* Backdrop for mobile */}
+          <div className="h-5 w-px bg-[#263843] mx-0.5 sm:mx-1 hidden xs:block" />
+
+          {/* Course Flag / Badge Pill with Level */}
+          <div className="relative shrink-0" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                setCourseDropdownOpen(!courseDropdownOpen);
+              }}
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#18252D] hover:bg-[#20313B] border border-[#263843] text-white text-xs sm:text-sm font-extrabold transition-all cursor-pointer shadow-xs active:translate-y-0.5"
+              title="Switch Language / Course"
+              aria-label="Course Switcher"
+            >
+              <span className="text-sm sm:text-base">{activeCourse.badge.split(' ')[0]}</span>
+              <span className="font-extrabold text-xs sm:text-sm text-slate-100">
+                {courseLevel}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-transform" />
+            </button>
+
+            {/* Backdrop for mobile */}
           {courseDropdownOpen && (
             <div
               className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs"
@@ -168,6 +183,7 @@ export const TopBar: React.FC<Props> = ({
             </div>
           )}
         </div>
+      </div>
 
         {/* Center: Duolingo Core Gamification Stats (Flame, Gems, Hearts) */}
         <div className="flex items-center gap-3 sm:gap-6 font-extrabold text-sm sm:text-base">
