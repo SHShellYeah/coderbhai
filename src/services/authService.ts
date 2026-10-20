@@ -1104,9 +1104,10 @@ export const sendPasswordResetEmail = async (
       return { success: false, error: 'Please enter your account email address.' };
     }
 
-    const redirectUrl = typeof window !== 'undefined'
-      ? `${window.location.origin}/?type=recovery`
-      : 'http://localhost:5173/?type=recovery';
+    const origin = typeof window !== 'undefined' && window.location.origin
+      ? window.location.origin.replace(/\/+$/, '')
+      : 'http://localhost:5173';
+    const redirectUrl = `${origin}/?type=recovery`;
 
     const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
       redirectTo: redirectUrl,
@@ -1114,6 +1115,12 @@ export const sendPasswordResetEmail = async (
 
     if (error) {
       console.warn('[Supabase] resetPasswordForEmail error:', error.message);
+      if (error.message.toLowerCase().includes('rate limit') || error.message.toLowerCase().includes('security purposes')) {
+        return {
+          success: false,
+          error: 'Rate limit reached: Please wait 60 seconds before requesting another email, and check your Spam / Junk folder.',
+        };
+      }
       return { success: false, error: error.message };
     }
 

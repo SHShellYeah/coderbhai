@@ -39,7 +39,8 @@ import {
   FileText,
   Radio,
   ArrowLeft,
-  Upload
+  Upload,
+  Clock
 } from 'lucide-react';
 
 const AVATAR_PRESETS = [
@@ -87,6 +88,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [resetSentSuccess, setResetSentSuccess] = useState(false);
   const [showOtpInput, setShowOtpInput] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   // Logged-in profile editing state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -173,6 +175,7 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
       setIsEditingProfile(false);
       setResetSentSuccess(false);
       setShowOtpInput(false);
+      setResendCooldown(0);
       if (state.authUser) {
         setEditDisplayName(state.authUser.displayName || '');
         setEditBio(state.bio || state.authUser.bio || '');
@@ -181,6 +184,15 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
       }
     }
   }, [isOpen, initialTab, state.authUser, state.bio, state.activeStatus]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   // Listen for Supabase password recovery redirection
   useEffect(() => {
@@ -440,7 +452,8 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
     if (res.success) {
       sound.playSuccess();
       setResetSentSuccess(true);
-      setSuccessMsg(`Password reset instructions sent to ${cleanEmail}! Please check your email inbox (and spam folder) to reset your password.`);
+      setResendCooldown(60);
+      setSuccessMsg(`Password reset instructions sent to ${cleanEmail}! Please check your email inbox and Spam/Junk folder.`);
     } else {
       sound.playError();
       setErrorMsg(res.error || 'Failed to send password reset email. Please verify your address and try again.');
@@ -1222,13 +1235,30 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
             )}
 
             {successMsg && (
-              <div className="p-3.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-start gap-2.5 animate-slideUp">
-                <CheckCircle2 className="w-4.5 h-4.5 text-emerald-400 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p>{successMsg}</p>
-                  <p className="text-[11px] text-emerald-400/80 font-normal">
-                    Click the recovery link in your email to open the password reset form directly, or enter your 6-digit OTP code below.
-                  </p>
+              <div className="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/30 text-emerald-300 text-xs font-bold space-y-2 animate-slideUp">
+                <div className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-black text-emerald-300">{successMsg}</p>
+                    <p className="text-[11px] text-emerald-200/90 font-normal leading-relaxed">
+                      Please check your <strong>Inbox</strong> and <strong>Spam / Junk</strong> folder for an email from <span className="underline font-mono">noreply@mail.app.supabase.io</span>.
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-1 border-t border-emerald-500/20 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[10px] text-emerald-400 font-semibold">Have your code ready?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      setShowOtpInput(true);
+                      setErrorMsg(null);
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-black text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-xl transition-all cursor-pointer shadow-sm"
+                  >
+                    <span>Enter 6-Digit Code Now</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             )}
@@ -1257,18 +1287,23 @@ export const AuthModal: React.FC<Props> = ({ isOpen, initialTab = 'login', onClo
 
                 <button
                   type="submit"
-                  disabled={isSendingReset}
-                  className="btn-3d btn-3d-primary w-full py-3 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg mt-2"
+                  disabled={isSendingReset || resendCooldown > 0}
+                  className="btn-3d btn-3d-primary w-full py-3 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSendingReset ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
                       <span>Sending Reset Link...</span>
                     </>
+                  ) : resendCooldown > 0 ? (
+                    <>
+                      <Clock className="w-4 h-4 animate-pulse" />
+                      <span>Resend Email ({resendCooldown}s)</span>
+                    </>
                   ) : (
                     <>
                       <Mail className="w-4 h-4" />
-                      <span>Send Password Reset Link</span>
+                      <span>{resetSentSuccess ? 'Resend Password Reset Link' : 'Send Password Reset Link'}</span>
                     </>
                   )}
                 </button>
