@@ -866,6 +866,14 @@ export const uploadAvatarImage = async (
 };
 
 /**
+ * Canonical helper for direct message channel IDs.
+ * By sorting both user IDs, both participants always share the exact same channel string!
+ */
+export const getDirectChannelId = (uid1: string, uid2: string): string => {
+  return `dm:${[uid1, uid2].sort().join(':')}`;
+};
+
+/**
  * 4h. Search registered learners by username or display name for Add Friend
  */
 export const searchUsersByUsername = async (
@@ -886,17 +894,31 @@ export const searchUsersByUsername = async (
       return [];
     }
 
-    // Check if any are already friends
-    let friendIds = new Set<string>();
+    // Check friendship status for each user relative to currentUserId
+    const statusMap = new Map<string, { status: 'accepted' | 'pending_sent' | 'pending_received'; reqId?: string }>();
+
     if (currentUserId) {
       try {
         const { data: friendData } = await supabase
           .from('friendships')
-          .select('friend_id')
-          .eq('user_id', currentUserId);
+          .select('id, user_id, friend_id, status')
+          .or(`user_id.eq.${currentUserId},friend_id.eq.${currentUserId}`);
 
         if (friendData) {
-          friendIds = new Set(friendData.map((f) => f.friend_id));
+          friendData.forEach((row) => {
+            if (row.status === 'accepted') {
+              const otherId = row.user_id === currentUserId ? row.friend_id : row.user_id;
+              statusMap.set(otherId, { status: 'accepted' });
+            } else if (row.status === 'pending') {
+              if (row.user_id === currentUserId) {
+                // Sent by current user to other
+                statusMap.set(row.friend_id, { status: 'pending_sent', reqId: row.id });
+              } else if (row.friend_id === currentUserId) {
+                // Received by current user from other
+                statusMap.set(row.user_id, { status: 'pending_received', reqId: row.id });
+              }
+            }
+          });
         }
       } catch {
         // fallback to localStorage
@@ -904,7 +926,9 @@ export const searchUsersByUsername = async (
           const stored = localStorage.getItem(`bytesized_friends_${currentUserId}`);
           if (stored) {
             const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) friendIds = new Set(parsed);
+            if (Array.isArray(parsed)) {
+              parsed.forEach((id) => statusMap.set(id, { status: 'accepted' }));
+            }
           }
         } catch {
           // ignore
@@ -914,26 +938,32 @@ export const searchUsersByUsername = async (
 
     return data
       .filter((u) => !currentUserId || u.id !== currentUserId)
-      .map((u) => ({
-        id: u.id,
-        username: u.username || u.display_name || 'Learner',
-        displayName: u.display_name || u.username || 'Learner',
-        avatarUrl: u.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.id)}`,
-        role: (u.role as UserRole) || 'user',
-        activeStatus: (u.active_status as UserActiveStatus) || 'online',
-        bio: u.bio || '',
-        xp: u.xp || 0,
-        streak: u.streak || 0,
-        isEduUser: !!u.is_edu_user,
-        isFriend: friendIds.has(u.id),
-      }));
+      .map((u) => {
+        const friendInfo = statusMap.get(u.id);
+        const isAccepted = friendInfo?.status === 'accepted';
+        return {
+          id: u.id,
+          username: u.username || u.display_name || 'Learner',
+          displayName: u.display_name || u.username || 'Learner',
+          avatarUrl: u.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.id)}`,
+          role: (u.role as UserRole) || 'user',
+          activeStatus: (u.active_status as UserActiveStatus) || 'online',
+          bio: u.bio || '',
+          xp: u.xp || 0,
+          streak: u.streak || 0,
+          isEduUser: !!u.is_edu_user,
+          isFriend: isAccepted,
+          friendshipStatus: isAccepted ? 'accepted' : friendInfo?.status || 'none',
+          pendingRequestId: friendInfo?.reqId,
+        };
+      });
   } catch {
     return [];
   }
 };
 
 /**
- * 4i. Fetch friend list for a given user
+ * 4i. Fetch accepted friend list for a given user
  */
 export const fetchUserFriends = async (userId: string): Promise<FriendProfile[]> => {
   try {
@@ -944,7 +974,8 @@ export const fetchUserFriends = async (userId: string): Promise<FriendProfile[]>
       const { data: friendships, error: friendErr } = await supabase
         .from('friendships')
         .select('friend_id')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('status', 'accepted');
 
       if (!friendErr && friendships) {
         friendIds = friendships.map((f) => f.friend_id);
@@ -991,6 +1022,7 @@ export const fetchUserFriends = async (userId: string): Promise<FriendProfile[]>
       streak: u.streak || 0,
       isEduUser: !!u.is_edu_user,
       isFriend: true,
+      friendshipStatus: 'accepted',
     }));
   } catch {
     return [];
@@ -998,56 +1030,193 @@ export const fetchUserFriends = async (userId: string): Promise<FriendProfile[]>
 };
 
 /**
- * 4j. Add friend via username/user ID
+ * Fetch all pending incoming friend requests for a user
  */
-export const addFriend = async (
-  userId: string,
-  friendId: string
-): Promise<{ success: boolean; error?: string }> => {
+export const fetchPendingFriendRequests = async (
+  userId: string
+): Promise<FriendProfile[]> => {
   try {
-    if (!userId || !friendId || userId === friendId) {
-      return { success: false, error: 'Cannot add yourself or invalid friend ID.' };
+    if (!userId) return [];
+
+    const { data: pendingRows, error: reqErr } = await supabase
+      .from('friendships')
+      .select('id, user_id, friend_id, status, created_at')
+      .eq('friend_id', userId)
+      .eq('status', 'pending');
+
+    if (reqErr || !pendingRows || pendingRows.length === 0) {
+      return [];
     }
 
-    try {
-      await supabase
-        .from('friendships')
-        .upsert(
-          {
-            user_id: userId,
-            friend_id: friendId,
-            status: 'accepted',
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,friend_id' }
-        );
+    const senderIds = pendingRows.map((r) => r.user_id);
+    const reqIdMap = new Map(pendingRows.map((r) => [r.user_id, r.id]));
 
-      // Reciprocal friendship
-      await supabase
-        .from('friendships')
-        .upsert(
-          {
-            user_id: friendId,
-            friend_id: userId,
-            status: 'accepted',
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,friend_id' }
-        );
-    } catch (err) {
-      console.warn('[Supabase] Friendship upsert error:', err);
+    const { data: profiles, error: profErr } = await supabase
+      .from('profiles')
+      .select('id, username, display_name, avatar_url, role, active_status, bio, xp, streak, is_edu_user')
+      .in('id', senderIds);
+
+    if (profErr || !profiles) {
+      return [];
     }
 
-    // Local storage cache backup
+    return profiles.map((u) => ({
+      id: u.id,
+      username: u.username || u.display_name || 'Learner',
+      displayName: u.display_name || u.username || 'Learner',
+      avatarUrl: u.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.id)}`,
+      role: (u.role as UserRole) || 'user',
+      activeStatus: (u.active_status as UserActiveStatus) || 'online',
+      bio: u.bio || '',
+      xp: u.xp || 0,
+      streak: u.streak || 0,
+      isEduUser: !!u.is_edu_user,
+      isFriend: false,
+      friendshipStatus: 'pending_received',
+      pendingRequestId: reqIdMap.get(u.id),
+    }));
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * 4j. Send a friend request (status: 'pending').
+ * Only when the recipient accepts does the user become friends!
+ */
+export const sendFriendRequest = async (
+  senderId: string,
+  receiverId: string
+): Promise<{ success: boolean; status?: 'pending' | 'accepted'; error?: string }> => {
+  try {
+    if (!senderId || !receiverId || senderId === receiverId) {
+      return { success: false, error: 'Cannot send friend request to yourself.' };
+    }
+
+    // Check if the other user already sent a pending request to us
+    const { data: reversePending } = await supabase
+      .from('friendships')
+      .select('id, status')
+      .eq('user_id', receiverId)
+      .eq('friend_id', senderId)
+      .maybeSingle();
+
+    if (reversePending && reversePending.status === 'pending') {
+      // Both users wanted to be friends! Automatically accept!
+      return await acceptFriendRequest(receiverId, senderId);
+    }
+
+    if (reversePending && reversePending.status === 'accepted') {
+      return { success: true, status: 'accepted' };
+    }
+
+    // Insert or update to pending
+    const { error: upsertErr } = await supabase
+      .from('friendships')
+      .upsert(
+        {
+          user_id: senderId,
+          friend_id: receiverId,
+          status: 'pending',
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,friend_id' }
+      );
+
+    if (upsertErr) {
+      console.warn('[Supabase] Friend request upsert error:', upsertErr);
+      return { success: false, error: upsertErr.message };
+    }
+
+    return { success: true, status: 'pending' };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+};
+
+/**
+ * Backward compatibility alias for sendFriendRequest
+ */
+export const addFriend = sendFriendRequest;
+
+/**
+ * Accept a friend request:
+ * 1. Mark original pending row as 'accepted'
+ * 2. Upsert reciprocal row so both users have friendship records
+ */
+export const acceptFriendRequest = async (
+  senderId: string,
+  receiverId: string
+): Promise<{ success: boolean; status?: 'accepted'; error?: string }> => {
+  try {
+    if (!senderId || !receiverId) {
+      return { success: false, error: 'Invalid user IDs for accepting friend request.' };
+    }
+
+    const now = new Date().toISOString();
+
+    // 1. Update sender -> receiver row to accepted
+    await supabase
+      .from('friendships')
+      .upsert(
+        {
+          user_id: senderId,
+          friend_id: receiverId,
+          status: 'accepted',
+          updated_at: now,
+        },
+        { onConflict: 'user_id,friend_id' }
+      );
+
+    // 2. Upsert reciprocal receiver -> sender row to accepted
+    await supabase
+      .from('friendships')
+      .upsert(
+        {
+          user_id: receiverId,
+          friend_id: senderId,
+          status: 'accepted',
+          updated_at: now,
+        },
+        { onConflict: 'user_id,friend_id' }
+      );
+
+    // Update local storage caches
     try {
-      const stored = localStorage.getItem(`bytesized_friends_${userId}`);
+      const stored = localStorage.getItem(`bytesized_friends_${receiverId}`);
       const list: string[] = stored ? JSON.parse(stored) : [];
-      if (!list.includes(friendId)) {
-        list.push(friendId);
-        localStorage.setItem(`bytesized_friends_${userId}`, JSON.stringify(list));
+      if (!list.includes(senderId)) {
+        list.push(senderId);
+        localStorage.setItem(`bytesized_friends_${receiverId}`, JSON.stringify(list));
       }
     } catch {
       // ignore
+    }
+
+    return { success: true, status: 'accepted' };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+};
+
+/**
+ * Delete / Reject a pending friend request
+ */
+export const rejectFriendRequest = async (
+  senderId: string,
+  receiverId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    if (!senderId || !receiverId) return { success: true };
+
+    const { error } = await supabase
+      .from('friendships')
+      .delete()
+      .match({ user_id: senderId, friend_id: receiverId });
+
+    if (error) {
+      console.warn('[Supabase] Reject friend request error:', error);
+      return { success: false, error: error.message };
     }
 
     return { success: true };
@@ -1057,7 +1226,7 @@ export const addFriend = async (
 };
 
 /**
- * 4k. Remove friend
+ * 4k. Remove friend (removes bidirectional friendship)
  */
 export const removeFriend = async (
   userId: string,
@@ -1089,6 +1258,39 @@ export const removeFriend = async (
     return { success: true };
   } catch (err) {
     return { success: false, error: (err as Error).message };
+  }
+};
+
+/**
+ * Fetch a user profile by ID for inspecting
+ */
+export const fetchUserProfileById = async (
+  userId: string
+): Promise<FriendProfile | null> => {
+  try {
+    if (!userId) return null;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username, display_name, avatar_url, role, active_status, bio, xp, streak, is_edu_user')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    return {
+      id: data.id,
+      username: data.username || data.display_name || 'Learner',
+      displayName: data.display_name || data.username || 'Learner',
+      avatarUrl: data.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(data.id)}`,
+      role: (data.role as UserRole) || 'user',
+      activeStatus: (data.active_status as UserActiveStatus) || 'online',
+      bio: data.bio || '',
+      xp: data.xp || 0,
+      streak: data.streak || 0,
+      isEduUser: !!data.is_edu_user,
+    };
+  } catch {
+    return null;
   }
 };
 

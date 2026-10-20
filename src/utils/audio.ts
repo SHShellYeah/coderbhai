@@ -64,6 +64,38 @@ class SoundEngine {
     }
   }
 
+  /**
+   * Crisp, bubbly click/pop sound for notification popups and messages
+   */
+  public playPop() {
+    if (this.isMuted) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      // Quick pitch swoop upwards gives the classic high-clarity bubble/pop effect
+      osc.frequency.setValueAtTime(450, now);
+      osc.frequency.exponentialRampToValueAtTime(1250, now + 0.04);
+      osc.frequency.exponentialRampToValueAtTime(700, now + 0.08);
+
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.1);
+    } catch {
+      // ignore
+    }
+  }
+
   public playSuccess() {
     if (this.isMuted) return;
     this.initContext();

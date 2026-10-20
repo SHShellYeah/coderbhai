@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
 import { useTranslation } from './data/translations';
 import { sound } from './utils/audio';
-import { LessonNode, CodeLanguage } from './types';
+import { LessonNode, CodeLanguage, FriendProfile } from './types';
 import { TopBar } from './components/navigation/TopBar';
 import { WindingPath } from './components/path/WindingPath';
 import { LeftSidebar } from './components/sidebar/LeftSidebar';
@@ -28,6 +28,8 @@ import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageS
 import { ArenaChallenge } from './types';
 import { BottomNavBar, BottomNavTab } from './components/navigation/BottomNavBar';
 import { MoreDrawerModal } from './components/navigation/MoreDrawerModal';
+import { FriendRequestNotificationToast } from './components/common/FriendRequestNotificationToast';
+import { UserProfileInspectModal } from './components/profile/UserProfileInspectModal';
 
 const MainApp: React.FC = () => {
   const { state } = useGame();
@@ -48,6 +50,7 @@ const MainApp: React.FC = () => {
   const [speedTrainingInitialTab, setSpeedTrainingInitialTab] = useState<'hub' | 'timed-training'>('hub');
   const [arenaInitialChallenge, setArenaInitialChallenge] = useState<ArenaChallenge | null>(null);
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register' | 'forgot' | 'update-password'>('register');
+  const [inspectedUser, setInspectedUser] = useState<FriendProfile | null>(null);
 
   // Check for password recovery link in URL params or hash and auto-launch AuthModal in update-password mode
   useEffect(() => {
@@ -123,6 +126,7 @@ const MainApp: React.FC = () => {
           setAuthInitialTab(tab);
           setIsAuthOpen(true);
         }}
+        onInspectProfile={(user) => setInspectedUser(user)}
       />
 
       {/* Main Content Area */}
@@ -209,6 +213,7 @@ const MainApp: React.FC = () => {
               }}
               onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
               onOpenRoadmap={(roadmapId) => setActiveDsaRoadmap(roadmapId)}
+              onInspectProfile={(user) => setInspectedUser(user)}
               filter={mobileTab === 'learn' ? 'all' : mobileTab}
             />
           </div>
@@ -383,6 +388,7 @@ const MainApp: React.FC = () => {
           }
           setIsCodeZoneOpen(true);
         }}
+        onInspectProfile={(user) => setInspectedUser(user)}
       />
 
       {/* Coding Arena Live Duels Modal */}
@@ -473,6 +479,25 @@ const MainApp: React.FC = () => {
             setDsaReturnRoadmap(roadmapId);
             setActiveDsaRoadmap(null);
             setIsCodeZoneOpen(true);
+          }}
+        />
+      )}
+
+      {/* Global Incoming Friend Request Notification Toast with Sound & Accept/Delete */}
+      <FriendRequestNotificationToast
+        onInspectProfile={(user) => setInspectedUser(user)}
+        onFriendAccepted={(friend) => setInspectedUser(friend)}
+      />
+
+      {/* Global User Profile Inspection Modal */}
+      {inspectedUser && (
+        <UserProfileInspectModal
+          isOpen={!!inspectedUser}
+          user={inspectedUser}
+          onClose={() => setInspectedUser(null)}
+          onStartDM={(target) => {
+            setInspectedUser(null);
+            setIsMessagingOpen(true);
           }}
         />
       )}

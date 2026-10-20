@@ -4,7 +4,7 @@ import { useTranslation } from '../../data/translations';
 import { sound } from '../../utils/audio';
 import { CatFace } from '../common/CatFace';
 import { supabase } from '../../lib/supabaseClient';
-import { UserRole } from '../../types';
+import { UserRole, FriendProfile } from '../../types';
 import {
   Trophy,
   Target,
@@ -43,6 +43,7 @@ interface Props {
   onOpenQuestionBank?: () => void;
   onOpenTraining?: () => void;
   onOpenRoadmap?: (roadmapId: DsaRoadmapId) => void;
+  onInspectProfile?: (user: FriendProfile) => void;
   filter?: 'all' | 'practice' | 'quests' | 'leaderboard' | 'settings';
 }
 
@@ -59,6 +60,7 @@ export const RightSidebar: React.FC<Props> = ({
   onOpenQuestionBank,
   onOpenTraining,
   onOpenRoadmap,
+  onInspectProfile,
   filter = 'all',
 }) => {
   const { state, toggleDarkMode } = useGame();
@@ -651,13 +653,25 @@ export const RightSidebar: React.FC<Props> = ({
               return (
                 <div
                   key={user.id}
-                  className={`p-2 rounded-lg flex items-center justify-between transition-colors ${
+                  onClick={() => {
+                    sound.playClick();
+                    onInspectProfile?.({
+                      id: user.id,
+                      username: user.username || user.name.toLowerCase().replace(/\s+/g, '_'),
+                      displayName: user.name,
+                      avatarUrl: user.avatar.startsWith('http') ? user.avatar : undefined,
+                      role: user.role,
+                      xp: user.xp,
+                    });
+                  }}
+                  className={`p-2 rounded-lg flex items-center justify-between transition-all cursor-pointer hover:scale-[1.01] ${
                     isUserRow
                       ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-500/30'
                       : isFirst
                       ? 'bg-amber-500/10 border border-amber-500/20 text-slate-800 dark:text-slate-200 font-medium'
                       : 'hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-700 dark:text-slate-300 font-medium'
                   }`}
+                  title={`Inspect ${user.name}'s profile`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="w-5 text-center text-xs font-medium shrink-0">

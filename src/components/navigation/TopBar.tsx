@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CourseId } from '../../types';
+import { CourseId, FriendProfile } from '../../types';
 import { COURSES } from '../../data/courses';
 import { useGame } from '../../context/GameContext';
 import { useTranslation } from '../../data/translations';
@@ -30,6 +30,7 @@ interface Props {
   onOpenQuestionBank?: () => void;
   onOpenTraining?: () => void;
   onOpenSpeedTraining?: () => void;
+  onInspectProfile?: (user: FriendProfile) => void;
 }
 
 export const TopBar: React.FC<Props> = ({
@@ -37,6 +38,7 @@ export const TopBar: React.FC<Props> = ({
   onOpenPlacement,
   onOpenSettings,
   onOpenAuth,
+  onInspectProfile,
 }) => {
   const { state, setActiveCourse, toggleDarkMode, refillHearts } = useGame();
   const t = useTranslation(state.language);
@@ -352,10 +354,25 @@ export const TopBar: React.FC<Props> = ({
                 type="button"
                 onClick={() => {
                   sound.playClick();
-                  onOpenAuth('login');
+                  if (onInspectProfile && state.authUser) {
+                    onInspectProfile({
+                      id: state.authUser.id,
+                      username: state.authUser.username || state.authUser.displayName || 'me',
+                      displayName: state.authUser.displayName || state.authUser.username || 'Learner',
+                      avatarUrl: state.authUser.avatarUrl,
+                      role: state.authUser.role,
+                      activeStatus: state.activeStatus,
+                      bio: state.authUser.bio,
+                      streak: state.streak,
+                      xp: state.xp,
+                      isEduUser: state.authUser.isEduUser,
+                    });
+                  } else {
+                    onOpenAuth('login');
+                  }
                 }}
                 className="flex items-center gap-1.5 p-0.5 sm:p-1 rounded-full hover:ring-2 hover:ring-[#1CB0F6] transition-all cursor-pointer shrink-0"
-                title={`Account: ${state.authUser.username ? `@${state.authUser.username}` : (state.authUser.displayName || state.authUser.email)}`}
+                title={`Inspect Profile: @${state.authUser.username || state.authUser.displayName || 'me'}`}
               >
                 <img
                   src={state.authUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.authUser.id}`}

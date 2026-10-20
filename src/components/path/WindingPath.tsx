@@ -5,15 +5,10 @@ import { useGame } from '../../context/GameContext';
 import { sound } from '../../utils/audio';
 import { ByteCampfire } from './ByteCampfire';
 import {
-  RotateCcw,
   Star,
   Lock,
   Trophy,
-  Zap,
-  Code,
-  Terminal,
-  Video,
-  Dumbbell
+  Zap
 } from 'lucide-react';
 import { UnitGuidebookModal } from './UnitGuidebookModal';
 
@@ -47,34 +42,6 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
     }
     sound.playClick();
     onSelectNode(node);
-  };
-
-  const getGlyphIcon = (nodeIdx: number, iconType?: string) => {
-    const glyphs = ['あ', '{ }', '⭐', '🎥', 'あ', '🏋️', '< >', '💻'];
-    const chosen = glyphs[nodeIdx % glyphs.length];
-
-    if (chosen === 'あ') {
-      return <span className="font-bold text-lg select-none">あ</span>;
-    }
-    if (chosen === '{ }') {
-      return <span className="font-mono font-bold text-base select-none">{'{ }'}</span>;
-    }
-    if (chosen === '< >') {
-      return <span className="font-mono font-bold text-base select-none">{'< >'}</span>;
-    }
-    if (chosen === '⭐') {
-      return <Star className="w-6 h-6 fill-current" />;
-    }
-    if (chosen === '🎥') {
-      return <Video className="w-5 h-5 fill-current" />;
-    }
-    if (chosen === '🏋️') {
-      return <Dumbbell className="w-5 h-5" />;
-    }
-
-    if (iconType === 'terminal') return <Terminal className="w-5 h-5" />;
-    if (iconType === 'trophy') return <Trophy className="w-5 h-5" />;
-    return <Code className="w-5 h-5" />;
   };
 
   return (
@@ -214,16 +181,14 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
                         aria-label={node.title}
                       >
                         {isCompleted ? (
-                          // Completed: Golden Yellow with Repeat icon matching screenshot
-                          <RotateCcw className="w-7 h-7 stroke-[3] text-amber-950" />
+                          // Completed: Golden Star
+                          <Star className="w-8 h-8 fill-amber-950 stroke-none" />
                         ) : isCurrent ? (
-                          // Active: Sky Blue with Bright White Star matching screenshot
+                          // Active: Sky Blue with Bright White Star
                           <Star className="w-8 h-8 fill-white stroke-none drop-shadow-xs" />
                         ) : (
-                          // Locked: Dark Slate with subtle glyph matching screenshot
-                          <div className="text-[#4A6475] flex items-center justify-center">
-                            {getGlyphIcon(nodeIdx, node.iconType)}
-                          </div>
+                          // Locked: Clean Subtle Star
+                          <Star className="w-7 h-7 fill-[#4A6475] stroke-none" />
                         )}
                       </button>
                     </div>

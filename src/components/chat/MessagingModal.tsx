@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../../context/GameContext';
 import { sound } from '../../utils/audio';
+import { supabaseClient as supabase } from '../../lib/supabase';
 import { ChatMessage, ChatChannel, UserActiveStatus, CodeLanguage, FriendProfile } from '../../types';
 import {
   searchUsersByUsername,
   fetchUserFriends,
-  addFriend,
-  removeFriend
+  fetchPendingFriendRequests,
+  sendFriendRequest,
+  acceptFriendRequest,
+  rejectFriendRequest,
+  removeFriend,
+  getDirectChannelId,
+  fetchUserProfileById
 } from '../../services/authService';
+import { UserProfileInspectModal } from '../profile/UserProfileInspectModal';
 import {
   X,
   Send,
@@ -37,7 +44,8 @@ import {
   Flame,
   Shield,
   MessageCircle,
-  Lock
+  Lock,
+  Clock
 } from 'lucide-react';
 
 interface Props {
@@ -45,6 +53,7 @@ interface Props {
   onClose: () => void;
   onOpenCodeZone?: (code?: string, lang?: CodeLanguage) => void;
   onOpenAuth?: (tab?: 'login' | 'register' | 'forgot' | 'update-password') => void;
+  onInspectProfile?: (user: FriendProfile) => void;
 }
 
 const STORAGE_KEY = 'bytesized_chat_messages_v1';
@@ -194,12 +203,21 @@ const STATUS_DOT: Record<UserActiveStatus, string> = {
 
 const COMMON_REACTIONS = ['🔥', '💡', '❤️', '🚀', '💻', '👀'];
 
-export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZone, onOpenAuth }) => {
+export const MessagingModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  onOpenCodeZone,
+  onOpenAuth,
+  onInspectProfile,
+}) => {
   const { state, updateProfile } = useGame();
   const [activeChannelId, setActiveChannelId] = useState<string>('general');
   const [channels, setChannels] = useState<ChatChannel[]>(INITIAL_CHANNELS);
   const [friends, setFriends] = useState<FriendProfile[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<FriendProfile[]>([]);
+  const [loadingPendingRequests, setLoadingPendingRequests] = useState(false);
+  const [inspectingUser, setInspectingUser] = useState<FriendProfile | null>(null);
 
   // User's own reactions: messageId -> array of emojis reacted by current user
   const [myReactions, setMyReactions] = useState<Record<string, string[]>>(() => {
@@ -252,7 +270,7 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Sync messages to localStorage
+  // Sync messages to localStorage cache
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
@@ -261,7 +279,7 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
     }
   }, [messages]);
 
-  // Load user friends on mount / auth change
+  // Load user friends and canonical DM channels
   const refreshFriendsList = async () => {
     const currentUid = state.authUser?.id;
     if (!currentUid) return;
@@ -270,11 +288,11 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
       const friendList = await fetchUserFriends(currentUid);
       setFriends(friendList);
 
-      // Dynamically add friend channels to channels list
+      // Dynamically add friend channels with canonical sorted DM channel ID
       setChannels((prev) => {
-        const nonFriendChannels = prev.filter((c) => !c.id.startsWith('dm-user-'));
+        const nonFriendChannels = prev.filter((c) => !c.id.startsWith('dm:'));
         const friendChannels: ChatChannel[] = friendList.map((f) => ({
-          id: `dm-user-${f.id}`,
+          id: getDirectChannelId(currentUid, f.id),
           name: f.displayName || f.username || 'Friend',
           description: `@${f.username} • Direct Message`,
           icon: '💬',
@@ -293,11 +311,136 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
     }
   };
 
+  // Load incoming pending friend requests
+  const refreshPendingRequests = async () => {
+    const currentUid = state.authUser?.id;
+    if (!currentUid) return;
+    setLoadingPendingRequests(true);
+    try {
+      const pending = await fetchPendingFriendRequests(currentUid);
+      setPendingRequests(pending);
+    } catch (err) {
+      console.warn('Failed to load pending requests:', err);
+    } finally {
+      setLoadingPendingRequests(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       refreshFriendsList();
+      refreshPendingRequests();
     }
   }, [isOpen, state.authUser?.id]);
+
+  // Realtime Supabase listener & database sync for active channel messages
+  useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
+
+    // Fetch persisted messages from Supabase for this channel
+    const loadChannelMessages = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('channel_id', activeChannelId)
+          .order('created_at', { ascending: true })
+          .limit(100);
+
+        if (!error && data && isMounted) {
+          const dbMsgs: ChatMessage[] = data.map((r) => ({
+            id: r.id,
+            channelId: r.channel_id,
+            senderId: r.sender_id,
+            senderName: r.sender_name,
+            senderAvatar: r.sender_avatar,
+            senderRole: (r.sender_role as 'admin' | 'user') || 'user',
+            senderStatus: (r.sender_status as UserActiveStatus) || 'online',
+            content: r.content,
+            codeSnippet: r.code_snippet,
+            reactions: r.reactions || {},
+            timestamp: new Date(r.created_at).getTime(),
+          }));
+
+          setMessages((prev) => {
+            const others = prev.filter((m) => m.channelId !== activeChannelId);
+            if (dbMsgs.length > 0) {
+              return [...others, ...dbMsgs];
+            }
+            const seeds = INITIAL_MESSAGES.filter((m) => m.channelId === activeChannelId);
+            return [...others, ...seeds];
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to load messages from Supabase:', err);
+      }
+    };
+
+    loadChannelMessages();
+
+    // Supabase Realtime Channel Subscription
+    const channelListener = supabase
+      .channel(`realtime_chat_${activeChannelId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `channel_id=eq.${activeChannelId}`,
+        },
+        (payload) => {
+          const r = payload.new as any;
+          if (!r || !r.id) return;
+          const incoming: ChatMessage = {
+            id: r.id,
+            channelId: r.channel_id,
+            senderId: r.sender_id,
+            senderName: r.sender_name,
+            senderAvatar: r.sender_avatar,
+            senderRole: (r.sender_role as 'admin' | 'user') || 'user',
+            senderStatus: (r.sender_status as UserActiveStatus) || 'online',
+            content: r.content,
+            codeSnippet: r.code_snippet,
+            reactions: r.reactions || {},
+            timestamp: new Date(r.created_at).getTime(),
+          };
+
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === incoming.id)) return prev;
+            return [...prev, incoming];
+          });
+
+          // Play pop sound for incoming message if sent by peer
+          if (r.sender_id !== state.authUser?.id) {
+            sound.playPop();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `channel_id=eq.${activeChannelId}`,
+        },
+        (payload) => {
+          const r = payload.new as any;
+          if (!r || !r.id) return;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === r.id ? { ...m, reactions: r.reactions || {} } : m))
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channelListener);
+    };
+  }, [isOpen, activeChannelId, state.authUser?.id]);
 
   // Debounced search for learners by username
   useEffect(() => {
@@ -340,6 +483,15 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
   const currentUserName = state.authUser?.displayName || state.authUser?.email?.split('@')[0] || 'ByteSized Learner';
   const currentUserAvatar = state.authUser?.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.authUser?.id || 'learner'}`;
 
+  const handleInspectUser = (user: FriendProfile) => {
+    sound.playClick();
+    if (onInspectProfile) {
+      onInspectProfile(user);
+    } else {
+      setInspectingUser(user);
+    }
+  };
+
   const handleSendMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!state.authUser) {
@@ -354,6 +506,11 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
     if (!trimmedText && !trimmedCode) return;
 
     sound.playClick();
+
+    const isBotChannel =
+      activeChannelId === 'dm-byte' ||
+      activeChannelId === 'dm-ada' ||
+      activeChannelId === 'dm-linus';
 
     const newMessage: ChatMessage = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -379,10 +536,32 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
     setCodeContent('');
     setIsAttachingCode(false);
 
+    // If public or direct channel with friend: PERSIST TO SUPABASE DATABASE
+    if (!isBotChannel) {
+      supabase
+        .from('messages')
+        .insert({
+          channel_id: activeChannelId,
+          sender_id: state.authUser.id,
+          sender_name: currentUserName,
+          sender_avatar: currentUserAvatar,
+          sender_role: isAdmin ? 'admin' : 'user',
+          sender_status: currentUserStatus,
+          content: trimmedText || (trimmedCode ? 'Shared a code snippet:' : ''),
+          code_snippet: trimmedCode ? { code: trimmedCode, language: codeLanguage } : null,
+          reactions: {},
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.warn('[Supabase] Failed to persist message:', error);
+          }
+        });
+    }
+
     // AI mentor auto-replies for companion bots
-    if (currentChannel.isDirect && currentChannel.id.startsWith('dm-') && !currentChannel.id.startsWith('dm-user-')) {
+    if (isBotChannel) {
       setTimeout(() => {
-        handlePeerAutoReply(currentChannel.id, trimmedText);
+        handlePeerAutoReply(activeChannelId, trimmedText);
       }, 1200);
     }
   };
@@ -506,7 +685,7 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
     setTimeout(() => setCopiedCodeId(null), 2000);
   };
 
-  // Add friend action
+  // Send friend request or accept incoming request
   const handleAddFriendClick = async (targetUser: FriendProfile) => {
     sound.playClick();
     const currentUid = state.authUser?.id;
@@ -516,17 +695,47 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
       return;
     }
 
-    const res = await addFriend(currentUid, targetUser.id);
+    const res = await sendFriendRequest(currentUid, targetUser.id);
     if (res.success) {
-      sound.playSuccess();
-      setSearchFeedback({ msg: `🎉 Added @${targetUser.username} as a friend!`, type: 'success' });
-      setSearchResults((prev) =>
-        prev.map((u) => (u.id === targetUser.id ? { ...u, isFriend: true } : u))
-      );
-      refreshFriendsList();
+      if (res.status === 'accepted') {
+        sound.playSuccess();
+        setSearchFeedback({ msg: `🎉 Added @${targetUser.username} as a friend!`, type: 'success' });
+        setSearchResults((prev) =>
+          prev.map((u) => (u.id === targetUser.id ? { ...u, isFriend: true, friendshipStatus: 'accepted' } : u))
+        );
+        refreshFriendsList();
+        refreshPendingRequests();
+      } else {
+        sound.playPop();
+        setSearchFeedback({ msg: `Friend request sent to @${targetUser.username}! They must accept to become friends.`, type: 'success' });
+        setSearchResults((prev) =>
+          prev.map((u) => (u.id === targetUser.id ? { ...u, friendshipStatus: 'pending_sent' } : u))
+        );
+      }
     } else {
       sound.playError();
-      setSearchFeedback({ msg: res.error || 'Failed to add friend.', type: 'error' });
+      setSearchFeedback({ msg: res.error || 'Failed to send friend request.', type: 'error' });
+    }
+  };
+
+  const handleAcceptPendingRequest = async (req: FriendProfile) => {
+    const currentUid = state.authUser?.id;
+    if (!currentUid) return;
+    sound.playSuccess();
+    const res = await acceptFriendRequest(req.id, currentUid);
+    if (res.success) {
+      setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
+      refreshFriendsList();
+    }
+  };
+
+  const handleDeletePendingRequest = async (req: FriendProfile) => {
+    const currentUid = state.authUser?.id;
+    if (!currentUid) return;
+    sound.playClick();
+    const res = await rejectFriendRequest(req.id, currentUid);
+    if (res.success) {
+      setPendingRequests((prev) => prev.filter((r) => r.id !== req.id));
     }
   };
 
@@ -540,16 +749,17 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
     if (res.success) {
       sound.playClick();
       setSearchResults((prev) =>
-        prev.map((u) => (u.id === targetUser.id ? { ...u, isFriend: false } : u))
+        prev.map((u) => (u.id === targetUser.id ? { ...u, isFriend: false, friendshipStatus: 'none' } : u))
       );
       refreshFriendsList();
     }
   };
 
-  // Switch to a direct message channel with a user/friend
+  // Switch to a direct message channel with a user/friend using canonical channel ID
   const handleStartDMWithUser = (user: FriendProfile) => {
     sound.playClick();
-    const dmChannelId = `dm-user-${user.id}`;
+    const currentUid = state.authUser?.id || 'me';
+    const dmChannelId = getDirectChannelId(currentUid, user.id);
 
     // Ensure channel exists in channels list
     setChannels((prev) => {
@@ -897,7 +1107,7 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
             </div>
 
             <div className="space-y-1 mt-1">
-              {channels.filter((c) => c.isDirect && c.id.startsWith('dm-user-')).map((c) => {
+              {channels.filter((c) => c.isDirect && (c.id.startsWith('dm:') || c.id.startsWith('dm-user-'))).map((c) => {
                 const isActive = !isAddFriendOpen && activeChannelId === c.id;
                 return (
                   <button
@@ -936,7 +1146,7 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
               <div className="pt-2 px-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
                 AI Companions
               </div>
-              {channels.filter((c) => c.isDirect && !c.id.startsWith('dm-user-')).map((c) => {
+              {channels.filter((c) => c.isDirect && !c.id.startsWith('dm:') && !c.id.startsWith('dm-user-')).map((c) => {
                 const isActive = !isAddFriendOpen && activeChannelId === c.id;
                 return (
                   <button
@@ -1110,20 +1320,29 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
                           key={user.id}
                           className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 transition-all flex items-start gap-3 shadow-xs"
                         >
-                          <div className="relative shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleInspectUser(user)}
+                            className="relative shrink-0 cursor-pointer group"
+                            title="Inspect profile"
+                          >
                             <img
                               src={user.avatarUrl}
                               alt={user.displayName}
-                              className="w-11 h-11 rounded-2xl bg-slate-950 border border-purple-500/50 object-cover"
+                              className="w-11 h-11 rounded-2xl bg-slate-950 border border-purple-500/50 object-cover group-hover:scale-105 transition-transform"
                             />
                             <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-slate-900 ${STATUS_DOT[user.activeStatus || 'online']}`} />
-                          </div>
+                          </button>
 
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-xs font-black text-slate-900 dark:text-white truncate">
+                              <button
+                                type="button"
+                                onClick={() => handleInspectUser(user)}
+                                className="text-xs font-black text-slate-900 dark:text-white truncate hover:underline cursor-pointer text-left"
+                              >
                                 {user.displayName}
-                              </span>
+                              </button>
                               {user.role === 'admin' ? (
                                 <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-xs border border-amber-300">
                                   👑 Admin
@@ -1135,9 +1354,13 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
                               )}
                             </div>
 
-                            <div className="text-[11px] font-mono font-bold text-indigo-500 dark:text-indigo-400 mt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleInspectUser(user)}
+                              className="text-[11px] font-mono font-bold text-indigo-500 dark:text-indigo-400 mt-0.5 hover:underline cursor-pointer block"
+                            >
                               @{user.username}
-                            </div>
+                            </button>
 
                             {user.bio && (
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-1">
@@ -1147,7 +1370,7 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
 
                             {/* Action Buttons */}
                             <div className="mt-2.5 flex items-center gap-2">
-                              {user.isFriend ? (
+                              {user.isFriend || user.friendshipStatus === 'accepted' ? (
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveFriendClick(user)}
@@ -1157,6 +1380,30 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
                                   <UserCheck className="w-3 h-3" />
                                   <span>Friends ✓</span>
                                 </button>
+                              ) : user.friendshipStatus === 'pending_received' ? (
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAcceptPendingRequest(user)}
+                                    className="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black flex items-center gap-1 transition-all shadow-xs cursor-pointer"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                    <span>Accept</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeletePendingRequest(user)}
+                                    className="px-2 py-1 rounded-xl bg-rose-500/15 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/30 text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer"
+                                  >
+                                    <X className="w-3 h-3" />
+                                    <span>Delete</span>
+                                  </button>
+                                </div>
+                              ) : user.friendshipStatus === 'pending_sent' ? (
+                                <span className="px-2.5 py-1 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-500 text-[10px] font-bold flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-amber-500" />
+                                  <span>Request Sent</span>
+                                </span>
                               ) : (
                                 <button
                                   type="button"
@@ -1185,6 +1432,75 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
                 </div>
               )}
 
+              {/* Pending Friend Requests Section */}
+              {pendingRequests.length > 0 && (
+                <div className="pt-2 space-y-3 animate-fade">
+                  <div className="text-xs font-black uppercase tracking-wider text-amber-500 dark:text-amber-400 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <UserPlus className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Pending Friend Requests ({pendingRequests.length})</span>
+                    </span>
+                    {loadingPendingRequests && <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-400" />}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {pendingRequests.map((req) => (
+                      <div
+                        key={req.id}
+                        className="p-3.5 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border-2 border-amber-500/40 flex items-center justify-between gap-3 shadow-xs"
+                      >
+                        <div
+                          onClick={() => handleInspectUser(req)}
+                          className="flex items-center gap-2.5 min-w-0 cursor-pointer group"
+                          title="Click to inspect profile"
+                        >
+                          <div className="relative shrink-0">
+                            <img
+                              src={req.avatarUrl}
+                              alt={req.displayName}
+                              className="w-10 h-10 rounded-xl bg-slate-950 border border-amber-400/50 object-cover group-hover:scale-105 transition-transform"
+                            />
+                            <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-white dark:ring-slate-900 ${STATUS_DOT[req.activeStatus || 'online']}`} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-black text-slate-900 dark:text-white truncate group-hover:text-indigo-400 transition-colors">
+                              {req.displayName}
+                            </div>
+                            <div className="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-bold truncate">
+                              @{req.username}
+                            </div>
+                            <div className="text-[10px] text-slate-400">
+                              🔥 {req.streak ?? 0} streak
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleAcceptPendingRequest(req)}
+                            className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center gap-1 shadow-xs transition-all active:scale-95 cursor-pointer"
+                            title="Accept friend request"
+                          >
+                            <Check className="w-3 h-3 stroke-[3]" />
+                            <span>Accept</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePendingRequest(req)}
+                            className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-500/15 border border-rose-500/30 text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                            title="Delete friend request"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Current Friends List */}
               <div className="pt-2 space-y-3">
                 <div className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
@@ -1209,17 +1525,21 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
                         key={friend.id}
                         className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shadow-xs"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          onClick={() => handleInspectUser(friend)}
+                          className="flex items-center gap-2.5 min-w-0 cursor-pointer group"
+                          title="Click to inspect profile"
+                        >
                           <div className="relative shrink-0">
                             <img
                               src={friend.avatarUrl}
                               alt={friend.displayName}
-                              className="w-10 h-10 rounded-xl bg-slate-950 border border-purple-500/40 object-cover"
+                              className="w-10 h-10 rounded-xl bg-slate-950 border border-purple-500/40 object-cover group-hover:scale-105 transition-transform"
                             />
                             <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ring-2 ring-white dark:ring-slate-900 ${STATUS_DOT[friend.activeStatus || 'online']}`} />
                           </div>
                           <div className="min-w-0">
-                            <div className="text-xs font-black text-slate-900 dark:text-white truncate">
+                            <div className="text-xs font-black text-slate-900 dark:text-white truncate group-hover:text-indigo-400 transition-colors">
                               {friend.displayName}
                             </div>
                             <div className="text-[11px] font-mono text-indigo-400 font-bold truncate">
@@ -1232,7 +1552,7 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
                           <button
                             type="button"
                             onClick={() => handleStartDMWithUser(friend)}
-                            className="px-2.5 py-1 rounded-xl bg-purple-600 text-white hover:bg-purple-500 text-xs font-black flex items-center gap-1 transition-all shadow-xs"
+                            className="px-2.5 py-1 rounded-xl bg-purple-600 text-white hover:bg-purple-500 text-xs font-black flex items-center gap-1 transition-all shadow-xs cursor-pointer"
                           >
                             <MessageSquare className="w-3 h-3" />
                             <span>Chat</span>
@@ -1241,7 +1561,7 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
                           <button
                             type="button"
                             onClick={() => handleRemoveFriendClick(friend)}
-                            className="p-1 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                            className="p-1 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
                             title="Remove friend"
                           >
                             <UserMinus className="w-3.5 h-3.5" />
@@ -1276,7 +1596,22 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
 
                     return (
                       <div key={msg.id} className="flex items-start gap-2.5 sm:gap-3 group animate-fade">
-                        <div className="relative shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sound.playClick();
+                            handleInspectUser({
+                              id: msg.senderId,
+                              username: msg.senderName,
+                              displayName: msg.senderName,
+                              avatarUrl: msg.senderAvatar,
+                              role: msg.senderRole,
+                              activeStatus: msg.senderStatus,
+                            });
+                          }}
+                          className="relative shrink-0 cursor-pointer hover:opacity-85 transition-opacity text-left"
+                          title={`Inspect ${msg.senderName}'s profile`}
+                        >
                           <img
                             src={msg.senderAvatar}
                             alt={msg.senderName}
@@ -1289,13 +1624,27 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
                               STATUS_DOT[msg.senderStatus || 'online']
                             }`}
                           />
-                        </div>
+                        </button>
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                            <span className="text-xs font-black text-slate-900 dark:text-white">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sound.playClick();
+                                handleInspectUser({
+                                  id: msg.senderId,
+                                  username: msg.senderName,
+                                  displayName: msg.senderName,
+                                  avatarUrl: msg.senderAvatar,
+                                  role: msg.senderRole,
+                                  activeStatus: msg.senderStatus,
+                                });
+                              }}
+                              className="text-xs font-black text-slate-900 dark:text-white hover:underline cursor-pointer text-left"
+                            >
                               {msg.senderName}
-                            </span>
+                            </button>
 
                             {isMsgAdmin ? (
                               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-xs border border-amber-300">
@@ -1559,6 +1908,23 @@ export const MessagingModal: React.FC<Props> = ({ isOpen, onClose, onOpenCodeZon
           </>
         )}
       </div>
+
+      {/* Embedded Profile Inspection Modal */}
+      {inspectingUser && (
+        <UserProfileInspectModal
+          isOpen={!!inspectingUser}
+          user={inspectingUser}
+          onClose={() => setInspectingUser(null)}
+          onStartDM={(target) => {
+            setInspectingUser(null);
+            handleStartDMWithUser(target);
+          }}
+          onFriendStatusChange={() => {
+            refreshFriendsList();
+            refreshPendingRequests();
+          }}
+        />
+      )}
     </div>
   );
 };

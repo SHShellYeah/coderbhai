@@ -265,6 +265,8 @@ export interface FriendProfile {
   streak?: number;
   isEduUser?: boolean;
   isFriend?: boolean;
+  friendshipStatus?: 'none' | 'pending_sent' | 'pending_received' | 'accepted';
+  pendingRequestId?: string;
 }
 
 export type IdeaCategory = 'all' | 'idea' | 'dsa' | 'bug' | 'snippet' | 'general';
