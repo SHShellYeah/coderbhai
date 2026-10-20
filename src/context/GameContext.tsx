@@ -117,6 +117,7 @@ interface GameContextType {
   setThemeColor: (theme: import('../types').ThemeColor) => void;
   setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;
+  applyCustomCoursePlan: (courseId: CourseId, knowledgeLevel: 'beginner' | 'basics' | 'intermediate' | 'advanced', commitmentDays: number) => void;
   completePlacementTest: (courseId: CourseId, score: number) => void;
   startScratch: (courseId: CourseId) => void;
   resetProgress: () => void;
@@ -521,6 +522,72 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const applyCustomCoursePlan = (
+    courseId: CourseId,
+    knowledgeLevel: 'beginner' | 'basics' | 'intermediate' | 'advanced',
+    commitmentDays: number
+  ) => {
+    const course = COURSES[courseId] || COURSES.cpp;
+    setState(prev => {
+      const prog = prev.courseProgress[courseId] || {
+        completedNodeIds: [],
+        currentNodeId: '',
+        placementTaken: false,
+        unlockedUnitCount: 1,
+      };
+
+      let unlockedUnitCount = 1;
+      let completedIds: string[] = [];
+      let targetNodeId = course.units[0]?.nodes[0]?.id || '';
+
+      if (knowledgeLevel === 'advanced') {
+        unlockedUnitCount = Math.min(3, course.units.length);
+        const unitsToComplete = course.units.slice(0, Math.min(2, course.units.length - 1));
+        completedIds = unitsToComplete.flatMap(u => u.nodes.map(n => n.id));
+        const targetUnit = course.units[Math.min(2, course.units.length - 1)] || course.units[0];
+        targetNodeId = targetUnit?.nodes[0]?.id || course.units[0]?.nodes[0]?.id || '';
+      } else if (knowledgeLevel === 'intermediate') {
+        unlockedUnitCount = Math.min(2, course.units.length);
+        completedIds = course.units[0]?.nodes.map(n => n.id) || [];
+        targetNodeId = course.units[1]?.nodes[0]?.id || course.units[0]?.nodes[0]?.id || '';
+      } else if (knowledgeLevel === 'basics') {
+        unlockedUnitCount = 1;
+        completedIds = course.units[0]?.nodes.slice(0, 2).map(n => n.id) || [];
+        targetNodeId = course.units[0]?.nodes[2]?.id || course.units[0]?.nodes[0]?.id || '';
+      } else {
+        unlockedUnitCount = 1;
+        completedIds = [];
+        targetNodeId = course.units[0]?.nodes[0]?.id || '';
+      }
+
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('bytesized_commitment_days', commitmentDays.toString());
+          localStorage.setItem('bytesized_knowledge_level', knowledgeLevel);
+        } catch {
+          // ignore
+        }
+      }
+
+      return {
+        ...prev,
+        activeCourseId: courseId,
+        xp: prev.xp + 50,
+        gems: prev.gems + 30,
+        courseProgress: {
+          ...prev.courseProgress,
+          [courseId]: {
+            ...prog,
+            placementTaken: true,
+            unlockedUnitCount,
+            completedNodeIds: completedIds,
+            currentNodeId: targetNodeId,
+          },
+        },
+      };
+    });
+  };
+
   const completePlacementTest = (courseId: CourseId, score: number) => {
     const course = COURSES[courseId];
     setState(prev => {
@@ -899,6 +966,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setThemeColor,
       setLanguage,
       toggleLanguage,
+      applyCustomCoursePlan,
       completePlacementTest,
       startScratch,
       resetProgress,

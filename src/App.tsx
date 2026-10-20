@@ -9,7 +9,7 @@ import { LeftSidebar } from './components/sidebar/LeftSidebar';
 import { RightSidebar } from './components/sidebar/RightSidebar';
 import { LessonModal } from './components/lesson/LessonModal';
 import { PracticeModal } from './components/practice/PracticeModal';
-import { PlacementModal } from './components/placement/PlacementModal';
+import { ByteOnboardingModal } from './components/onboarding/ByteOnboardingModal';
 import { ThemeCustomizerModal } from './components/settings/ThemeCustomizerModal';
 import { IdeaZoneModal } from './components/ideazone/IdeaZoneModal';
 import { CodeZoneModal } from './components/codezone/CodeZoneModal';
@@ -390,10 +390,10 @@ const MainApp: React.FC = () => {
         <PracticeModal onClose={() => setIsPracticeOpen(false)} />
       )}
 
-      {/* Onboarding & Adaptive Placement Modal */}
+      {/* Byte Guided Onboarding & Custom Course Plan Modal */}
       {isPlacementOpen && (
-        <PlacementModal
-          courseId={state.activeCourseId}
+        <ByteOnboardingModal
+          initialCourseId={state.activeCourseId}
           onClose={() => setIsPlacementOpen(false)}
         />
       )}
