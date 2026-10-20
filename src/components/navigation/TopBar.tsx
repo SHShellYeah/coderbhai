@@ -40,6 +40,7 @@ interface Props {
   onOpenArena?: () => void;
   onOpenQuestionBank?: () => void;
   onOpenTraining?: () => void;
+  onOpenSpeedTraining?: () => void;
 }
 
 export const TopBar: React.FC<Props> = ({
@@ -53,6 +54,7 @@ export const TopBar: React.FC<Props> = ({
   onOpenArena,
   onOpenQuestionBank,
   onOpenTraining,
+  onOpenSpeedTraining,
 }) => {
   const { state, setActiveCourse, toggleSound, toggleDarkMode, toggleLanguage, refillHearts } = useGame();
   const t = useTranslation(state.language);
@@ -240,19 +242,20 @@ export const TopBar: React.FC<Props> = ({
               </button>
             )}
 
-            {onOpenTraining && (
+            {(onOpenSpeedTraining || onOpenTraining) && (
               <button
                 type="button"
                 onClick={() => {
                   sound.playClick();
-                  onOpenTraining();
+                  if (onOpenSpeedTraining) onOpenSpeedTraining();
+                  else if (onOpenTraining) onOpenTraining();
                 }}
-                className="btn-3d flex items-center gap-1 px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-xs font-black transition-all cursor-pointer shrink-0"
-                title="Speed Training - Compete Against Yourself & Personal Best (NeetCode 75/150)"
+                className="btn-3d flex items-center gap-1 px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-xs font-black transition-all cursor-pointer shrink-0"
+                title="Speed Training - Timed PBs, DSA Roadmaps & Practice"
+                aria-label="Speed Training"
               >
-                <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500/30" />
-                <span className="hidden xl:inline">Training</span>
-                <span className="text-[9px] font-black uppercase px-1 py-0.2 rounded bg-amber-500/20 text-amber-500 hidden 2xl:inline">PB</span>
+                <Zap className="w-3.5 h-3.5 text-amber-500 fill-current" />
+                <span className="hidden xl:inline">Speed</span>
               </button>
             )}
 

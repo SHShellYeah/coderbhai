@@ -15,26 +15,29 @@ import {
   Check,
   X,
   Lightbulb,
-  Sparkles,
-  Settings,
-  HelpCircle,
-  FileCode,
-  Sliders,
-  Maximize2,
-  Minimize2,
-  Trash2,
-  ChevronDown,
-  ArrowRight,
+  ExternalLink,
   Keyboard,
-  ExternalLink
+  Trash2,
+  BookOpen,
+  Send,
+  CheckCircle2,
+  XCircle,
+  Clock
 } from 'lucide-react';
+import { DsaProblemSpec } from '../../types/dsa';
+import { evaluateTestCases, EvaluationSummary } from '../../utils/codeRunner';
+import { useDsaProgress } from '../../context/DsaProgressContext';
 
 interface Props {
   initialCode?: string;
   initialLanguage?: CodeLanguage;
   isStandalone?: boolean;
+  problem?: DsaProblemSpec | null;
   onClose: () => void;
   onSaveToIdeaZone?: (code: string, language: CodeLanguage) => void;
+  onBackToRoadmap?: () => void;
+  onProblemSolved?: (problemId: string) => void;
+  onProblemAttempted?: (problemId: string) => void;
 }
 
 const PAIRS: Record<string, string> = {
@@ -46,15 +49,6 @@ const PAIRS: Record<string, string> = {
   '`': '`',
 };
 const CLOSING_SET = new Set([')', '}', ']', '"', "'", '`']);
-
-// Helper for safe client-side math and token evaluation without direct eval
-const safeCalc = (expr: string): unknown => {
-  try {
-    return new Function(`"use strict"; return (${expr});`)();
-  } catch {
-    return expr;
-  }
-};
 
 const STARTER_TEMPLATES: Record<CodeLanguage, Record<string, string>> = {
   c: {
@@ -118,95 +112,160 @@ int main(void) {
     'Hello World': `#include <iostream>
 
 int main() {
-    std::cout << "Hello from Modern C++!" << std::endl;
-    std::cout << "Fast, typed, and powerful." << std::endl;
+    std::cout << "Hello, Modern C++ on ByteSized!" << std::endl;
+    std::cout << "Blazing fast, zero-cost abstractions." << std::endl;
     return 0;
 }`,
-    'Variables & Input': `#include <iostream>
+    'STL Vector': `#include <iostream>
+#include <vector>
+#include <algorithm>
+
+int main() {
+    std::vector<int> nums = {42, 7, 19, 99, 3};
+    std::cout << "Initial size: " << nums.size() << std::endl;
+
+    std::sort(nums.begin(), nums.end());
+    std::cout << "Sorted elements: ";
+    for (int n : nums) {
+        std::cout << n << " ";
+    }
+    std::cout << std::endl;
+    return 0;
+}`,
+    'Classes & OOP': `#include <iostream>
 #include <string>
 
-int main() {
-    std::string name = "Bhai";
-    int streak = 7;
+class Student {
+private:
+    std::string name;
+    int streak;
 
-    std::cout << "Developer: " << name << std::endl;
-    std::cout << "Coding Streak: " << streak << " days!" << std::endl;
-    return 0;
-}`,
-    'Vector & Range Loop': `#include <iostream>
-#include <vector>
+public:
+    Student(std::string n, int s) : name(n), streak(s) {}
 
-int main() {
-    std::vector<int> scores = {10, 20, 30};
-    scores.push_back(40);
-
-    std::cout << "Vector items: ";
-    for (int x : scores) {
-        std::cout << x << " ";
+    void showProgress() {
+        std::cout << "Student: " << name << " | Streak: " << streak << " days!" << std::endl;
     }
-    std::cout << "\\nTotal size: " << scores.size() << std::endl;
+};
+
+int main() {
+    Student s1("Bhai Cat", 14);
+    s1.showProgress();
     return 0;
 }`,
   },
 
   python: {
-    'Hello World & F-Strings': `name = "ByteSized"
-streak = 5
-print(f"Welcome to {name}!")
-print(f"Current Streak: {streak} days on fire 🔥")
+    'Hello World': `print("Hello, ByteSized Python!")
+print("Clean, readable, dynamic code.")
 `,
-    'Lists & Comprehensions': `nums = [1, 2, 3, 4, 5]
-evens = [x * 2 for x in nums if x % 2 == 0]
+    'Lists & Loops': `languages = ["C", "C++", "Python", "Rust"]
 
-print("Original:", nums)
-print("Even numbers doubled:", evens)
+print("Supported languages in ByteSized:")
+for idx, lang in enumerate(languages, 1):
+    print(f"{idx}. {lang}")
 `,
-    'Functions & Dictionaries': `def get_user_profile(username, score):
+    'Functions & Dict': `def calculate_stats(scores):
     return {
-        "username": username,
-        "score": score,
-        "badge": "Masters" if score >= 80 else "Challenger"
+        "highest": max(scores),
+        "lowest": min(scores),
+        "average": sum(scores) / len(scores)
     }
 
-user = get_user_profile("Lin", 95)
-print("User Profile:", user)
+grades = [88, 92, 79, 95, 84]
+stats = calculate_stats(grades)
+print(f"Top Score: {stats['highest']}")
+print(f"Average: {stats['average']:.1f}")
 `,
   },
 
   javascript: {
-    'Hello World & Logs': `console.log("Welcome to CodeZone! ⚡");
-const coder = {
-  name: "Bhai the Cat",
-  role: "Lead Mascot & CS Mentor",
-  hearts: 5
-};
-console.log("Active Companion:", coder);
+    'Hello World': `console.log("Hello from ByteSized CodeZone!");
+console.log("JavaScript running in browser sandbox.");
 `,
-    'Array Methods & Math': `const scores = [85, 92, 78, 96, 88];
-const average = scores.reduce((sum, s) => sum + s, 0) / scores.length;
-console.log("Scores:", scores);
-console.log("Class Average:", average.toFixed(1));
+    'Arrays & Objects': `const user = {
+  name: "Bhai Cat",
+  hearts: 5,
+  gems: 120,
+  skills: ["C", "C++", "DSA"]
+};
+
+console.log(\`User: \${user.name}\`);
+console.log(\`Hearts: \${user.hearts} | Gems: \${user.gems}\`);
+console.log("Skills:", user.skills.join(", "));
 `,
   },
 };
 
 export const CodeZoneModal: React.FC<Props> = ({
   initialCode,
-  initialLanguage = 'c',
+  initialLanguage,
   isStandalone = false,
+  problem = null,
   onClose,
   onSaveToIdeaZone,
+  onBackToRoadmap,
+  onProblemSolved,
+  onProblemAttempted,
 }) => {
-  const [language, setLanguage] = useState<CodeLanguage>(initialLanguage);
-  const [code, setCode] = useState<string>(() => {
-    if (initialCode) return initialCode;
-    return STARTER_TEMPLATES[initialLanguage]['Hello World'] || '';
+  const { getProblemStatus } = useDsaProgress();
+  const currentStatus = problem ? getProblemStatus(problem.id) : undefined;
+
+  const [language, setLanguage] = useState<CodeLanguage>(() => {
+    if (initialLanguage) return initialLanguage;
+    if (problem) {
+      try {
+        const savedLang = localStorage.getItem(`bytesized_dsa_last_lang_${problem.id}`);
+        if (savedLang === 'c' || savedLang === 'cpp' || savedLang === 'python' || savedLang === 'javascript') {
+          return savedLang as CodeLanguage;
+        }
+      } catch {
+        // ignore
+      }
+      return 'python'; // Default to Python for DSA problems
+    }
+    return 'c';
   });
+
+  const [code, setCode] = useState<string>(() => {
+    if (problem) {
+      try {
+        const draftKey = `bytesized_dsa_draft_${problem.id}_${language}`;
+        const savedDraft = localStorage.getItem(draftKey);
+        if (savedDraft) return savedDraft;
+      } catch {
+        // ignore
+      }
+      return problem.starterTemplates[language] || '';
+    }
+    if (initialCode) return initialCode;
+    return STARTER_TEMPLATES[language]['Hello World'] || '';
+  });
+
+  // Preserve user drafts per problem and language
+  useEffect(() => {
+    if (problem && code) {
+      try {
+        localStorage.setItem(`bytesized_dsa_draft_${problem.id}_${language}`, code);
+        localStorage.setItem(`bytesized_dsa_last_lang_${problem.id}`, language);
+      } catch {
+        // ignore
+      }
+    }
+  }, [code, language, problem]);
 
   const [stdinInput, setStdinInput] = useState<string>('');
   const [showStdin, setShowStdin] = useState<boolean>(false);
   const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState<boolean>(false);
+  const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
+  const [evaluationSummary, setEvaluationSummary] = useState<
+    (EvaluationSummary & { isSubmission: boolean }) | null
+  >(null);
+  const [activeBottomTab, setActiveBottomTab] = useState<'tests' | 'terminal'>(
+    problem ? 'tests' : 'terminal'
+  );
+  const [isProblemPanelCollapsed, setIsProblemPanelCollapsed] = useState<boolean>(false);
   const [executionStats, setExecutionStats] = useState<{ timeMs: number; status: 'ok' | 'error' } | null>(null);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
   const [mascotWisdom, setMascotWisdom] = useState<string | null>(null);
@@ -261,7 +320,6 @@ export const CodeZoneModal: React.FC<Props> = ({
 
     try {
       const rawHtml = Prism.highlight(code, langGrammar, langId);
-      // Ensure trailing empty lines expand the pre height so it matches textarea
       return code.endsWith('\n') ? rawHtml + '\n ' : rawHtml;
     } catch {
       return code;
@@ -272,18 +330,39 @@ export const CodeZoneModal: React.FC<Props> = ({
   const handleLanguageChange = (newLang: CodeLanguage) => {
     sound.playClick();
     setLanguage(newLang);
-    const firstTemplateKey = Object.keys(STARTER_TEMPLATES[newLang])[0];
-    setCode(STARTER_TEMPLATES[newLang][firstTemplateKey] || '');
-    setTerminalOutput([`// Switched environment to ${newLang.toUpperCase()}. Click Run Code to execute!`]);
+    if (problem) {
+      const draftKey = `bytesized_dsa_draft_${problem.id}_${newLang}`;
+      const savedDraft = localStorage.getItem(draftKey);
+      const codeToSet = savedDraft || problem.starterTemplates[newLang] || '';
+      setCode(codeToSet);
+      setTerminalOutput([`// Switched environment to ${newLang.toUpperCase()} for ${problem.title}.`]);
+      setEvaluationSummary(null);
+    } else {
+      const firstTemplateKey = Object.keys(STARTER_TEMPLATES[newLang])[0];
+      setCode(STARTER_TEMPLATES[newLang][firstTemplateKey] || '');
+      setTerminalOutput([`// Switched environment to ${newLang.toUpperCase()}. Click Run Code to execute!`]);
+    }
     setExecutionStats(null);
   };
 
-  // Reset to current starter template
+  // Reset to starter template
   const handleResetTemplate = (templateName?: string) => {
     sound.playClick();
-    const key = templateName || Object.keys(STARTER_TEMPLATES[language])[0];
-    setCode(STARTER_TEMPLATES[language][key] || '');
+    if (problem) {
+      const defaultTemplate = problem.starterTemplates[language] || '';
+      setCode(defaultTemplate);
+      try {
+        localStorage.removeItem(`bytesized_dsa_draft_${problem.id}_${language}`);
+      } catch {
+        // ignore
+      }
+      setTerminalOutput([`// Reset starter code for ${problem.title} (${language.toUpperCase()}).`]);
+    } else {
+      const key = templateName || Object.keys(STARTER_TEMPLATES[language])[0];
+      setCode(STARTER_TEMPLATES[language][key] || '');
+    }
     setExecutionStats(null);
+    setEvaluationSummary(null);
   };
 
   // Copy code to clipboard
@@ -318,7 +397,6 @@ export const CodeZoneModal: React.FC<Props> = ({
     const val = textarea.value;
 
     if (start !== end) {
-      // Selection wrapping
       const selected = val.substring(start, end);
       const wrapped = openChar + selected + closeChar;
       textarea.setRangeText(wrapped, start, end, 'select');
@@ -330,7 +408,6 @@ export const CodeZoneModal: React.FC<Props> = ({
       return;
     }
 
-    // Single cursor: insert pair and place cursor in the middle
     const pair = openChar + closeChar;
     textarea.setRangeText(pair, start, end, 'end');
     const targetPos = start + openChar.length;
@@ -339,7 +416,7 @@ export const CodeZoneModal: React.FC<Props> = ({
     setCode(textarea.value);
   };
 
-  // Advanced Developer Keydown Handling: Auto-indent, Auto-closing brackets & quotes, Over-typing, Backspace pairs, Tab
+  // Keydown handling: Auto-indent, pairs, tab
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const textarea = editorTextareaRef.current;
     if (!textarea) return;
@@ -347,7 +424,11 @@ export const CodeZoneModal: React.FC<Props> = ({
     // Ctrl+Enter or Cmd+Enter to Run
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
-      handleRunCode();
+      if (problem) {
+        handleRunSampleTests();
+      } else {
+        handleRunCode();
+      }
       return;
     }
 
@@ -355,11 +436,10 @@ export const CodeZoneModal: React.FC<Props> = ({
     const end = textarea.selectionEnd;
     const val = textarea.value;
 
-    // 1. Tab & Shift+Tab handling
+    // Tab & Shift+Tab
     if (e.key === 'Tab') {
       e.preventDefault();
       if (e.shiftKey) {
-        // Outdent lines
         const lineStart = val.lastIndexOf('\n', start - 1) + 1;
         const lineEnd = val.indexOf('\n', end);
         const effectiveEnd = lineEnd === -1 ? val.length : lineEnd;
@@ -376,7 +456,6 @@ export const CodeZoneModal: React.FC<Props> = ({
       }
 
       if (start !== end) {
-        // Indent multiple selected lines
         const lineStart = val.lastIndexOf('\n', start - 1) + 1;
         const lineEnd = val.indexOf('\n', end);
         const effectiveEnd = lineEnd === -1 ? val.length : lineEnd;
@@ -392,7 +471,6 @@ export const CodeZoneModal: React.FC<Props> = ({
         return;
       }
 
-      // Single cursor Tab: 4 spaces
       const indentation = '    ';
       textarea.setRangeText(indentation, start, end, 'end');
       const newPos = start + indentation.length;
@@ -402,7 +480,7 @@ export const CodeZoneModal: React.FC<Props> = ({
       return;
     }
 
-    // 2. Auto-Indentation on Enter
+    // Auto-Indentation on Enter
     if (e.key === 'Enter') {
       e.preventDefault();
       const lineStart = val.lastIndexOf('\n', start - 1) + 1;
@@ -418,7 +496,6 @@ export const CodeZoneModal: React.FC<Props> = ({
         (trimmedBefore.endsWith('[') && charAfter === ']');
 
       if (isBetweenPair) {
-        // Expand pair on enter (e.g. {\n    |\n})
         const extraIndent = currentIndent + '    ';
         const insertion = '\n' + extraIndent + '\n' + currentIndent;
         textarea.setRangeText(insertion, start, end, 'end');
@@ -445,13 +522,12 @@ export const CodeZoneModal: React.FC<Props> = ({
       return;
     }
 
-    // 3. Auto-Closing Brackets & Quotations: ( { [ " ' `
+    // Auto-Closing Brackets & Quotes
     if (PAIRS[e.key]) {
       e.preventDefault();
       const openChar = e.key;
       const closeChar = PAIRS[openChar];
 
-      // Overtyping quote marks if already at closing quote
       if ((openChar === '"' || openChar === "'" || openChar === '`') && val[start] === openChar && start === end) {
         const nextPos = start + 1;
         textarea.setSelectionRange(nextPos, nextPos);
@@ -463,7 +539,7 @@ export const CodeZoneModal: React.FC<Props> = ({
       return;
     }
 
-    // 4. Overtyping closing characters: ) } ]
+    // Overtyping closing chars
     if (CLOSING_SET.has(e.key) && val[start] === e.key && start === end) {
       e.preventDefault();
       const nextPos = start + 1;
@@ -472,7 +548,7 @@ export const CodeZoneModal: React.FC<Props> = ({
       return;
     }
 
-    // 5. Backspace pair deletion: if deleting inside an empty pair () {} [] "" '' ``, delete both
+    // Backspace pair deletion
     if (e.key === 'Backspace' && start === end && start > 0) {
       const charBefore = val[start - 1];
       const charAfter = val[start];
@@ -488,13 +564,14 @@ export const CodeZoneModal: React.FC<Props> = ({
     }
   };
 
-  // Execution Simulator & Real Sandbox Runner
+  // Execution Simulator & Real Sandbox Runner for general IDE mode
   const handleRunCode = () => {
     sound.playClick();
     setIsRunning(true);
     setTerminalOutput([]);
     setExecutionStats(null);
     setMascotWisdom(null);
+    setActiveBottomTab('terminal');
 
     const startTime = performance.now();
 
@@ -503,7 +580,6 @@ export const CodeZoneModal: React.FC<Props> = ({
         const outputLines: string[] = [];
 
         if (language === 'javascript') {
-          // Safe real JavaScript execution
           const originalLog = console.log;
           const originalError = console.error;
           const originalWarn = console.warn;
@@ -527,7 +603,6 @@ export const CodeZoneModal: React.FC<Props> = ({
             console.warn = originalWarn;
           }
         } else if (language === 'python') {
-          // Client-side Python runner with variable tracking & f-strings
           let pyStdout = '';
           const customPrint = (...args: unknown[]) => {
             pyStdout += args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ') + '\n';
@@ -535,11 +610,8 @@ export const CodeZoneModal: React.FC<Props> = ({
 
           try {
             const js = code
-              // f-strings: f"hello {x}" -> `hello ${x}`
               .replace(/f(["'])(.*?)\1/g, (_, __, str) => '`' + str.replace(/\{([^}]+)\}/g, '${$1}') + '`')
-              // Simple variable assignments: x = 10 -> let x = 10;
-              .replace(/^([a-zA-Z_]\w*)\s*=\s*([^=].*)$/gm, 'let $1 = $2;')
-              ;
+              .replace(/^([a-zA-Z_]\w*)\s*=\s*([^=].*)$/gm, 'let $1 = $2;');
 
             const pyRunner = new Function('print', js);
             pyRunner(customPrint);
@@ -553,7 +625,6 @@ export const CodeZoneModal: React.FC<Props> = ({
             outputLines.push(`[Python Error] ${(pyErr as Error).message}`);
           }
         } else if (language === 'c' || language === 'cpp') {
-          // Real C / C++ interpreter simulation with actual variable tracking & formatted I/O
           let cStdout = '';
 
           const customPrintf = (formatStr: unknown, ...args: unknown[]) => {
@@ -597,7 +668,6 @@ export const CodeZoneModal: React.FC<Props> = ({
             cStdout += str;
           };
 
-          // Syntax check: missing semicolons
           const rawLines = code.split('\n');
           let hasMissingSemicolon = false;
           let missingSemiLine = -1;
@@ -628,7 +698,6 @@ export const CodeZoneModal: React.FC<Props> = ({
             throw new Error(`expected ';' before end of line ${missingSemiLine}`);
           }
 
-          // Stdin buffer for scanf / cin
           const stdinTokens = (stdinInput || '42 100').trim().split(/\s+/);
           let stdinIdx = 0;
 
@@ -645,31 +714,22 @@ export const CodeZoneModal: React.FC<Props> = ({
           };
 
           try {
-            // Transpile C / C++ statements to JS for real execution
             const js = code
-              // Remove preprocessors & namespaces
               .replace(/^\s*#\s*include\s*<[^>]+>/gm, '// [include]')
               .replace(/^\s*#\s*include\s*"[^"]+"/gm, '// [include]')
               .replace(/using\s+namespace\s+std\s*;/g, '// [using namespace std]')
-              // Convert int main or void main to function main
               .replace(/\b(?:int|void)\s+main\s*\([^)]*\)\s*\{/g, 'function main() {')
-              // Pointers: int* ptr = &x; -> let ptr = { get: () => x, set: (v) => { x = v; } }
               .replace(
                 /(?:int|float|double|char|long|short)\s*\*\s*([a-zA-Z_]\w*)\s*=\s*&([a-zA-Z_]\w*)\s*;/g,
                 'let $1 = { get: () => $2, set: (v) => { $2 = v; } };'
               )
-              // Pointer assignments: *ptr = val; -> ptr.set(val);
               .replace(/\*([a-zA-Z_]\w*)\s*=\s*([^;]+);/g, '$1.set($2);')
-              // Pointer reads: *ptr in expressions -> ptr.get()
               .replace(/\*([a-zA-Z_]\w*)/g, '($1.get ? $1.get() : $1)')
-              // Const variable declarations: const int x = 10;
               .replace(/\bconst\s+(?:int|float|double|char|long|short|auto)\s+([*a-zA-Z_]\w*)/g, 'const $1')
-              // Variable declarations: int x = 10; float f = 3.5;
               .replace(
                 /\b(int|float|double|char|long|short|auto|unsigned|size_t)\s+([*a-zA-Z_]\w*)/g,
                 'let $2'
               )
-              // C++ std::cout << a << b << std::endl;
               .replace(/\b(?:std::)?cout\s*<<\s*([^;]+);/g, (_, exprs) => {
                 const parts = exprs.split('<<').map((s: string) => s.trim());
                 const calls = parts.map((p: string) => {
@@ -678,7 +738,6 @@ export const CodeZoneModal: React.FC<Props> = ({
                 });
                 return calls.join('; ') + ';';
               })
-              // C++ std::cin >> x;
               .replace(/\b(?:std::)?cin\s*>>\s*([^;]+);/g, (_, varName) => {
                 return `scanf("%s", { set: (v) => { ${varName.trim()} = v; } });`;
               });
@@ -704,7 +763,6 @@ export const CodeZoneModal: React.FC<Props> = ({
         sound.playSuccess();
         fireSuccessConfetti();
 
-        // Cheering tip from companions
         const praises = [
           'Lin 🕶️: "Clean execution! Memory bounds look pristine."',
           'Bhai 🐈‍⬛: "Purrfect compile! Your logic is on point."',
@@ -713,106 +771,247 @@ export const CodeZoneModal: React.FC<Props> = ({
         ];
         setMascotWisdom(praises[Math.floor(Math.random() * praises.length)]);
       } catch (err) {
+        setTerminalOutput([`[Compilation Error] ${(err as Error).message}`]);
+        setExecutionStats({ timeMs: 0, status: 'error' });
         sound.playError();
-        const endTime = performance.now();
-        const duration = Math.round(endTime - startTime + 5);
-        setTerminalOutput([`❌ COMPILER ERROR:\n${(err as Error).message}`]);
-        setExecutionStats({ timeMs: duration, status: 'error' });
-        setMascotWisdom('Junior 🧢: "Oops! Check your semicolons, brackets, or variable declarations."');
       } finally {
         setIsRunning(false);
       }
-    }, 180);
+    }, 150);
   };
 
-  // Line numbers calculation
-  const lineCount = Math.max(code.split('\n').length, 1);
-  const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
+  // Run visible sample test cases only (does not mark solved)
+  const handleRunSampleTests = async () => {
+    if (!problem) {
+      handleRunCode();
+      return;
+    }
+    sound.playClick();
+    setIsEvaluating(true);
+    setActiveBottomTab('tests');
+    if (onProblemAttempted) {
+      onProblemAttempted(problem.id);
+    }
+
+    const cases = problem.sampleCases || [];
+    const summary = await evaluateTestCases(code, language, cases);
+    setEvaluationSummary({ ...summary, isSubmission: false });
+    setIsEvaluating(false);
+
+    if (summary.allPassed) {
+      sound.playSuccess();
+    } else {
+      sound.playError();
+    }
+  };
+
+  // Submit against complete test suite (sample + hidden test cases)
+  const handleSubmitCode = async () => {
+    if (!problem) return;
+    sound.playClick();
+    setIsEvaluating(true);
+    setActiveBottomTab('tests');
+
+    const allCases = [...problem.sampleCases, ...problem.hiddenCases];
+    const summary = await evaluateTestCases(code, language, allCases);
+    setEvaluationSummary({ ...summary, isSubmission: true });
+    setIsEvaluating(false);
+
+    if (summary.verdict === 'Accepted') {
+      sound.playSuccess();
+      fireSuccessConfetti();
+      if (onProblemSolved) {
+        onProblemSolved(problem.id);
+      }
+    } else {
+      sound.playError();
+      if (onProblemAttempted) {
+        onProblemAttempted(problem.id);
+      }
+    }
+  };
+
+  const lineNumbers = useMemo(() => {
+    const count = (code.match(/\n/g) || []).length + 1;
+    return Array.from({ length: count }, (_, i) => i + 1);
+  }, [code]);
+
+  const lineCount = lineNumbers.length;
 
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center ${
-        isStandalone ? 'p-0 bg-[#0B0F19]' : 'p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-fade'
+        isStandalone ? 'p-0 bg-[#0B0F19]' : 'p-0 sm:p-4 bg-black/80 backdrop-blur-md'
       }`}
     >
       <div
         className={`w-full ${
           isStandalone
             ? 'h-full max-w-none max-h-none rounded-none border-0'
-            : 'max-w-6xl h-full sm:h-[94vh] sm:max-h-[880px] rounded-none sm:rounded-3xl border-0 sm:border-2 border-slate-700/80 shadow-2xl'
+            : 'max-w-7xl h-full sm:h-[95vh] sm:max-h-[920px] rounded-none sm:rounded-3xl border-0 sm:border-2 border-slate-700/80 shadow-2xl'
         } bg-[#0B0F19] flex flex-col overflow-hidden text-slate-100`}
       >
         {/* Top Control Bar */}
         <div className="px-3 sm:px-6 py-2 sm:py-3 border-b border-slate-800 bg-[#101726] flex items-center justify-between gap-2 sm:gap-3 shrink-0">
-          {/* Left: Brand & Live Indicator */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-brand-green/20 text-brand-green flex items-center justify-center shrink-0 shadow-inner">
-              <Terminal className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <h2 className="text-sm sm:text-lg font-black tracking-tight text-white flex items-center gap-1.5 truncate">
-                  CodeZone
-                  <span className="hidden xs:inline-flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    Live
-                  </span>
-                  {isStandalone && (
-                    <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shrink-0">
-                      Standalone
-                    </span>
-                  )}
-                </h2>
-              </div>
-              <p className="text-[11px] text-slate-400 font-medium hidden md:block truncate">
-                Write, test, and run code instantly in Pure C, Modern C++, Python, and JavaScript.
-              </p>
-            </div>
-          </div>
-
-          {/* Right: Actions */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Run Button */}
-            <button
-              type="button"
-              disabled={isRunning}
-              onClick={handleRunCode}
-              className="btn-3d btn-3d-green px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center gap-1.5 sm:gap-2 text-white shadow-lg cursor-pointer shrink-0"
-              title="Execute program (Ctrl + Enter)"
-            >
-              <Play className={`w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current ${isRunning ? 'animate-spin' : ''}`} />
-              <span>{isRunning ? 'Running...' : 'Run'}</span>
-              <span className="hidden sm:inline">Code</span>
-            </button>
-
-            {/* Launch in another tab option */}
-            {!isStandalone && (
-              <button
-                type="button"
-                onClick={handleLaunchInNewTab}
-                className="btn-3d flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-black bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/30 transition-all cursor-pointer shrink-0"
-                title="Launch in dedicated browser tab"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Launch in another tab</span>
-                <span className="hidden sm:inline md:hidden">New Tab</span>
-              </button>
-            )}
-
-            {/* Save to IdeaZone */}
-            {onSaveToIdeaZone && (
+          {problem ? (
+            /* Left: Back to Roadmap + Problem Info */
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <button
                 type="button"
                 onClick={() => {
                   sound.playClick();
-                  onSaveToIdeaZone(code, language);
+                  if (onBackToRoadmap) onBackToRoadmap();
+                  else onClose();
                 }}
-                className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 transition-all cursor-pointer shrink-0"
-                title="Save current snippet into IdeaZone"
+                className="btn-3d flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-black bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition-all cursor-pointer shrink-0"
+                title="Return to DSA Roadmap"
               >
-                <Lightbulb className="w-3.5 h-3.5 fill-current" />
-                <span>Save to IdeaZone</span>
+                <RotateCcw className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden sm:inline">Back to Roadmap</span>
+                <span className="sm:hidden">Roadmap</span>
               </button>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 truncate">
+                  <h2 className="text-sm sm:text-base font-black text-white truncate">
+                    {problem.title}
+                  </h2>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 border ${
+                      problem.difficulty === 'Easy'
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                        : problem.difficulty === 'Medium'
+                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                        : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                    }`}
+                  >
+                    {problem.difficulty}
+                  </span>
+                  <span className="hidden md:inline-block text-[11px] font-semibold text-slate-400 truncate">
+                    • {problem.category}
+                  </span>
+                  {currentStatus === 'solved' ? (
+                    <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                      <Check className="w-3 h-3" /> Solved
+                    </span>
+                  ) : currentStatus === 'attempted' ? (
+                    <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+                      <Clock className="w-3 h-3" /> Attempted
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Left: Standard CodeZone Brand Header */
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-brand-green/20 text-brand-green flex items-center justify-center shrink-0 shadow-inner">
+                <Terminal className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <h2 className="text-sm sm:text-lg font-black tracking-tight text-white flex items-center gap-1.5 truncate">
+                    CodeZone
+                    <span className="hidden xs:inline-flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                      Live
+                    </span>
+                    {isStandalone && (
+                      <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shrink-0">
+                        Standalone
+                      </span>
+                    )}
+                  </h2>
+                </div>
+                <p className="text-[11px] text-slate-400 font-medium hidden md:block truncate">
+                  Write, test, and run code instantly in Pure C, Modern C++, Python, and JavaScript.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {problem ? (
+              <>
+                {/* Run Sample Tests */}
+                <button
+                  type="button"
+                  disabled={isEvaluating}
+                  onClick={handleRunSampleTests}
+                  className="btn-3d btn-3d-green px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-white shadow-lg cursor-pointer shrink-0"
+                  title="Run code against visible sample test cases (Ctrl + Enter)"
+                >
+                  <Play className={`w-3.5 h-3.5 fill-current ${isEvaluating ? 'animate-spin' : ''}`} />
+                  <span>{isEvaluating ? 'Testing...' : 'Run'}</span>
+                  <span className="hidden sm:inline">Sample</span>
+                </button>
+
+                {/* Submit Full Test Suite */}
+                <button
+                  type="button"
+                  disabled={isEvaluating}
+                  onClick={handleSubmitCode}
+                  className="btn-3d px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 border border-purple-400/40 shadow-lg shadow-purple-900/30 cursor-pointer shrink-0"
+                  title="Submit solution against complete test suite (including hidden tests)"
+                >
+                  <Send className={`w-3.5 h-3.5 ${isEvaluating ? 'animate-pulse' : ''}`} />
+                  <span>Submit</span>
+                </button>
+
+                {/* Reset Starter Code */}
+                <button
+                  type="button"
+                  onClick={() => handleResetTemplate()}
+                  className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+                  title="Reset code to default starter template"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Standard Run Button */}
+                <button
+                  type="button"
+                  disabled={isRunning}
+                  onClick={handleRunCode}
+                  className="btn-3d btn-3d-green px-2.5 sm:px-5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-black uppercase tracking-wider flex items-center gap-1.5 sm:gap-2 text-white shadow-lg cursor-pointer shrink-0"
+                  title="Execute program (Ctrl + Enter)"
+                >
+                  <Play className={`w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current ${isRunning ? 'animate-spin' : ''}`} />
+                  <span>{isRunning ? 'Running...' : 'Run'}</span>
+                  <span className="hidden sm:inline">Code</span>
+                </button>
+
+                {!isStandalone && (
+                  <button
+                    type="button"
+                    onClick={handleLaunchInNewTab}
+                    className="btn-3d flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs font-black bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/30 transition-all cursor-pointer shrink-0"
+                    title="Launch in dedicated browser tab"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span className="hidden md:inline">Launch in another tab</span>
+                    <span className="hidden sm:inline md:hidden">New Tab</span>
+                  </button>
+                )}
+
+                {onSaveToIdeaZone && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.playClick();
+                      onSaveToIdeaZone(code, language);
+                    }}
+                    className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 transition-all cursor-pointer shrink-0"
+                    title="Save current snippet into IdeaZone"
+                  >
+                    <Lightbulb className="w-3.5 h-3.5 fill-current" />
+                    <span>Save to IdeaZone</span>
+                  </button>
+                )}
+              </>
             )}
 
             <button
@@ -824,7 +1023,7 @@ export const CodeZoneModal: React.FC<Props> = ({
               {copiedCode ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
             </button>
 
-            {/* Close Button - ALWAYS pinned, high-contrast and fully visible on mobile */}
+            {/* Close Button */}
             <button
               type="button"
               onClick={onClose}
@@ -848,7 +1047,7 @@ export const CodeZoneModal: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Sub-bar: Language Picker & Template Selector */}
+        {/* Sub-bar: Language Picker & Options */}
         <div className="px-3 sm:px-6 py-2 border-b border-slate-800 bg-[#0E1524] flex items-center justify-between gap-2.5 shrink-0 text-xs font-semibold overflow-x-auto scrollbar-none">
           {/* Language Tabs */}
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
@@ -878,36 +1077,66 @@ export const CodeZoneModal: React.FC<Props> = ({
             })}
           </div>
 
-          {/* Preset Templates */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <span className="text-[11px] text-slate-400 uppercase tracking-wider font-bold hidden md:inline">
-              Templates:
-            </span>
-            <div className="flex items-center gap-1">
-              {Object.keys(STARTER_TEMPLATES[language]).map(tmplName => (
-                <button
-                  key={tmplName}
-                  type="button"
-                  onClick={() => handleResetTemplate(tmplName)}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
-                >
-                  {tmplName}
-                </button>
-              ))}
-            </div>
+          {problem ? (
+            /* Problem Mode Controls */
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsProblemPanelCollapsed(!isProblemPanelCollapsed)}
+                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer flex items-center gap-1"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{isProblemPanelCollapsed ? 'Show Problem' : 'Hide Problem'}</span>
+              </button>
 
-            {/* Toggle STDIN */}
-            <button
-              type="button"
-              onClick={() => setShowStdin(!showStdin)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-colors flex items-center gap-1 cursor-pointer ${
-                showStdin ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-slate-800 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Keyboard className="w-3 h-3" />
-              <span>stdin</span>
-            </button>
-          </div>
+              {/* Toggle STDIN */}
+              <button
+                type="button"
+                onClick={() => setShowStdin(!showStdin)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-colors flex items-center gap-1 cursor-pointer ${
+                  showStdin
+                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                    : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Keyboard className="w-3 h-3" />
+                <span>stdin</span>
+              </button>
+            </div>
+          ) : (
+            /* Preset Templates (Standard CodeZone) */
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <span className="text-[11px] text-slate-400 uppercase tracking-wider font-bold hidden md:inline">
+                Templates:
+              </span>
+              <div className="flex items-center gap-1">
+                {Object.keys(STARTER_TEMPLATES[language]).map(tmplName => (
+                  <button
+                    key={tmplName}
+                    type="button"
+                    onClick={() => handleResetTemplate(tmplName)}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
+                  >
+                    {tmplName}
+                  </button>
+                ))}
+              </div>
+
+              {/* Toggle STDIN */}
+              <button
+                type="button"
+                onClick={() => setShowStdin(!showStdin)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-colors flex items-center gap-1 cursor-pointer ${
+                  showStdin
+                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                    : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Keyboard className="w-3 h-3" />
+                <span>stdin</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Optional STDIN Drawer */}
@@ -926,133 +1155,343 @@ export const CodeZoneModal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Main Workspace: Code Editor + Terminal Console */}
+        {/* Main Workspace: Problem Drawer (Optional) + Code Editor + Bottom Output */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
-          {/* Left Pane: Code Editor */}
-          <div className="flex-1 flex flex-col border-r-0 md:border-r border-b md:border-b-0 border-slate-800 bg-[#070B12] min-h-[50%] md:min-h-0 relative">
-            <div className="flex-1 flex overflow-hidden">
-              {/* Line Numbers Gutter */}
-              <div
-                ref={gutterRef}
-                className="w-12 py-3.5 pr-2 pl-3 select-none text-right font-mono text-xs text-slate-600 bg-[#060910] border-r border-slate-800/80 overflow-hidden shrink-0"
-              >
-                {lineNumbers.map(n => (
-                  <div key={n} className="leading-6 h-6">
-                    {n}
-                  </div>
-                ))}
-              </div>
-
-              {/* Editor Workspace with Synchronized Syntax Highlighting Overlay */}
-              <div className="relative flex-1 h-full overflow-hidden">
-                {/* Syntax Highlighted Layer (Pre/Code) */}
-                <pre
-                  ref={preRef}
-                  aria-hidden="true"
-                  className="codezone-pre absolute inset-0 w-full h-full p-3.5 bg-transparent pointer-events-none overflow-hidden m-0 border-0 whitespace-pre text-slate-200 select-none z-0"
-                  dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-                />
-
-                {/* Interactive Caret Textarea Layer */}
-                <textarea
-                  ref={editorTextareaRef}
-                  value={code}
-                  onChange={e => setCode(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onScroll={handleScroll}
-                  spellCheck={false}
-                  autoCapitalize="off"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  className="codezone-textarea absolute inset-0 w-full h-full p-3.5 bg-transparent text-transparent caret-sky-400 outline-none resize-none overflow-auto m-0 border-0 whitespace-pre z-10 selection:bg-sky-500/30 selection:text-transparent"
-                  placeholder="// Type or paste your code here..."
-                />
-              </div>
-            </div>
-
-            {/* Editor Footer Status */}
-            <div className="px-4 py-2 border-t border-slate-800/80 bg-[#080C14] flex items-center justify-between text-[11px] font-mono text-slate-500">
-              <div className="flex items-center gap-3">
-                <span>Lines: {lineCount}</span>
-                <span>Length: {code.length}</span>
-                <span className="hidden sm:inline">Press Ctrl+Enter to Run</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span>Tab: 4 spaces</span>
-                <span>UTF-8</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Pane: Terminal Output Console */}
-          <div className="w-full md:w-[45%] flex flex-col bg-[#050810] min-h-[40%] md:min-h-0">
-            {/* Terminal Top Bar */}
-            <div className="px-4 py-2 border-b border-slate-800/80 bg-[#090D18] flex items-center justify-between text-xs font-mono">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block" />
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block" />
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
-                <span className="font-bold text-slate-300 ml-1.5">Terminal Console</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {executionStats && (
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                      executionStats.status === 'ok'
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-rose-500/20 text-rose-400'
-                    }`}
-                  >
-                    {executionStats.timeMs}ms
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setTerminalOutput([])}
-                  className="p-1 rounded text-slate-500 hover:text-slate-300 transition-colors"
-                  title="Clear console"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Terminal Body */}
-            <div className="flex-1 p-4 overflow-y-auto font-mono text-xs text-slate-200 space-y-1 select-text leading-relaxed">
-              <div className="text-slate-500 pb-1">
-                $ {language === 'c' ? 'gcc main.c -o main && ./main' : language === 'cpp' ? 'g++ -std=c++20 main.cpp && ./main' : language === 'python' ? 'python3 main.py' : 'node index.js'}
-              </div>
-
-              {terminalOutput.length === 0 ? (
-                <div className="text-slate-600 italic py-4">
-                  Ready. Click [Run Code] or press Ctrl+Enter to execute.
+          {/* Problem Statement Drawer */}
+          {problem && !isProblemPanelCollapsed && (
+            <div className="w-full md:w-[38%] border-r-0 md:border-r border-b md:border-b-0 border-slate-800 bg-[#090E1A] flex flex-col overflow-hidden text-left min-h-[35%] md:min-h-0">
+              <div className="p-3 sm:p-4 border-b border-slate-800 flex items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-cyan-400" />
+                  <h3 className="text-xs sm:text-sm font-black text-slate-200 uppercase tracking-wider">
+                    Problem Details
+                  </h3>
                 </div>
-              ) : (
-                terminalOutput.map((line, idx) => (
-                  <div
-                    key={idx}
-                    className={`whitespace-pre-wrap break-words min-h-[1.25rem] ${
-                      line.startsWith('❌') || line.includes('[ERROR]') || line.includes('error:')
-                        ? 'text-rose-400 font-bold'
-                        : line.startsWith('[WARN]')
-                        ? 'text-amber-400'
-                        : 'text-emerald-400'
+                <a
+                  href={`https://leetcode.com/problems/${problem.id}/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                >
+                  <span>LeetCode</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs sm:text-sm text-slate-300 leading-relaxed font-sans select-text">
+                <div className="whitespace-pre-wrap leading-relaxed">
+                  {problem.description}
+                </div>
+
+                {problem.examples && problem.examples.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                      Examples:
+                    </h4>
+                    {problem.examples.map((ex, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-xl bg-[#060912] border border-slate-800/80 font-mono text-xs space-y-1.5"
+                      >
+                        <div>
+                          <span className="text-slate-500 font-bold block text-[10px]">Input:</span>
+                          <pre className="text-slate-200 whitespace-pre-wrap">{ex.input}</pre>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 font-bold block text-[10px]">Output:</span>
+                          <pre className="text-emerald-400 whitespace-pre-wrap">{ex.output}</pre>
+                        </div>
+                        {ex.explanation && (
+                          <p className="text-[11px] text-slate-400 font-sans mt-1">
+                            Explanation: {ex.explanation}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {problem.constraints && problem.constraints.length > 0 && (
+                  <div className="space-y-1 pt-2">
+                    <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                      Constraints:
+                    </h4>
+                    <ul className="list-disc pl-4 text-xs font-mono text-slate-400 space-y-0.5">
+                      {problem.constraints.map((c, i) => (
+                        <li key={i}>{c}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Center/Right: Code Editor & Bottom Drawer */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            {/* Editor Workspace */}
+            <div className="flex-1 flex flex-col border-b border-slate-800 bg-[#070B12] min-h-[50%] relative">
+              <div className="flex-1 flex overflow-hidden">
+                {/* Line Numbers Gutter */}
+                <div
+                  ref={gutterRef}
+                  className="w-12 py-3.5 pr-2 pl-3 select-none text-right font-mono text-xs text-slate-600 bg-[#060910] border-r border-slate-800/80 overflow-hidden shrink-0"
+                >
+                  {lineNumbers.map(n => (
+                    <div key={n} className="leading-6 h-6">
+                      {n}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Syntax Highlighted Layer (Pre/Code) */}
+                <div className="relative flex-1 h-full overflow-hidden">
+                  <pre
+                    ref={preRef}
+                    aria-hidden="true"
+                    className="codezone-pre absolute inset-0 w-full h-full p-3.5 bg-transparent pointer-events-none overflow-hidden m-0 border-0 whitespace-pre text-slate-200 select-none z-0"
+                    dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                  />
+
+                  <textarea
+                    ref={editorTextareaRef}
+                    value={code}
+                    onChange={e => setCode(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onScroll={handleScroll}
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    className="codezone-textarea absolute inset-0 w-full h-full p-3.5 bg-transparent text-transparent caret-sky-400 outline-none resize-none overflow-auto m-0 border-0 whitespace-pre z-10 selection:bg-sky-500/30 selection:text-transparent"
+                    placeholder="// Type or paste your code here..."
+                  />
+                </div>
+              </div>
+
+              {/* Editor Status Line */}
+              <div className="px-4 py-1.5 border-t border-slate-800/80 bg-[#080C14] flex items-center justify-between text-[11px] font-mono text-slate-500 shrink-0">
+                <div className="flex items-center gap-3">
+                  <span>Lines: {lineCount}</span>
+                  <span>Length: {code.length}</span>
+                  <span className="hidden sm:inline">Press Ctrl+Enter to Run</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>Tab: 4 spaces</span>
+                  <span>UTF-8</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Console / Test Results Drawer */}
+            <div className="h-[42%] min-h-[170px] flex flex-col bg-[#050810] overflow-hidden">
+              {/* Bottom Tabs */}
+              <div className="px-4 py-1.5 border-b border-slate-800/80 bg-[#090D18] flex items-center justify-between text-xs font-mono shrink-0">
+                <div className="flex items-center gap-2">
+                  {problem && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveBottomTab('tests')}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        activeBottomTab === 'tests'
+                          ? 'bg-slate-800 text-white border border-slate-700 shadow-xs'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <span>Test Results</span>
+                      {evaluationSummary && (
+                        <span
+                          className={`text-[10px] px-1.5 py-0.2 rounded font-black ${
+                            evaluationSummary.verdict === 'Accepted'
+                              ? 'bg-emerald-500/20 text-emerald-400'
+                              : 'bg-rose-500/20 text-rose-400'
+                          }`}
+                        >
+                          {evaluationSummary.verdict}
+                        </span>
+                      )}
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveBottomTab('terminal')}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      activeBottomTab === 'terminal'
+                        ? 'bg-slate-800 text-white border border-slate-700 shadow-xs'
+                        : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    {line === '' ? '\u00A0' : line}
+                    <span>Console Output</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {executionStats && (
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                        executionStats.status === 'ok'
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-rose-500/20 text-rose-400'
+                      }`}
+                    >
+                      {executionStats.timeMs}ms
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTerminalOutput([]);
+                      setEvaluationSummary(null);
+                    }}
+                    className="p-1 rounded text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                    title="Clear output"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Bottom Content Body */}
+              <div className="flex-1 overflow-y-auto p-3 font-mono text-xs select-text">
+                {activeBottomTab === 'tests' && problem ? (
+                  <div className="space-y-3">
+                    {isEvaluating ? (
+                      <div className="p-6 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
+                        <Play className="w-6 h-6 animate-spin text-emerald-400" />
+                        <span className="font-bold text-slate-300">Evaluating against test suite...</span>
+                      </div>
+                    ) : evaluationSummary ? (
+                      <div className="space-y-3">
+                        {/* Verdict Banner */}
+                        <div
+                          className={`p-3 rounded-2xl border flex items-center justify-between ${
+                            evaluationSummary.verdict === 'Accepted'
+                              ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                              : evaluationSummary.verdict === 'Wrong Answer'
+                              ? 'bg-rose-950/40 border-rose-500/40 text-rose-300'
+                              : evaluationSummary.verdict === 'Time Limit Exceeded'
+                              ? 'bg-purple-950/40 border-purple-500/40 text-purple-300'
+                              : 'bg-amber-950/40 border-amber-500/40 text-amber-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            {evaluationSummary.verdict === 'Accepted' ? (
+                              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                            ) : (
+                              <XCircle className="w-5 h-5 text-rose-400" />
+                            )}
+                            <div>
+                              <h4 className="font-black text-sm">{evaluationSummary.verdict}</h4>
+                              <p className="text-[11px] opacity-80">
+                                {evaluationSummary.isSubmission ? 'Submission Evaluation' : 'Sample Run'} •{' '}
+                                {evaluationSummary.passedCount} / {evaluationSummary.totalCount} test cases passed (
+                                {evaluationSummary.totalTimeMs}ms)
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Individual Test Cases Cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {evaluationSummary.results.map((res, i) => (
+                            <div
+                              key={res.testCaseId || i}
+                              className={`p-2.5 rounded-xl border font-mono text-[11px] space-y-1 ${
+                                res.passed
+                                  ? 'bg-emerald-950/20 border-emerald-500/30 text-slate-200'
+                                  : 'bg-rose-950/20 border-rose-500/30 text-slate-200'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold flex items-center gap-1">
+                                  {res.passed ? (
+                                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                  ) : (
+                                    <X className="w-3.5 h-3.5 text-rose-400" />
+                                  )}
+                                  <span>Case #{i + 1}</span>
+                                  {res.isHidden && (
+                                    <span className="text-[9px] px-1 py-0.2 rounded bg-slate-800 text-slate-400 uppercase">
+                                      Hidden
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="text-slate-500 text-[10px]">{res.executionTimeMs}ms</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 text-[10px] block">Input:</span>
+                                <div className="p-1 rounded bg-[#03060c] text-slate-300 truncate">
+                                  {res.input}
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-1 pt-0.5">
+                                <div>
+                                  <span className="text-slate-500 text-[10px] block">Expected:</span>
+                                  <div className="p-1 rounded bg-[#03060c] text-emerald-400 truncate">
+                                    {res.expectedOutput}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-slate-500 text-[10px] block">Output:</span>
+                                  <div
+                                    className={`p-1 rounded bg-[#03060c] truncate ${
+                                      res.passed ? 'text-emerald-400' : 'text-rose-400'
+                                    }`}
+                                  >
+                                    {res.actualOutput}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-6 text-center text-slate-500">
+                        Click <strong className="text-slate-300">Run Sample</strong> to verify with sample tests, or{' '}
+                        <strong className="text-slate-300">Submit</strong> to run against all test cases.
+                      </div>
+                    )}
                   </div>
-                ))
+                ) : (
+                  /* Terminal Console Body */
+                  <div className="space-y-1 select-text">
+                    <div className="text-slate-500 pb-1">
+                      $ {language === 'c' ? 'gcc main.c -o main && ./main' : language === 'cpp' ? 'g++ -std=c++20 main.cpp && ./main' : language === 'python' ? 'python3 main.py' : 'node index.js'}
+                    </div>
+                    {terminalOutput.length === 0 ? (
+                      <div className="text-slate-600 italic py-2">
+                        Ready. Click [Run Code] or press Ctrl+Enter to execute.
+                      </div>
+                    ) : (
+                      terminalOutput.map((line, idx) => (
+                        <div
+                          key={idx}
+                          className={`whitespace-pre-wrap break-words min-h-[1.25rem] ${
+                            line.startsWith('❌') || line.includes('[ERROR]') || line.includes('error:')
+                              ? 'text-rose-400 font-bold'
+                              : line.startsWith('[WARN]')
+                              ? 'text-amber-400'
+                              : 'text-emerald-400'
+                          }`}
+                        >
+                          {line === '' ? '\u00A0' : line}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Mascot Cheer */}
+              {mascotWisdom && (
+                <div className="p-2.5 border-t border-slate-800 bg-[#0A0F1D] flex items-center gap-2 text-xs text-slate-300">
+                  <CatFace size="xs" mood="happy" />
+                  <span className="font-medium text-slate-300 truncate">{mascotWisdom}</span>
+                </div>
               )}
             </div>
-
-            {/* Mascot Cheer / Feedback Bubble */}
-            {mascotWisdom && (
-              <div className="p-3 border-t border-slate-800 bg-[#0A0F1D] flex items-center gap-2.5 text-xs text-slate-300 animate-slideUp">
-                <CatFace size="xs" mood="happy" />
-                <span className="font-medium text-slate-300">{mascotWisdom}</span>
-              </div>
-            )}
           </div>
         </div>
       </div>

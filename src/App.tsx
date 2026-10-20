@@ -17,14 +17,19 @@ import { AuthModal } from './components/auth/AuthModal';
 import { MessagingModal } from './components/chat/MessagingModal';
 import { CodingArenaModal } from './components/arena/CodingArenaModal';
 import { QuestionBankModal } from './components/arena/QuestionBankModal';
-import { TrainingModal } from './components/training/TrainingModal';
+import { DsaRoadmapModal } from './components/dsa/DsaRoadmapModal';
+import { SpeedTrainingModal } from './components/speed-training/SpeedTrainingModal';
+import { DsaProgressProvider, useDsaProgress } from './context/DsaProgressContext';
+import { DsaRoadmapId, DsaProblemSpec } from './types/dsa';
+import { getDsaProblemSpec } from './data/dsaProblemSpecs';
 import { stopConfetti } from './utils/confetti';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageSquare, Swords, BookOpen, Zap, User, Crown } from 'lucide-react';
+import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageSquare, Swords, BookOpen, Brain, Zap, User, Crown } from 'lucide-react';
 import { ArenaChallenge } from './types';
 
 const MainApp: React.FC = () => {
   const { state } = useGame();
+  const { setProblemStatus } = useDsaProgress();
   const t = useTranslation(state.language);
   const [activeLessonNode, setActiveLessonNode] = useState<LessonNode | null>(null);
   const [isPracticeOpen, setIsPracticeOpen] = useState<boolean>(false);
@@ -36,8 +41,9 @@ const MainApp: React.FC = () => {
   const [isMessagingOpen, setIsMessagingOpen] = useState<boolean>(false);
   const [isArenaOpen, setIsArenaOpen] = useState<boolean>(false);
   const [isQuestionBankOpen, setIsQuestionBankOpen] = useState<boolean>(false);
-  const [isTrainingOpen, setIsTrainingOpen] = useState<boolean>(false);
-  const [trainingInitialProblemId, setTrainingInitialProblemId] = useState<string | undefined>(undefined);
+  const [isSpeedTrainingOpen, setIsSpeedTrainingOpen] = useState<boolean>(false);
+  const [speedTrainingInitialProblemId, setSpeedTrainingInitialProblemId] = useState<string | undefined>(undefined);
+  const [speedTrainingInitialTab, setSpeedTrainingInitialTab] = useState<'hub' | 'timed-training'>('hub');
   const [arenaInitialChallenge, setArenaInitialChallenge] = useState<ArenaChallenge | null>(null);
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register' | 'forgot' | 'update-password'>('register');
 
@@ -53,6 +59,9 @@ const MainApp: React.FC = () => {
     }
   }, []);
   const [codeZoneSnippet, setCodeZoneSnippet] = useState<{ code: string; language: CodeLanguage } | undefined>();
+  const [codeZoneProblem, setCodeZoneProblem] = useState<DsaProblemSpec | null>(null);
+  const [dsaReturnRoadmap, setDsaReturnRoadmap] = useState<DsaRoadmapId | null>(null);
+  const [activeDsaRoadmap, setActiveDsaRoadmap] = useState<DsaRoadmapId | null>(null);
   const [ideaZoneSeedNote, setIdeaZoneSeedNote] = useState<{
     title: string;
     content: string;
@@ -92,6 +101,7 @@ const MainApp: React.FC = () => {
         }}
         onOpenCodeZone={() => {
           setCodeZoneSnippet(undefined);
+          setCodeZoneProblem(null);
           setIsCodeZoneOpen(true);
         }}
         onOpenAuth={(tab = 'register') => {
@@ -103,9 +113,10 @@ const MainApp: React.FC = () => {
           setArenaInitialChallenge(null);
           setIsArenaOpen(true);
         }}
-        onOpenTraining={() => {
-          setTrainingInitialProblemId(undefined);
-          setIsTrainingOpen(true);
+        onOpenSpeedTraining={() => {
+          setSpeedTrainingInitialProblemId(undefined);
+          setSpeedTrainingInitialTab('hub');
+          setIsSpeedTrainingOpen(true);
         }}
         onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
       />
@@ -240,21 +251,15 @@ const MainApp: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              setTrainingInitialProblemId(undefined);
-              setIsTrainingOpen(true);
+              sound.playClick();
+              setSpeedTrainingInitialProblemId(undefined);
+              setSpeedTrainingInitialTab('hub');
+              setIsSpeedTrainingOpen(true);
             }}
-            className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/30"
+            className="flex items-center gap-1.5 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/30"
           >
-            <Zap className="w-3.5 h-3.5 text-amber-500" />
-            <span>Training</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsQuestionBankOpen(true)}
-            className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 border border-sky-500/30"
-          >
-            <BookOpen className="w-3.5 h-3.5 text-sky-500" />
-            <span>Bank</span>
+            <Zap className="w-3.5 h-3.5 text-amber-500 fill-current" />
+            <span>Speed Training</span>
           </button>
         </div>
 
@@ -279,11 +284,13 @@ const MainApp: React.FC = () => {
                 setArenaInitialChallenge(null);
                 setIsArenaOpen(true);
               }}
-              onOpenTraining={() => {
-                setTrainingInitialProblemId(undefined);
-                setIsTrainingOpen(true);
+              onOpenSpeedTraining={() => {
+                setSpeedTrainingInitialProblemId(undefined);
+                setSpeedTrainingInitialTab('hub');
+                setIsSpeedTrainingOpen(true);
               }}
               onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
+              onOpenRoadmap={(roadmapId) => setActiveDsaRoadmap(roadmapId)}
               onOpenAuth={(tab = 'register') => {
                 setAuthInitialTab(tab);
                 setIsAuthOpen(true);
@@ -330,11 +337,13 @@ const MainApp: React.FC = () => {
                 setArenaInitialChallenge(null);
                 setIsArenaOpen(true);
               }}
-              onOpenTraining={() => {
-                setTrainingInitialProblemId(undefined);
-                setIsTrainingOpen(true);
+              onOpenSpeedTraining={(tab) => {
+                setSpeedTrainingInitialProblemId(undefined);
+                setSpeedTrainingInitialTab(tab || 'hub');
+                setIsSpeedTrainingOpen(true);
               }}
               onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
+              onOpenRoadmap={(roadmapId) => setActiveDsaRoadmap(roadmapId)}
               filter={mobileTab === 'learn' ? 'all' : mobileTab}
             />
           </div>
@@ -419,15 +428,35 @@ const MainApp: React.FC = () => {
         <CodeZoneModal
           initialCode={codeZoneSnippet?.code}
           initialLanguage={codeZoneSnippet?.language}
+          problem={codeZoneProblem}
           onClose={() => {
             setIsCodeZoneOpen(false);
             setCodeZoneSnippet(undefined);
+            setCodeZoneProblem(null);
+          }}
+          onBackToRoadmap={() => {
+            setIsCodeZoneOpen(false);
+            setCodeZoneSnippet(undefined);
+            setCodeZoneProblem(null);
+            if (dsaReturnRoadmap) {
+              setActiveDsaRoadmap(dsaReturnRoadmap);
+            }
+          }}
+          onProblemSolved={(problemId) => {
+            setProblemStatus(problemId, 'solved');
+          }}
+          onProblemAttempted={(problemId) => {
+            setProblemStatus(problemId, 'attempted');
           }}
           onSaveToIdeaZone={(code, language) => {
             setIsCodeZoneOpen(false);
+            setCodeZoneSnippet(undefined);
+            setCodeZoneProblem(null);
             setIdeaZoneSeedNote({
               title: `Snippet (${language.toUpperCase()}) - ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-              content: 'Saved directly from CodeZone playground.',
+              content: codeZoneProblem
+                ? `Solution for ${codeZoneProblem.title} (${codeZoneProblem.category})`
+                : 'Saved directly from CodeZone playground.',
               codeSnippet: code,
               codeLanguage: language
             });
@@ -477,10 +506,46 @@ const MainApp: React.FC = () => {
         }}
       />
 
+      {/* Unified Speed Training Hub Modal (Timed PBs, DSA Roadmaps & Question Bank) */}
+      <SpeedTrainingModal
+        isOpen={isSpeedTrainingOpen}
+        initialTab={speedTrainingInitialTab}
+        initialProblemId={speedTrainingInitialProblemId}
+        onClose={() => {
+          setIsSpeedTrainingOpen(false);
+          setSpeedTrainingInitialProblemId(undefined);
+          setSpeedTrainingInitialTab('hub');
+        }}
+        onOpenBankPractice={() => {
+          setIsSpeedTrainingOpen(false);
+          setIsQuestionBankOpen(true);
+        }}
+        onOpenDsaRoadmap={(roadmapId) => {
+          setIsSpeedTrainingOpen(false);
+          setActiveDsaRoadmap(roadmapId);
+        }}
+        onOpenInCodeZone={(problem, roadmapId) => {
+          const spec = getDsaProblemSpec(problem.id, roadmapId);
+          setCodeZoneProblem(spec);
+          setDsaReturnRoadmap(roadmapId);
+          setIsSpeedTrainingOpen(false);
+          setIsCodeZoneOpen(true);
+        }}
+        onOpenArena={() => {
+          setIsSpeedTrainingOpen(false);
+          setArenaInitialChallenge(null);
+          setIsArenaOpen(true);
+        }}
+      />
+
       {/* Question Bank Explorer & Community Authoring Modal */}
       <QuestionBankModal
         isOpen={isQuestionBankOpen}
         onClose={() => setIsQuestionBankOpen(false)}
+        onBackToSpeedTraining={() => {
+          setIsQuestionBankOpen(false);
+          setIsSpeedTrainingOpen(true);
+        }}
         onSelectForArena={(challenge) => {
           setIsQuestionBankOpen(false);
           setArenaInitialChallenge(challenge);
@@ -488,8 +553,9 @@ const MainApp: React.FC = () => {
         }}
         onSelectForTraining={(challenge) => {
           setIsQuestionBankOpen(false);
-          setTrainingInitialProblemId(challenge.id);
-          setIsTrainingOpen(true);
+          setSpeedTrainingInitialProblemId(challenge.id);
+          setSpeedTrainingInitialTab('timed-training');
+          setIsSpeedTrainingOpen(true);
         }}
         onOpenCodeZone={(starterCode, language) => {
           setIsQuestionBankOpen(false);
@@ -498,19 +564,25 @@ const MainApp: React.FC = () => {
         }}
       />
 
-      {/* Speed Training & Personal Best Challenge Modal */}
-      <TrainingModal
-        isOpen={isTrainingOpen}
-        initialProblemId={trainingInitialProblemId}
-        onClose={() => {
-          setIsTrainingOpen(false);
-          setTrainingInitialProblemId(undefined);
-        }}
-        onOpenArena={() => {
-          setIsTrainingOpen(false);
-          setIsArenaOpen(true);
-        }}
-      />
+      {/* DSA Roadmaps Explorer Modal (Blind 75 & NeetCode 150) */}
+      {activeDsaRoadmap && (
+        <DsaRoadmapModal
+          isOpen={true}
+          initialRoadmapId={activeDsaRoadmap}
+          onClose={() => setActiveDsaRoadmap(null)}
+          onBackToSpeedTraining={() => {
+            setActiveDsaRoadmap(null);
+            setIsSpeedTrainingOpen(true);
+          }}
+          onOpenInCodeZone={(problem, roadmapId) => {
+            const spec = getDsaProblemSpec(problem.id, roadmapId);
+            setCodeZoneProblem(spec);
+            setDsaReturnRoadmap(roadmapId);
+            setActiveDsaRoadmap(null);
+            setIsCodeZoneOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -533,16 +605,18 @@ export const App: React.FC = () => {
     return (
       <ErrorBoundary>
         <GameProvider>
-          <div className="w-screen h-screen overflow-hidden bg-[#0B0F19]">
-            <CodeZoneModal
-              isStandalone={true}
-              initialCode={initialCode}
-              initialLanguage={initialLanguage}
-              onClose={() => {
-                window.location.href = window.location.origin + window.location.pathname;
-              }}
-            />
-          </div>
+          <DsaProgressProvider>
+            <div className="w-screen h-screen overflow-hidden bg-[#0B0F19]">
+              <CodeZoneModal
+                isStandalone={true}
+                initialCode={initialCode}
+                initialLanguage={initialLanguage}
+                onClose={() => {
+                  window.location.href = window.location.origin + window.location.pathname;
+                }}
+              />
+            </div>
+          </DsaProgressProvider>
         </GameProvider>
       </ErrorBoundary>
     );
@@ -551,7 +625,9 @@ export const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <GameProvider>
-        <MainApp />
+        <DsaProgressProvider>
+          <MainApp />
+        </DsaProgressProvider>
       </GameProvider>
     </ErrorBoundary>
   );

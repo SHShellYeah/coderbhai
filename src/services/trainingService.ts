@@ -2,6 +2,7 @@ import { ArenaChallenge, CodeLanguage, PersonalBestRecord, ProblemSheet, Trainin
 import { INITIAL_QUESTION_BANK } from '../data/questionBank';
 import { NEETCODE_PROBLEMS } from '../data/neetcodeProblems';
 import { getApprovedChallenges } from './arenaService';
+import { normalizeError } from '../utils/codeRunner';
 
 const STORAGE_KEY_PERSONAL_BESTS = 'bytesized_training_personal_bests';
 const STORAGE_KEY_TRAINING_STATS = 'bytesized_training_stats';
@@ -112,6 +113,15 @@ export function recordProblemTime(
   timeSeconds: number,
   language: CodeLanguage
 ): RecordTimeResult {
+  if (
+    typeof timeSeconds !== 'number' ||
+    !Number.isFinite(timeSeconds) ||
+    timeSeconds < 0
+  ) {
+    throw new Error(`Invalid timeSeconds for recordProblemTime: ${timeSeconds}`);
+  }
+
+  const safeTime = Math.max(1, Math.round(timeSeconds));
   const records = getAllPersonalBests();
   const existing = records[problemId];
 
@@ -124,21 +134,31 @@ export function recordProblemTime(
     isNewBest = true;
     records[problemId] = {
       problemId,
-      bestTimeSeconds: timeSeconds,
+      bestTimeSeconds: safeTime,
       achievedAt: new Date().toISOString(),
       attemptsCount: 1,
       language
     };
   } else {
     previousBestSeconds = existing.bestTimeSeconds;
-    attempts = existing.attemptsCount + 1;
+    let prevAttempts: number;
+    if (
+      typeof existing.attemptsCount === 'number' &&
+      Number.isFinite(existing.attemptsCount) &&
+      existing.attemptsCount >= 0
+    ) {
+      prevAttempts = Math.floor(existing.attemptsCount);
+    } else {
+      prevAttempts = 1;
+    }
+    attempts = prevAttempts + 1;
 
-    if (timeSeconds < existing.bestTimeSeconds) {
+    if (safeTime < existing.bestTimeSeconds) {
       // Beat previous personal best!
       isNewBest = true;
       records[problemId] = {
         problemId,
-        bestTimeSeconds: timeSeconds,
+        bestTimeSeconds: safeTime,
         achievedAt: new Date().toISOString(),
         attemptsCount: attempts,
         language
@@ -153,14 +173,53 @@ export function recordProblemTime(
     }
   }
 
-  try {
-    localStorage.setItem(STORAGE_KEY_PERSONAL_BESTS, JSON.stringify(records));
-  } catch (err) {
-    console.error('Failed saving personal best record:', err);
-  }
+  // 1. Snapshot prior storage state for atomic rollback if writing fails
+  const prevPbsRaw = localStorage.getItem(STORAGE_KEY_PERSONAL_BESTS);
+  const prevStatsRaw = localStorage.getItem(STORAGE_KEY_TRAINING_STATS);
 
-  // Update training aggregate stats
-  updateTrainingStats(timeSeconds, isNewBest);
+  // 2. Read baseline stats prior to modifications
+  const currentStats = getTrainingStats();
+
+  try {
+    // 3. Persist updated personal best record
+    localStorage.setItem(STORAGE_KEY_PERSONAL_BESTS, JSON.stringify(records));
+
+    // 4. Persist updated training stats
+    updateTrainingStats(safeTime, isNewBest, currentStats);
+  } catch (err) {
+    // Attempt rollback so a failed write never leaves inconsistent stats.
+    // Note: If storage is completely broken/unavailable, rollback may also fail.
+    // Preserve the original error and report rollback failure appropriately.
+    let rollbackError: unknown = null;
+    try {
+      if (prevPbsRaw !== null) {
+        localStorage.setItem(STORAGE_KEY_PERSONAL_BESTS, prevPbsRaw);
+      } else {
+        localStorage.removeItem(STORAGE_KEY_PERSONAL_BESTS);
+      }
+      if (prevStatsRaw !== null) {
+        localStorage.setItem(STORAGE_KEY_TRAINING_STATS, prevStatsRaw);
+      } else {
+        localStorage.removeItem(STORAGE_KEY_TRAINING_STATS);
+      }
+    } catch (rbErr) {
+      rollbackError = rbErr;
+    }
+
+    const originalErrMsg = normalizeError(err);
+    if (rollbackError) {
+      const rollbackErrMsg = normalizeError(rollbackError);
+      console.error(
+        `Failed saving personal best or training stats: ${originalErrMsg}. Rollback also failed: ${rollbackErrMsg}`
+      );
+      throw new Error(
+        `Storage operation failed: ${originalErrMsg} (Rollback also failed: ${rollbackErrMsg})`
+      );
+    }
+
+    console.error('Failed saving personal best or training stats:', originalErrMsg);
+    throw err;
+  }
 
   return {
     isNewBest,
@@ -174,32 +233,47 @@ export function recordProblemTime(
  * Retrieves overall training statistics.
  */
 export function getTrainingStats(): TrainingStats {
+  const pbs = getAllPersonalBests();
+  const keys = Object.keys(pbs);
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY_TRAINING_STATS);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          totalSolved: typeof parsed.totalSolved === 'number' ? parsed.totalSolved : keys.length,
+          recordsBeaten: typeof parsed.recordsBeaten === 'number' ? parsed.recordsBeaten : 0,
+          totalTrainingTimeSeconds:
+            typeof parsed.totalTrainingTimeSeconds === 'number'
+              ? parsed.totalTrainingTimeSeconds
+              : keys.reduce((acc, k) => acc + (pbs[k]?.bestTimeSeconds || 0), 0)
+        };
+      }
+    }
   } catch {
     // ignore
   }
 
-  const pbs = getAllPersonalBests();
-  const keys = Object.keys(pbs);
   return {
     totalSolved: keys.length,
     recordsBeaten: 0,
-    totalTrainingTimeSeconds: keys.reduce((acc, k) => acc + pbs[k].bestTimeSeconds, 0)
+    totalTrainingTimeSeconds: keys.reduce((acc, k) => acc + (pbs[k]?.bestTimeSeconds || 0), 0)
   };
 }
 
-function updateTrainingStats(timeSeconds: number, wasNewBest: boolean) {
+function updateTrainingStats(timeSeconds: number, wasNewBest: boolean, baseStats?: TrainingStats): TrainingStats {
   try {
-    const stats = getTrainingStats();
+    const stats = baseStats ? { ...baseStats } : getTrainingStats();
     stats.totalSolved += 1;
     stats.totalTrainingTimeSeconds += timeSeconds;
     if (wasNewBest) {
       stats.recordsBeaten += 1;
     }
     localStorage.setItem(STORAGE_KEY_TRAINING_STATS, JSON.stringify(stats));
+    return stats;
   } catch (e) {
-    console.error('Failed updating training stats:', e);
+    console.error('Failed updating training stats:', normalizeError(e));
+    throw e;
   }
 }
