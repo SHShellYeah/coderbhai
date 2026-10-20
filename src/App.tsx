@@ -24,7 +24,7 @@ import { DsaRoadmapId, DsaProblemSpec } from './types/dsa';
 import { getDsaProblemSpec } from './data/dsaProblemSpecs';
 import { stopConfetti } from './utils/confetti';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageSquare, Swords, BookOpen, Brain, Zap, User, Crown } from 'lucide-react';
+import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageSquare, Swords, BookOpen, Brain, Zap, User, Crown, Compass } from 'lucide-react';
 import { ArenaChallenge } from './types';
 
 const MainApp: React.FC = () => {
@@ -205,6 +205,18 @@ const MainApp: React.FC = () => {
                 <span>Sign In / Join</span>
               </>
             )}
+          </button>
+          <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 shrink-0 mx-0.5" />
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              setIsPlacementOpen(true);
+            }}
+            className="flex items-center gap-1.5 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-brand-primary dark:text-cyan-400 hover:bg-brand-primary/10 border border-brand-primary/30"
+          >
+            <Compass className="w-3.5 h-3.5 text-brand-primary animate-spinSlow" />
+            <span>Byte&apos;s Plan</span>
           </button>
           <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 shrink-0 mx-0.5" />
           <button
