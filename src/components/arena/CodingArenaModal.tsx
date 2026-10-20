@@ -683,25 +683,25 @@ export const CodingArenaModal: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-7xl h-[95vh] flex flex-col rounded-3xl bg-white dark:bg-[#0B0F19] border-2 border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden text-left">
+      <div className="relative w-full max-w-7xl h-[95vh] flex flex-col rounded-2xl bg-white dark:bg-[#090D16] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden text-left">
 
         {/* ----------------- SCREEN 1: LOBBY & ROOM CONFIG ----------------- */}
         {screen === 'lobby' && (
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-transparent">
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/40">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-500 text-white flex items-center justify-center shadow-lg shadow-purple-500/25">
-                  <Swords className="w-6 h-6" />
+                <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs">
+                  <Swords className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     <span>Coding Arena</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                       LIVE DUELS
                     </span>
                   </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-normal">
                     Compete in real-time coding battles with friends or online challengers
                   </p>
                 </div>

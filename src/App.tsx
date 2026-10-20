@@ -124,13 +124,13 @@ const MainApp: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col lg:flex-row justify-center pb-20 lg:pb-8">
         {/* Mobile View Switching Tabs - Complete Feature Access on Mobile */}
-        <div className="lg:hidden flex items-center justify-around border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md py-2 px-2 sticky top-[57px] sm:top-[65px] z-20 w-full overflow-x-auto gap-1 scrollbar-none shadow-xs">
+        <div className="lg:hidden flex items-center justify-around border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-[#090D16]/90 backdrop-blur-md py-2 px-2 sticky top-[57px] sm:top-[65px] z-20 w-full overflow-x-auto gap-1 scrollbar-none shadow-xs">
           <button
             type="button"
             onClick={() => setMobileTab('learn')}
-            className={`flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${
               mobileTab === 'learn'
-                ? 'bg-brand-primary text-white shadow-sm'
+                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
             }`}
           >
@@ -140,9 +140,9 @@ const MainApp: React.FC = () => {
           <button
             type="button"
             onClick={() => setMobileTab('practice')}
-            className={`flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${
               mobileTab === 'practice'
-                ? 'bg-brand-primary text-white shadow-sm'
+                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
             }`}
           >
@@ -152,9 +152,9 @@ const MainApp: React.FC = () => {
           <button
             type="button"
             onClick={() => setMobileTab('quests')}
-            className={`flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${
               mobileTab === 'quests'
-                ? 'bg-brand-primary text-white shadow-sm'
+                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
             }`}
           >
@@ -164,9 +164,9 @@ const MainApp: React.FC = () => {
           <button
             type="button"
             onClick={() => setMobileTab('leaderboard')}
-            className={`flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${
               mobileTab === 'leaderboard'
-                ? 'bg-brand-primary text-white shadow-sm'
+                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
             }`}
           >
@@ -176,23 +176,23 @@ const MainApp: React.FC = () => {
           <button
             type="button"
             onClick={() => setMobileTab('settings')}
-            className={`flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${
               mobileTab === 'settings'
-                ? 'bg-brand-primary text-white shadow-sm'
+                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
             }`}
           >
             <Settings className="w-3.5 h-3.5" />
             <span>{t.themes}</span>
           </button>
-          <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 shrink-0 mx-0.5" />
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
           <button
             type="button"
             onClick={() => {
               setAuthInitialTab(state.authUser ? 'login' : 'register');
               setIsAuthOpen(true);
             }}
-            className="flex items-center gap-1.5 text-xs font-black uppercase px-3 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 text-white shadow-sm hover:brightness-110"
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-950 shadow-xs"
           >
             {state.authUser ? (
               <>
@@ -201,31 +201,30 @@ const MainApp: React.FC = () => {
               </>
             ) : (
               <>
-                <Crown className="w-3.5 h-3.5 text-amber-300" />
+                <User className="w-3.5 h-3.5" />
                 <span>Sign In / Join</span>
               </>
             )}
           </button>
-          <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 shrink-0 mx-0.5" />
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
           <button
             type="button"
             onClick={() => {
               sound.playClick();
               setIsPlacementOpen(true);
             }}
-            className="flex items-center gap-1.5 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-brand-primary dark:text-cyan-400 hover:bg-brand-primary/10 border border-brand-primary/30"
+            className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
           >
-            <Compass className="w-3.5 h-3.5 text-brand-primary animate-spinSlow" />
+            <Compass className="w-3.5 h-3.5 text-slate-500" />
             <span>Byte&apos;s Plan</span>
           </button>
-          <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 shrink-0 mx-0.5" />
           <button
             type="button"
             onClick={() => {
               setIdeaZoneSeedNote(undefined);
               setIsIdeaZoneOpen(true);
             }}
-            className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/30"
+            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
           >
             <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
             <span>{t.ideaZone || 'IdeaZone'}</span>
@@ -236,7 +235,7 @@ const MainApp: React.FC = () => {
               setCodeZoneSnippet(undefined);
               setIsCodeZoneOpen(true);
             }}
-            className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/30"
+            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-500" />
             <span>{t.codeZone || 'CodeZone'}</span>
@@ -244,7 +243,7 @@ const MainApp: React.FC = () => {
           <button
             type="button"
             onClick={handleOpenMessaging}
-            className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 border border-indigo-500/30"
+            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
           >
             <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
             <span>Chat</span>
@@ -255,7 +254,7 @@ const MainApp: React.FC = () => {
               setArenaInitialChallenge(null);
               setIsArenaOpen(true);
             }}
-            className="flex items-center gap-1 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 border border-purple-500/30"
+            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
           >
             <Swords className="w-3.5 h-3.5 text-purple-500" />
             <span>Arena</span>
@@ -268,7 +267,7 @@ const MainApp: React.FC = () => {
               setSpeedTrainingInitialTab('hub');
               setIsSpeedTrainingOpen(true);
             }}
-            className="flex items-center gap-1.5 text-xs font-black uppercase px-2.5 py-1.5 rounded-xl transition-all shrink-0 cursor-pointer text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-amber-500/30"
+            className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
           >
             <Zap className="w-3.5 h-3.5 text-amber-500 fill-current" />
             <span>Speed Training</span>

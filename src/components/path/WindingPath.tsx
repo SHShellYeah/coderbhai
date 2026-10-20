@@ -98,26 +98,28 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
           <div key={unit.id} className="w-full flex flex-col items-center mb-10">
             {/* Unit Header Banner */}
             <div
-              className={`w-full rounded-3xl p-4 sm:p-5 mb-8 text-white shadow-xl transition-all ${
-                isUnitUnlocked ? unit.bannerColor : 'bg-slate-400 dark:bg-slate-800 opacity-75'
+              className={`w-full rounded-2xl p-4 sm:p-5 mb-8 border transition-all text-left ${
+                isUnitUnlocked
+                  ? 'bg-slate-900 text-white dark:bg-[#111622] dark:text-slate-100 border-slate-800 shadow-sm'
+                  : 'bg-slate-100 dark:bg-slate-900/60 text-slate-500 border-slate-200 dark:border-slate-800 opacity-75'
               }`}
             >
               <div className="flex items-start justify-between gap-3 sm:gap-4">
                 <div className="text-left">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[11px] font-black uppercase tracking-wider bg-black/25 px-2.5 py-0.5 rounded-full">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider bg-white/10 dark:bg-slate-800 px-2.5 py-0.5 rounded-full text-slate-200 dark:text-slate-300 border border-white/10 dark:border-slate-700/60">
                       Unit {unit.unitNumber}
                     </span>
                     {!isUnitUnlocked && (
-                      <span className="flex items-center gap-1 text-[11px] font-bold bg-black/35 px-2 py-0.5 rounded-full">
+                      <span className="flex items-center gap-1 text-[11px] font-medium bg-black/20 dark:bg-slate-800/80 px-2 py-0.5 rounded-full text-slate-400">
                         <Lock className="w-3 h-3" /> Locked
                       </span>
                     )}
                   </div>
-                  <h3 className="text-base sm:text-lg md:text-xl font-black leading-snug">
+                  <h3 className="text-base sm:text-lg font-bold leading-snug">
                     {unit.title}
                   </h3>
-                  <p className="text-xs sm:text-sm font-medium text-white/90 mt-1">
+                  <p className="text-xs sm:text-sm font-normal text-slate-300 dark:text-slate-400 mt-1">
                     {unit.description}
                   </p>
                 </div>
@@ -129,9 +131,9 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
                     sound.playClick();
                     setActiveGuidebookUnit(unit);
                   }}
-                  className="btn-3d px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-black uppercase flex items-center gap-1.5 shrink-0 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-medium flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer border border-white/10 dark:border-slate-700"
                 >
-                  <BookOpen className="w-4 h-4" />
+                  <BookOpen className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Guidebook</span>
                 </button>
               </div>
@@ -156,17 +158,17 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
                   >
                     {/* Floating Tooltip/Badge on Active Node */}
                     {isCurrent && (
-                      <div className="absolute -top-10 z-20 animate-bounceShort">
-                        <div className="bg-white dark:bg-slate-800 text-brand-primary font-black text-xs px-3 py-1.5 rounded-2xl shadow-lg border-2 border-slate-200 dark:border-slate-700 uppercase tracking-wider flex items-center gap-1">
-                          <Zap className="w-3.5 h-3.5 fill-current" />
-                          START (+15 XP)
+                      <div className="absolute -top-10 z-20">
+                        <div className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold text-xs px-3 py-1 rounded-full shadow-md flex items-center gap-1.5 tracking-wide">
+                          <Zap className="w-3.5 h-3.5 fill-current text-amber-400 dark:text-amber-500" />
+                          <span>START (+15 XP)</span>
                         </div>
                         {/* Little triangle arrow */}
-                        <div className="w-2.5 h-2.5 bg-white dark:bg-slate-800 rotate-45 mx-auto -mt-1.5 border-r border-b border-slate-200 dark:border-slate-700" />
+                        <div className="w-2 h-2 bg-slate-900 dark:bg-white rotate-45 mx-auto -mt-1" />
                       </div>
                     )}
 
-                    {/* Node 3D Button */}
+                    {/* Node Button */}
                     <button
                       type="button"
                       onClick={() => handleNodeClick(node, isLocked)}
@@ -193,7 +195,7 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
                     </button>
 
                     {/* Node Title Subtext */}
-                    <span className="mt-2 text-xs font-black tracking-tight text-center max-w-[120px] sm:max-w-[140px] line-clamp-1 text-slate-700 dark:text-slate-300">
+                    <span className="mt-2 text-xs font-medium tracking-tight text-center max-w-[120px] sm:max-w-[140px] line-clamp-1 text-slate-700 dark:text-slate-300">
                       {node.title}
                     </span>
                   </div>

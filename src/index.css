@@ -7,99 +7,104 @@
      DYNAMIC THEME SYSTEM (Replaces Duolingo Green Clone with Sleek Dev Palettes)
      ========================================================================= */
 
-  /* Default Theme: Cosmic Midnight (Indigo & Cyber Cyan) */
+  /* =========================================================================
+     MINIMALIST MODERN THEME SYSTEM
+     Clean, professional, high-legibility palettes inspired by Linear & Vercel
+     ========================================================================= */
+
+  /* Default Theme: Modern Indigo / Slate */
   :root,
   [data-theme="midnight"] {
-    --brand-primary: #6366F1;
-    --brand-primary-dark: #4F46E5;
-    --brand-primary-light: #818CF8;
-    --brand-primary-glow: rgba(99, 102, 241, 0.45);
-    --brand-accent: #06B6D4;
-    --brand-secondary: #A855F7;
-    --bg-page: #F8FAFC;
-    --bg-card: #FFFFFF;
-    --text-primary: #1E293B;
-  }
-
-  /* Cyberpunk Neon Matrix */
-  [data-theme="cyberpunk"] {
-    --brand-primary: #00F0FF;
-    --brand-primary-dark: #00B4D8;
-    --brand-primary-light: #70F8FF;
-    --brand-primary-glow: rgba(0, 240, 255, 0.5);
-    --brand-accent: #FF007F;
-    --brand-secondary: #CE82FF;
+    --brand-primary: #4F46E5;
+    --brand-primary-dark: #4338CA;
+    --brand-primary-light: #6366F1;
+    --brand-primary-glow: rgba(79, 70, 229, 0.25);
+    --brand-accent: #2563EB;
+    --brand-secondary: #6366F1;
     --bg-page: #F8FAFC;
     --bg-card: #FFFFFF;
     --text-primary: #0F172A;
   }
 
-  /* Sunset Amber & Solar Flare */
-  [data-theme="sunset"] {
-    --brand-primary: #F97316;
-    --brand-primary-dark: #EA580C;
-    --brand-primary-light: #FB923C;
-    --brand-primary-glow: rgba(249, 115, 22, 0.45);
-    --brand-accent: #F59E0B;
-    --brand-secondary: #EF4444;
-    --bg-page: #FFFBEB;
+  /* Minimal Sky / Electric */
+  [data-theme="cyberpunk"] {
+    --brand-primary: #0284C7;
+    --brand-primary-dark: #0369A1;
+    --brand-primary-light: #38BDF8;
+    --brand-primary-glow: rgba(2, 132, 199, 0.25);
+    --brand-accent: #2563EB;
+    --brand-secondary: #4F46E5;
+    --bg-page: #F8FAFC;
     --bg-card: #FFFFFF;
-    --text-primary: #451A03;
+    --text-primary: #0F172A;
   }
 
-  /* Terminal Matrix & Hacker Green */
+  /* Minimal Warm Amber */
+  [data-theme="sunset"] {
+    --brand-primary: #D97706;
+    --brand-primary-dark: #B45309;
+    --brand-primary-light: #F59E0B;
+    --brand-primary-glow: rgba(217, 119, 6, 0.25);
+    --brand-accent: #EA580C;
+    --brand-secondary: #D97706;
+    --bg-page: #FAFAF9;
+    --bg-card: #FFFFFF;
+    --text-primary: #1C1917;
+  }
+
+  /* Clean Terminal Emerald */
   [data-theme="emerald-synth"],
   [data-theme="emerald"] {
-    --brand-primary: #10B981;
-    --brand-primary-dark: #059669;
-    --brand-primary-light: #34D399;
-    --brand-primary-glow: rgba(16, 185, 129, 0.45);
-    --brand-accent: #38BDF8;
-    --brand-secondary: #6366F1;
-    --bg-page: #F0FDF4;
-    --bg-card: #FFFFFF;
-    --text-primary: #064E3B;
-  }
-
-  /* Obsidian OLED */
-  [data-theme="obsidian"] {
-    --brand-primary: #38BDF8;
-    --brand-primary-dark: #0284C7;
-    --brand-primary-light: #7DD3FC;
-    --brand-primary-glow: rgba(56, 189, 248, 0.45);
-    --brand-accent: #A855F7;
-    --brand-secondary: #F43F5E;
-    --bg-page: #FFFFFF;
+    --brand-primary: #059669;
+    --brand-primary-dark: #047857;
+    --brand-primary-light: #10B981;
+    --brand-primary-glow: rgba(5, 150, 105, 0.25);
+    --brand-accent: #0284C7;
+    --brand-secondary: #059669;
+    --bg-page: #F8FAFC;
     --bg-card: #FFFFFF;
     --text-primary: #0F172A;
   }
 
-  /* Dark mode overrides */
+  /* Obsidian Monochrome */
+  [data-theme="obsidian"] {
+    --brand-primary: #2563EB;
+    --brand-primary-dark: #1D4ED8;
+    --brand-primary-light: #3B82F6;
+    --brand-primary-glow: rgba(37, 99, 235, 0.25);
+    --brand-accent: #0284C7;
+    --brand-secondary: #475569;
+    --bg-page: #F8FAFC;
+    --bg-card: #FFFFFF;
+    --text-primary: #0F172A;
+  }
+
+  /* Dark mode overrides: Deep, clean, low-glare obsidian & dark slate */
   .dark {
-    --bg-page: #0B0F19;
-    --bg-card: #111827;
+    --bg-page: #090D16;
+    --bg-card: #111622;
     --text-primary: #F8FAFC;
   }
 
   [data-theme="cyberpunk"].dark {
-    --bg-page: #07090E;
-    --bg-card: #0E131F;
+    --bg-page: #090D16;
+    --bg-card: #111622;
   }
 
   [data-theme="sunset"].dark {
-    --bg-page: #140B07;
-    --bg-card: #20130E;
+    --bg-page: #0C0A09;
+    --bg-card: #141210;
   }
 
   [data-theme="emerald-synth"].dark,
   [data-theme="emerald"].dark {
-    --bg-page: #05140E;
-    --bg-card: #092318;
+    --bg-page: #060E0B;
+    --bg-card: #0C1713;
   }
 
   [data-theme="obsidian"].dark {
-    --bg-page: #000000;
-    --bg-card: #0A0A0A;
+    --bg-page: #080A0E;
+    --bg-card: #0E121A;
   }
 
   /* Mobile Zoom prevention and viewport safety */
@@ -117,62 +122,59 @@
   }
 }
 
-/* 3D Chunky Developer Buttons */
+/* Modern Minimal Tactile Controls */
 @layer components {
   .btn-3d {
-    @apply transition-all duration-75 select-none font-extrabold uppercase tracking-wide inline-flex items-center justify-center;
+    @apply transition-all duration-150 select-none font-semibold text-xs sm:text-sm inline-flex items-center justify-center rounded-xl cursor-pointer active:scale-[0.98];
   }
 
   .btn-3d-primary,
   .btn-3d-green {
-    @apply text-white border-b-4 hover:brightness-110 active:border-b-0 active:translate-y-1;
+    @apply text-white shadow-xs hover:opacity-95 active:scale-[0.98] border border-transparent;
     background-color: var(--brand-primary);
-    border-color: var(--brand-primary-dark);
   }
 
   .btn-3d-blue {
-    @apply bg-brand-blue text-white border-b-4 border-brand-blue-dark hover:brightness-110 active:border-b-0 active:translate-y-1;
+    @apply bg-sky-600 text-white shadow-xs hover:bg-sky-500 border border-transparent;
   }
 
   .btn-3d-rose {
-    @apply bg-brand-rose text-white border-b-4 border-brand-rose-dark hover:brightness-110 active:border-b-0 active:translate-y-1;
+    @apply bg-rose-600 text-white shadow-xs hover:bg-rose-500 border border-transparent;
   }
 
   .btn-3d-gold,
   .btn-3d-yellow {
-    @apply bg-brand-gold text-amber-950 border-b-4 border-brand-gold-dark hover:brightness-110 active:border-b-0 active:translate-y-1;
+    @apply bg-amber-500 text-white shadow-xs hover:bg-amber-400 border border-transparent;
   }
 
   .btn-3d-purple {
-    @apply bg-brand-purple text-white border-b-4 border-brand-purple-dark hover:brightness-110 active:border-b-0 active:translate-y-1;
+    @apply bg-indigo-600 text-white shadow-xs hover:bg-indigo-500 border border-transparent;
   }
 
   .btn-3d-gray {
-    @apply bg-slate-100 text-slate-700 border-b-4 border-slate-300 hover:bg-slate-200 active:border-b-0 active:translate-y-1 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-900 dark:hover:bg-slate-700;
+    @apply bg-slate-100 text-slate-700 border border-slate-200/80 hover:bg-slate-200/70 dark:bg-slate-800/80 dark:text-slate-200 dark:border-slate-700/60 dark:hover:bg-slate-800 shadow-xs;
   }
 
   .btn-3d-outline {
-    @apply bg-transparent text-slate-600 border-2 border-b-4 border-slate-300 hover:bg-slate-100 active:border-b-2 active:translate-y-0.5 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800;
+    @apply bg-transparent text-slate-700 border border-slate-300 hover:bg-slate-100 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800/60 shadow-xs;
   }
 
-  /* Node 3D circles */
+  /* Minimal Path Milestones */
   .node-btn {
-    @apply relative flex items-center justify-center rounded-full transition-all duration-150 cursor-pointer shadow-md active:translate-y-1;
+    @apply relative flex items-center justify-center rounded-full transition-all duration-150 cursor-pointer shadow-sm hover:scale-105 active:scale-95;
   }
 
   .node-completed {
-    @apply bg-brand-gold text-amber-950 border-b-[6px] border-brand-gold-dark hover:brightness-105 active:border-b-2;
+    @apply bg-amber-500 text-white border-2 border-amber-400 shadow-xs;
   }
 
   .node-current {
-    @apply text-white border-b-[6px] hover:brightness-110 active:border-b-2;
+    @apply text-white border-2 border-white/80 dark:border-slate-800 ring-4 ring-indigo-500/30 shadow-md;
     background-color: var(--brand-primary);
-    border-color: var(--brand-primary-dark);
-    box-shadow: 0 0 0 4px var(--brand-primary-glow);
   }
 
   .node-locked {
-    @apply bg-slate-200 text-slate-400 border-b-[6px] border-slate-300 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600 dark:border-slate-900;
+    @apply bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600 dark:border-slate-800/80;
   }
 }
 
@@ -192,18 +194,18 @@
   background: #334155;
 }
 
-/* Pulse Glow Keyframe */
+/* Subtle Pulse Glow Keyframe */
 @keyframes pulseGlow {
   0%, 100% {
     box-shadow: 0 0 0 0 var(--brand-primary-glow);
   }
   50% {
-    box-shadow: 0 0 0 16px rgba(0, 0, 0, 0);
+    box-shadow: 0 0 0 6px rgba(0, 0, 0, 0);
   }
 }
 
 .pulse-glow {
-  animation: pulseGlow 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+  animation: pulseGlow 2s infinite ease-in-out;
 }
 
 /* Dopamine Floating Rewards */
