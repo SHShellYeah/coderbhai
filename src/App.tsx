@@ -26,6 +26,8 @@ import { stopConfetti } from './utils/confetti';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { Map, Trophy, Target, RotateCcw, Settings, Lightbulb, Terminal, MessageSquare, Swords, BookOpen, Brain, Zap, User, Crown, Compass } from 'lucide-react';
 import { ArenaChallenge } from './types';
+import { BottomNavBar, BottomNavTab } from './components/navigation/BottomNavBar';
+import { MoreDrawerModal } from './components/navigation/MoreDrawerModal';
 
 const MainApp: React.FC = () => {
   const { state } = useGame();
@@ -69,6 +71,8 @@ const MainApp: React.FC = () => {
     codeLanguage?: CodeLanguage;
   } | undefined>();
   const [mobileTab, setMobileTab] = useState<'learn' | 'practice' | 'quests' | 'leaderboard' | 'settings'>('learn');
+  const [bottomTab, setBottomTab] = useState<BottomNavTab>('learn');
+  const [isMoreDrawerOpen, setIsMoreDrawerOpen] = useState<boolean>(false);
 
   // Trigger placement flow if active course hasn't had onboarding yet
   useEffect(() => {
@@ -88,191 +92,39 @@ const MainApp: React.FC = () => {
     setIsMessagingOpen(true);
   };
 
+  const handleBottomTabSelect = (tab: BottomNavTab) => {
+    setBottomTab(tab);
+    if (tab === 'learn') {
+      setMobileTab('learn');
+    } else if (tab === 'quests') {
+      setMobileTab('quests');
+    } else if (tab === 'practice') {
+      setIsPracticeOpen(true);
+    } else if (tab === 'chat') {
+      handleOpenMessaging();
+    } else if (tab === 'arena') {
+      setArenaInitialChallenge(null);
+      setIsArenaOpen(true);
+    } else if (tab === 'more') {
+      setIsMoreDrawerOpen(true);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0B0F19] text-slate-800 dark:text-slate-100 transition-colors w-full max-w-full overflow-x-hidden">
-      {/* Top Stats & Course Bar */}
+    <div className="min-h-screen flex flex-col bg-white dark:bg-[#131F24] text-slate-900 dark:text-white transition-colors w-full max-w-full overflow-x-hidden">
+      {/* Top Stats & Course Bar - Ultra-clean Duolingo Stats */}
       <TopBar
         onOpenPractice={() => setIsPracticeOpen(true)}
         onOpenPlacement={() => setIsPlacementOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenIdeaZone={() => {
-          setIdeaZoneSeedNote(undefined);
-          setIsIdeaZoneOpen(true);
-        }}
-        onOpenCodeZone={() => {
-          setCodeZoneSnippet(undefined);
-          setCodeZoneProblem(null);
-          setIsCodeZoneOpen(true);
-        }}
         onOpenAuth={(tab = 'register') => {
           setAuthInitialTab(tab);
           setIsAuthOpen(true);
         }}
-        onOpenMessaging={handleOpenMessaging}
-        onOpenArena={() => {
-          setArenaInitialChallenge(null);
-          setIsArenaOpen(true);
-        }}
-        onOpenSpeedTraining={() => {
-          setSpeedTrainingInitialProblemId(undefined);
-          setSpeedTrainingInitialTab('hub');
-          setIsSpeedTrainingOpen(true);
-        }}
-        onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col lg:flex-row justify-center pb-20 lg:pb-8">
-        {/* Mobile View Switching Tabs - Complete Feature Access on Mobile */}
-        <div className="lg:hidden flex items-center justify-around border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-[#090D16]/90 backdrop-blur-md py-2 px-2 sticky top-[57px] sm:top-[65px] z-20 w-full overflow-x-auto gap-1 scrollbar-none shadow-xs">
-          <button
-            type="button"
-            onClick={() => setMobileTab('learn')}
-            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${
-              mobileTab === 'learn'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Map className="w-3.5 h-3.5" />
-            <span>{t.learn}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileTab('practice')}
-            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${
-              mobileTab === 'practice'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>{t.practice}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileTab('quests')}
-            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${
-              mobileTab === 'quests'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Target className="w-3.5 h-3.5" />
-            <span>{t.quests}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileTab('leaderboard')}
-            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${
-              mobileTab === 'leaderboard'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Trophy className="w-3.5 h-3.5" />
-            <span>{t.rankings}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileTab('settings')}
-            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer ${
-              mobileTab === 'settings'
-                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
-            }`}
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span>{t.themes}</span>
-          </button>
-          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
-          <button
-            type="button"
-            onClick={() => {
-              setAuthInitialTab(state.authUser ? 'login' : 'register');
-              setIsAuthOpen(true);
-            }}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-slate-950 shadow-xs"
-          >
-            {state.authUser ? (
-              <>
-                <User className="w-3.5 h-3.5" />
-                <span className="max-w-[70px] truncate">{state.authUser.username ? `@${state.authUser.username}` : (state.authUser.displayName || 'Account')}</span>
-              </>
-            ) : (
-              <>
-                <User className="w-3.5 h-3.5" />
-                <span>Sign In / Join</span>
-              </>
-            )}
-          </button>
-          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 shrink-0 mx-0.5" />
-          <button
-            type="button"
-            onClick={() => {
-              sound.playClick();
-              setIsPlacementOpen(true);
-            }}
-            className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
-          >
-            <Compass className="w-3.5 h-3.5 text-slate-500" />
-            <span>Byte&apos;s Plan</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setIdeaZoneSeedNote(undefined);
-              setIsIdeaZoneOpen(true);
-            }}
-            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
-          >
-            <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-            <span>{t.ideaZone || 'IdeaZone'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setCodeZoneSnippet(undefined);
-              setIsCodeZoneOpen(true);
-            }}
-            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
-          >
-            <Terminal className="w-3.5 h-3.5 text-emerald-500" />
-            <span>{t.codeZone || 'CodeZone'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenMessaging}
-            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
-          >
-            <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Chat</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setArenaInitialChallenge(null);
-              setIsArenaOpen(true);
-            }}
-            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
-          >
-            <Swords className="w-3.5 h-3.5 text-purple-500" />
-            <span>Arena</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              sound.playClick();
-              setSpeedTrainingInitialProblemId(undefined);
-              setSpeedTrainingInitialTab('hub');
-              setIsSpeedTrainingOpen(true);
-            }}
-            className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors shrink-0 cursor-pointer text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
-          >
-            <Zap className="w-3.5 h-3.5 text-amber-500 fill-current" />
-            <span>Speed Training</span>
-          </button>
-        </div>
+      <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col lg:flex-row justify-center pb-24 lg:pb-8">
 
         {/* 3-Column Balanced Desktop Layout: Left Nav + Centered Lessons + Right Stats */}
         <div className="w-full flex justify-center items-start gap-4 lg:gap-6 xl:gap-8 px-2 sm:px-4">
@@ -361,19 +213,33 @@ const MainApp: React.FC = () => {
         </div>
       </div>
 
-      {/* Floating Action Button on Mobile (Quick Practice) when in Learn map */}
-      {mobileTab === 'learn' && (
-        <div className="lg:hidden fixed bottom-5 right-5 z-20">
-          <button
-            type="button"
-            onClick={() => setIsPracticeOpen(true)}
-            className="btn-3d btn-3d-purple p-4 rounded-full shadow-2xl flex items-center justify-center text-white cursor-pointer"
-            title="Practice Weak Areas"
-          >
-            <RotateCcw className="w-6 h-6" />
-          </button>
-        </div>
-      )}
+      {/* Duolingo Mobile Bottom Navigation Bar matching screenshot */}
+      <BottomNavBar
+        activeTab={bottomTab}
+        onSelectTab={handleBottomTabSelect}
+      />
+
+      {/* Mobile More Drawer */}
+      <MoreDrawerModal
+        isOpen={isMoreDrawerOpen}
+        onClose={() => setIsMoreDrawerOpen(false)}
+        onOpenAuth={(tab) => {
+          setAuthInitialTab(tab || 'login');
+          setIsAuthOpen(true);
+        }}
+        onOpenPlacement={() => setIsPlacementOpen(true)}
+        onOpenIdeaZone={() => {
+          setIdeaZoneSeedNote(undefined);
+          setIsIdeaZoneOpen(true);
+        }}
+        onOpenCodeZone={() => {
+          setCodeZoneSnippet(undefined);
+          setCodeZoneProblem(null);
+          setIsCodeZoneOpen(true);
+        }}
+        onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
 
       {/* Full-Screen Interactive Lesson Modal */}
       {activeLessonNode && (

@@ -12,99 +12,84 @@
      Clean, professional, high-legibility palettes inspired by Linear & Vercel
      ========================================================================= */
 
-  /* Default Theme: Modern Indigo / Slate */
+  /* Default Theme: Duolingo Sky Blue & Dark Slate */
   :root,
   [data-theme="midnight"] {
-    --brand-primary: #4F46E5;
-    --brand-primary-dark: #4338CA;
-    --brand-primary-light: #6366F1;
-    --brand-primary-glow: rgba(79, 70, 229, 0.25);
-    --brand-accent: #2563EB;
-    --brand-secondary: #6366F1;
-    --bg-page: #F8FAFC;
+    --brand-primary: #1CB0F6;
+    --brand-primary-dark: #1899D6;
+    --brand-primary-light: #44C4FF;
+    --brand-primary-glow: rgba(28, 176, 246, 0.25);
+    --brand-accent: #FFC800;
+    --brand-secondary: #CE82FF;
+    --bg-page: #FFFFFF;
     --bg-card: #FFFFFF;
-    --text-primary: #0F172A;
+    --text-primary: #131F24;
   }
 
   /* Minimal Sky / Electric */
   [data-theme="cyberpunk"] {
-    --brand-primary: #0284C7;
-    --brand-primary-dark: #0369A1;
-    --brand-primary-light: #38BDF8;
-    --brand-primary-glow: rgba(2, 132, 199, 0.25);
-    --brand-accent: #2563EB;
-    --brand-secondary: #4F46E5;
-    --bg-page: #F8FAFC;
+    --brand-primary: #1CB0F6;
+    --brand-primary-dark: #1899D6;
+    --brand-primary-light: #44C4FF;
+    --brand-primary-glow: rgba(28, 176, 246, 0.25);
+    --brand-accent: #FFC800;
+    --brand-secondary: #CE82FF;
+    --bg-page: #FFFFFF;
     --bg-card: #FFFFFF;
-    --text-primary: #0F172A;
+    --text-primary: #131F24;
   }
 
   /* Minimal Warm Amber */
   [data-theme="sunset"] {
-    --brand-primary: #D97706;
-    --brand-primary-dark: #B45309;
-    --brand-primary-light: #F59E0B;
-    --brand-primary-glow: rgba(217, 119, 6, 0.25);
-    --brand-accent: #EA580C;
-    --brand-secondary: #D97706;
-    --bg-page: #FAFAF9;
+    --brand-primary: #FF9600;
+    --brand-primary-dark: #E07D00;
+    --brand-primary-light: #FFB340;
+    --brand-primary-glow: rgba(255, 150, 0, 0.25);
+    --brand-accent: #FFC800;
+    --brand-secondary: #FF4B4B;
+    --bg-page: #FFFFFF;
     --bg-card: #FFFFFF;
-    --text-primary: #1C1917;
+    --text-primary: #131F24;
   }
 
   /* Clean Terminal Emerald */
   [data-theme="emerald-synth"],
   [data-theme="emerald"] {
-    --brand-primary: #059669;
-    --brand-primary-dark: #047857;
-    --brand-primary-light: #10B981;
-    --brand-primary-glow: rgba(5, 150, 105, 0.25);
-    --brand-accent: #0284C7;
-    --brand-secondary: #059669;
-    --bg-page: #F8FAFC;
+    --brand-primary: #58CC02;
+    --brand-primary-dark: #46A302;
+    --brand-primary-light: #7CE01E;
+    --brand-primary-glow: rgba(88, 204, 2, 0.25);
+    --brand-accent: #1CB0F6;
+    --brand-secondary: #CE82FF;
+    --bg-page: #FFFFFF;
     --bg-card: #FFFFFF;
-    --text-primary: #0F172A;
+    --text-primary: #131F24;
   }
 
   /* Obsidian Monochrome */
   [data-theme="obsidian"] {
-    --brand-primary: #2563EB;
-    --brand-primary-dark: #1D4ED8;
-    --brand-primary-light: #3B82F6;
-    --brand-primary-glow: rgba(37, 99, 235, 0.25);
-    --brand-accent: #0284C7;
-    --brand-secondary: #475569;
-    --bg-page: #F8FAFC;
+    --brand-primary: #1CB0F6;
+    --brand-primary-dark: #1899D6;
+    --brand-primary-light: #44C4FF;
+    --brand-primary-glow: rgba(28, 176, 246, 0.25);
+    --brand-accent: #FFC800;
+    --brand-secondary: #CE82FF;
+    --bg-page: #FFFFFF;
     --bg-card: #FFFFFF;
-    --text-primary: #0F172A;
+    --text-primary: #131F24;
   }
 
-  /* Dark mode overrides: Deep, clean, low-glare obsidian & dark slate */
-  .dark {
-    --bg-page: #090D16;
-    --bg-card: #111622;
-    --text-primary: #F8FAFC;
-  }
-
-  [data-theme="cyberpunk"].dark {
-    --bg-page: #090D16;
-    --bg-card: #111622;
-  }
-
-  [data-theme="sunset"].dark {
-    --bg-page: #0C0A09;
-    --bg-card: #141210;
-  }
-
+  /* Dark mode overrides: Duolingo dark slate matte (#131F24) */
+  .dark,
+  [data-theme="midnight"].dark,
+  [data-theme="cyberpunk"].dark,
+  [data-theme="sunset"].dark,
   [data-theme="emerald-synth"].dark,
-  [data-theme="emerald"].dark {
-    --bg-page: #060E0B;
-    --bg-card: #0C1713;
-  }
-
+  [data-theme="emerald"].dark,
   [data-theme="obsidian"].dark {
-    --bg-page: #080A0E;
-    --bg-card: #0E121A;
+    --bg-page: #131F24;
+    --bg-card: #18252D;
+    --text-primary: #FFFFFF;
   }
 
   /* Mobile Zoom prevention and viewport safety */
@@ -122,59 +107,57 @@
   }
 }
 
-/* Modern Minimal Tactile Controls */
+/* Duolingo Chunky 3D Tactile Controls */
 @layer components {
   .btn-3d {
-    @apply transition-all duration-150 select-none font-semibold text-xs sm:text-sm inline-flex items-center justify-center rounded-xl cursor-pointer active:scale-[0.98];
+    @apply transition-all duration-100 select-none font-bold text-xs sm:text-sm inline-flex items-center justify-center rounded-xl cursor-pointer active:translate-y-1 active:border-b-0;
   }
 
   .btn-3d-primary,
-  .btn-3d-green {
-    @apply text-white shadow-xs hover:opacity-95 active:scale-[0.98] border border-transparent;
-    background-color: var(--brand-primary);
+  .btn-3d-blue {
+    @apply bg-[#1CB0F6] text-white border-b-4 border-[#1899D6] hover:bg-[#23B7FF] active:border-b-0 active:translate-y-1 shadow-sm;
   }
 
-  .btn-3d-blue {
-    @apply bg-sky-600 text-white shadow-xs hover:bg-sky-500 border border-transparent;
+  .btn-3d-green {
+    @apply bg-[#58CC02] text-white border-b-4 border-[#46A302] hover:bg-[#61E002] active:border-b-0 active:translate-y-1 shadow-sm;
   }
 
   .btn-3d-rose {
-    @apply bg-rose-600 text-white shadow-xs hover:bg-rose-500 border border-transparent;
+    @apply bg-[#FF4B4B] text-white border-b-4 border-[#EA2B2B] hover:bg-[#FF5C5C] active:border-b-0 active:translate-y-1 shadow-sm;
   }
 
   .btn-3d-gold,
   .btn-3d-yellow {
-    @apply bg-amber-500 text-white shadow-xs hover:bg-amber-400 border border-transparent;
+    @apply bg-[#FFC800] text-amber-950 border-b-4 border-[#E5A100] hover:bg-[#FFD21A] active:border-b-0 active:translate-y-1 shadow-sm;
   }
 
   .btn-3d-purple {
-    @apply bg-indigo-600 text-white shadow-xs hover:bg-indigo-500 border border-transparent;
+    @apply bg-[#CE82FF] text-white border-b-4 border-[#A549E0] hover:bg-[#D696FF] active:border-b-0 active:translate-y-1 shadow-sm;
   }
 
   .btn-3d-gray {
-    @apply bg-slate-100 text-slate-700 border border-slate-200/80 hover:bg-slate-200/70 dark:bg-slate-800/80 dark:text-slate-200 dark:border-slate-700/60 dark:hover:bg-slate-800 shadow-xs;
+    @apply bg-slate-100 text-slate-700 border-b-4 border-slate-300 hover:bg-slate-200 dark:bg-[#18252D] dark:text-slate-200 dark:border-[#263843] dark:hover:bg-[#20313B] active:border-b-0 active:translate-y-1 shadow-xs;
   }
 
   .btn-3d-outline {
-    @apply bg-transparent text-slate-700 border border-slate-300 hover:bg-slate-100 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-800/60 shadow-xs;
+    @apply bg-transparent text-slate-700 border-2 border-slate-300 hover:bg-slate-100 dark:text-slate-300 dark:border-[#263843] dark:hover:bg-[#18252D] active:translate-y-0.5 shadow-xs;
   }
 
-  /* Minimal Path Milestones */
+  /* Duolingo Chunky 3D Path Milestones */
   .node-btn {
-    @apply relative flex items-center justify-center rounded-full transition-all duration-150 cursor-pointer shadow-sm hover:scale-105 active:scale-95;
+    @apply relative flex items-center justify-center rounded-full transition-transform duration-100 select-none cursor-pointer;
   }
 
   .node-completed {
-    @apply bg-amber-500 text-white border-2 border-amber-400 shadow-xs;
+    @apply bg-[#FFC800] text-amber-950 border-b-[6px] border-[#E5A100] active:border-b-0 active:translate-y-[6px] shadow-sm;
   }
 
   .node-current {
-    @apply text-white border-2 border-white/80 dark:border-slate-800 ring-4 ring-indigo-500/30 shadow-md;
-    background-color: var(--brand-primary);
+    @apply bg-[#1CB0F6] text-white border-b-[6px] border-[#1899D6] active:border-b-0 active:translate-y-[6px] shadow-md;
   }
 
   .node-locked {
-    @apply bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600 dark:border-slate-800/80;
+    @apply bg-[#263843] text-[#4A6475] border-b-[6px] border-[#1E2C33] cursor-pointer hover:bg-[#2A3E4B] transition-colors;
   }
 }
 

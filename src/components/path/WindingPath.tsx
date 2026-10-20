@@ -3,17 +3,17 @@ import { CourseId, LessonNode, Unit } from '../../types';
 import { COURSES } from '../../data/courses';
 import { useGame } from '../../context/GameContext';
 import { sound } from '../../utils/audio';
-import { BhaiCompanion } from '../companion/BhaiCompanion';
+import { ByteCampfire } from './ByteCampfire';
 import {
-  Check,
+  RotateCcw,
   Star,
   Lock,
-  BookOpen,
   Trophy,
   Zap,
   Code,
   Terminal,
-  Crown
+  Video,
+  Dumbbell
 } from 'lucide-react';
 import { UnitGuidebookModal } from './UnitGuidebookModal';
 
@@ -33,114 +33,101 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
   };
 
   const [activeGuidebookUnit, setActiveGuidebookUnit] = useState<Unit | null>(null);
-  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [lockedTooltipNodeId, setLockedTooltipNodeId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Symmetrical serpentine curve oscillating evenly around dead center (0px)
-  const xOffsetsDesktop = [0, -38, 0, 38, 0, -38, 0, 38];
-  const xOffsetsMobile = [0, -20, 0, 20, 0, -20, 0, 20];
-  const xOffsets = isMobile ? xOffsetsMobile : xOffsetsDesktop;
-
-  const getNodeIcon = (node: LessonNode, isCompleted: boolean, isCurrent: boolean) => {
-    if (isCompleted) {
-      return <Check className="w-7 h-7 stroke-[3] text-amber-950" />;
-    }
-    if (isCurrent) {
-      return <Crown className="w-7 h-7 fill-white stroke-white animate-bounceShort" />;
-    }
-
-    switch (node.iconType) {
-      case 'trophy':
-        return <Trophy className="w-6 h-6" />;
-      case 'terminal':
-        return <Terminal className="w-6 h-6" />;
-      case 'zap':
-        return <Zap className="w-6 h-6" />;
-      case 'code':
-        return <Code className="w-6 h-6" />;
-      default:
-        return <Star className="w-6 h-6" />;
-    }
-  };
+  // Winding serpentine offsets matching Duolingo screenshot
+  const xOffsets = [12, -26, -56, -26, 16, 52, 20, 0];
 
   const handleNodeClick = (node: LessonNode, isLocked: boolean) => {
     if (isLocked) {
       sound.playError();
+      setLockedTooltipNodeId(node.id);
+      setTimeout(() => setLockedTooltipNodeId(null), 2000);
       return;
     }
     sound.playClick();
     onSelectNode(node);
   };
 
-  return (
-    <div className="w-full max-w-xl mx-auto py-5 px-3 sm:px-4 flex flex-col items-center overflow-x-hidden">
-      {/* Bhai the Black Cat Companion (Always keeping you company like Duo!) */}
-      <div className="w-full mb-6">
-        <BhaiCompanion
-          streak={state.streak}
-          xp={state.xp}
-          activeCourseTitle={course.shortTitle}
-        />
-      </div>
+  const getGlyphIcon = (nodeIdx: number, iconType?: string) => {
+    const glyphs = ['あ', '{ }', '⭐', '🎥', 'あ', '🏋️', '< >', '💻'];
+    const chosen = glyphs[nodeIdx % glyphs.length];
 
+    if (chosen === 'あ') {
+      return <span className="font-bold text-lg select-none">あ</span>;
+    }
+    if (chosen === '{ }') {
+      return <span className="font-mono font-bold text-base select-none">{'{ }'}</span>;
+    }
+    if (chosen === '< >') {
+      return <span className="font-mono font-bold text-base select-none">{'< >'}</span>;
+    }
+    if (chosen === '⭐') {
+      return <Star className="w-6 h-6 fill-current" />;
+    }
+    if (chosen === '🎥') {
+      return <Video className="w-5 h-5 fill-current" />;
+    }
+    if (chosen === '🏋️') {
+      return <Dumbbell className="w-5 h-5" />;
+    }
+
+    if (iconType === 'terminal') return <Terminal className="w-5 h-5" />;
+    if (iconType === 'trophy') return <Trophy className="w-5 h-5" />;
+    return <Code className="w-5 h-5" />;
+  };
+
+  return (
+    <div className="w-full max-w-lg mx-auto py-4 px-2 sm:px-4 flex flex-col items-center select-none overflow-x-hidden">
       {course.units.map((unit, unitIdx) => {
         const isUnitUnlocked = unitIdx < progress.unlockedUnitCount;
 
         return (
-          <div key={unit.id} className="w-full flex flex-col items-center mb-10">
-            {/* Unit Header Banner */}
+          <div key={unit.id} className="w-full flex flex-col items-center mb-8">
+            {/* Unit Header Banner - Sky Blue rounded banner matching Duolingo screenshot */}
             <div
-              className={`w-full rounded-2xl p-4 sm:p-5 mb-8 border transition-all text-left ${
+              className={`w-full rounded-2xl p-4 sm:p-5 mb-8 border-b-4 transition-all text-left shadow-md ${
                 isUnitUnlocked
-                  ? 'bg-slate-900 text-white dark:bg-[#111622] dark:text-slate-100 border-slate-800 shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-900/60 text-slate-500 border-slate-200 dark:border-slate-800 opacity-75'
+                  ? 'bg-[#1CB0F6] border-[#1899D6] text-white'
+                  : 'bg-[#18252D] border-[#263843] text-slate-400 opacity-75'
               }`}
             >
-              <div className="flex items-start justify-between gap-3 sm:gap-4">
-                <div className="text-left">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider bg-white/10 dark:bg-slate-800 px-2.5 py-0.5 rounded-full text-slate-200 dark:text-slate-300 border border-white/10 dark:border-slate-700/60">
-                      Unit {unit.unitNumber}
-                    </span>
-                    {!isUnitUnlocked && (
-                      <span className="flex items-center gap-1 text-[11px] font-medium bg-black/20 dark:bg-slate-800/80 px-2 py-0.5 rounded-full text-slate-400">
-                        <Lock className="w-3 h-3" /> Locked
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-base sm:text-lg font-bold leading-snug">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col text-left">
+                  <span className="text-[11px] sm:text-xs font-black tracking-wider text-white/80 uppercase mb-0.5">
+                    SECTION 2, UNIT {unit.unitNumber}
+                  </span>
+                  <h2 className="text-lg sm:text-xl font-black text-white leading-tight">
                     {unit.title}
-                  </h3>
-                  <p className="text-xs sm:text-sm font-normal text-slate-300 dark:text-slate-400 mt-1">
-                    {unit.description}
-                  </p>
+                  </h2>
                 </div>
 
-                {/* Guidebook Button */}
+                {/* Guidebook Button - Notebook icon in rounded bordered box matching screenshot */}
                 <button
                   type="button"
                   onClick={() => {
                     sound.playClick();
                     setActiveGuidebookUnit(unit);
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-medium flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer border border-white/10 dark:border-slate-700"
+                  className="p-2 sm:p-2.5 rounded-xl border-2 border-white/30 bg-white/10 hover:bg-white/20 active:translate-y-0.5 transition-all text-white flex items-center justify-center shrink-0 cursor-pointer shadow-xs"
+                  title="Unit Guidebook"
+                  aria-label="Unit Guidebook"
                 >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Guidebook</span>
+                  <svg className="w-6 h-6 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+                    <line x1="9" y1="7" x2="16" y2="7" strokeLinecap="round" />
+                    <line x1="9" y1="11" x2="16" y2="11" strokeLinecap="round" />
+                    <line x1="9" y1="15" x2="14" y2="15" strokeLinecap="round" />
+                    <circle cx="7" cy="7" r="0.75" fill="currentColor" />
+                    <circle cx="7" cy="11" r="0.75" fill="currentColor" />
+                    <circle cx="7" cy="15" r="0.75" fill="currentColor" />
+                  </svg>
                 </button>
               </div>
             </div>
 
             {/* Winding Nodes Container */}
-            <div className="relative w-full flex flex-col items-center gap-8 py-2">
+            <div className="relative w-full flex flex-col items-center gap-7 py-2">
               {unit.nodes.map((node, nodeIdx) => {
                 const isCompleted = progress.completedNodeIds.includes(node.id);
                 const isCurrent = progress.currentNodeId === node.id;
@@ -151,53 +138,95 @@ export const WindingPath: React.FC<Props> = ({ courseId, onSelectNode }) => {
                 return (
                   <div
                     key={node.id}
-                    className="relative flex flex-col items-center"
-                    style={{
-                      transform: `translateX(${offset}px)`,
-                    }}
+                    className="relative flex flex-col items-center w-full"
                   >
-                    {/* Floating Tooltip/Badge on Active Node */}
-                    {isCurrent && (
-                      <div className="absolute -top-10 z-20">
-                        <div className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold text-xs px-3 py-1 rounded-full shadow-md flex items-center gap-1.5 tracking-wide">
-                          <Zap className="w-3.5 h-3.5 fill-current text-amber-400 dark:text-amber-500" />
-                          <span>START (+15 XP)</span>
-                        </div>
-                        {/* Little triangle arrow */}
-                        <div className="w-2 h-2 bg-slate-900 dark:bg-white rotate-45 mx-auto -mt-1" />
+                    {/* Campfire illustration next to node 3/4 matching screenshot */}
+                    {nodeIdx === 2 && (
+                      <div className="absolute right-3 sm:right-6 top-8 z-0">
+                        <ByteCampfire />
                       </div>
                     )}
 
-                    {/* Node Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleNodeClick(node, isLocked)}
-                      disabled={isLocked}
-                      className={`node-btn w-18 h-18 sm:w-20 sm:h-20 md:w-22 md:h-22 ${
-                        isCompleted
-                          ? 'node-completed'
-                          : isCurrent
-                          ? 'node-current pulse-glow'
-                          : 'node-locked'
-                      }`}
-                      title={
-                        isLocked
-                          ? 'Complete earlier lessons to unlock'
-                          : `${node.title}: ${node.description}`
-                      }
+                    <div
+                      className="relative flex flex-col items-center"
+                      style={{
+                        transform: `translateX(${offset}px)`,
+                      }}
                     >
-                      {/* Node Icon */}
-                      {isLocked ? (
-                        <Lock className="w-6 h-6 sm:w-7 sm:h-7 text-slate-400 dark:text-slate-600" />
-                      ) : (
-                        getNodeIcon(node, isCompleted, isCurrent)
+                      {/* Floating "START" Badge above active node */}
+                      {isCurrent && (
+                        <div className="absolute -top-10 z-20 pointer-events-none animate-bounceShort">
+                          <div className="bg-white text-[#131F24] font-black text-[11px] px-3 py-1 rounded-xl shadow-lg uppercase tracking-wider flex items-center gap-1">
+                            <Zap className="w-3 h-3 fill-current text-[#FF9600]" />
+                            <span>START</span>
+                          </div>
+                          <div className="w-2.5 h-2.5 bg-white rotate-45 mx-auto -mt-1 shadow-xs" />
+                        </div>
                       )}
-                    </button>
 
-                    {/* Node Title Subtext */}
-                    <span className="mt-2 text-xs font-medium tracking-tight text-center max-w-[120px] sm:max-w-[140px] line-clamp-1 text-slate-700 dark:text-slate-300">
-                      {node.title}
-                    </span>
+                      {/* Locked Tooltip on click */}
+                      {lockedTooltipNodeId === node.id && (
+                        <div className="absolute -top-11 z-30 pointer-events-none animate-pop">
+                          <div className="bg-[#263843] border border-[#3C5260] text-slate-200 font-bold text-[11px] px-2.5 py-1 rounded-lg shadow-xl whitespace-nowrap">
+                            Complete earlier levels to unlock!
+                          </div>
+                          <div className="w-2 h-2 bg-[#263843] border-r border-b border-[#3C5260] rotate-45 mx-auto -mt-1" />
+                        </div>
+                      )}
+
+                      {/* Segmented Halo Ring around current active node matching screenshot */}
+                      {isCurrent && (
+                        <svg
+                          className="absolute -inset-3.5 w-[calc(100%+28px)] h-[calc(100%+28px)] pointer-events-none select-none z-0"
+                          viewBox="0 0 100 100"
+                        >
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="44"
+                            fill="none"
+                            stroke="#1CB0F6"
+                            strokeWidth="5"
+                            strokeDasharray="48 18"
+                            strokeDashoffset="12"
+                            strokeLinecap="round"
+                            opacity="0.95"
+                          />
+                        </svg>
+                      )}
+
+                      {/* Tactile 3D Circular Node Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleNodeClick(node, isLocked)}
+                        className={`node-btn w-18 h-18 sm:w-20 sm:h-20 z-10 ${
+                          isCompleted
+                            ? 'node-completed'
+                            : isCurrent
+                            ? 'node-current'
+                            : 'node-locked'
+                        }`}
+                        title={
+                          isLocked
+                            ? 'Locked - Complete earlier lessons'
+                            : `${node.title}: ${node.description}`
+                        }
+                        aria-label={node.title}
+                      >
+                        {isCompleted ? (
+                          // Completed: Golden Yellow with Repeat icon matching screenshot
+                          <RotateCcw className="w-7 h-7 stroke-[3] text-amber-950" />
+                        ) : isCurrent ? (
+                          // Active: Sky Blue with Bright White Star matching screenshot
+                          <Star className="w-8 h-8 fill-white stroke-none drop-shadow-xs" />
+                        ) : (
+                          // Locked: Dark Slate with subtle glyph matching screenshot
+                          <div className="text-[#4A6475] flex items-center justify-center">
+                            {getGlyphIcon(nodeIdx, node.iconType)}
+                          </div>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
