@@ -4,7 +4,7 @@ import { useGame } from '../../context/GameContext';
 import { COURSES } from '../../data/courses';
 import { sound } from '../../utils/audio';
 import { fireSuccessConfetti, stopConfetti } from '../../utils/confetti';
-import { Heart, X, CheckCircle, RotateCcw } from 'lucide-react';
+import { Heart, X, CheckCircle, RotateCcw, Zap } from 'lucide-react';
 import { TapToFill } from '../lesson/TapToFill';
 import { SpotTheBug } from '../lesson/SpotTheBug';
 import { PredictOutput } from '../lesson/PredictOutput';
@@ -13,9 +13,10 @@ import { FeedbackBanner } from '../lesson/FeedbackBanner';
 
 interface Props {
   onClose: () => void;
+  onOpenSpeedTraining?: () => void;
 }
 
-export const PracticeModal: React.FC<Props> = ({ onClose }) => {
+export const PracticeModal: React.FC<Props> = ({ onClose, onOpenSpeedTraining }) => {
   const { state, resolveMistake, refillHearts } = useGame();
   const activeCourse = COURSES[state.activeCourseId] || COURSES.cpp;
 
@@ -162,9 +163,26 @@ export const PracticeModal: React.FC<Props> = ({ onClose }) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 text-brand-rose font-black text-sm">
-          <Heart className="w-5 h-5 fill-current" />
-          <span>+{heartsRestored}</span>
+        <div className="flex items-center gap-2">
+          {onOpenSpeedTraining && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onOpenSpeedTraining();
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer shrink-0"
+              title="Launch Speed Training & DSA Roadmaps"
+            >
+              <Zap className="w-3.5 h-3.5 fill-current text-amber-400" />
+              <span className="hidden xs:inline">Speed Training</span>
+            </button>
+          )}
+
+          <div className="flex items-center gap-1 text-brand-rose font-black text-sm">
+            <Heart className="w-5 h-5 fill-current" />
+            <span>+{heartsRestored}</span>
+          </div>
         </div>
       </header>
 
@@ -248,6 +266,17 @@ export const PracticeModal: React.FC<Props> = ({ onClose }) => {
             >
               Back to Dashboard
             </button>
+
+            {onOpenSpeedTraining && (
+              <button
+                type="button"
+                onClick={onOpenSpeedTraining}
+                className="w-full py-3 px-4 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              >
+                <Zap className="w-4 h-4 fill-current text-amber-400" />
+                <span>Jump into Speed Training & PBs</span>
+              </button>
+            )}
           </div>
         )}
       </main>

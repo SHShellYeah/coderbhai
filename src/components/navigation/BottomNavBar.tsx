@@ -1,7 +1,7 @@
 import React from 'react';
 import { sound } from '../../utils/audio';
 
-export type BottomNavTab = 'learn' | 'quests' | 'practice' | 'chat' | 'arena' | 'more';
+export type BottomNavTab = 'learn' | 'quests' | 'speed' | 'practice' | 'chat' | 'arena' | 'more';
 
 interface Props {
   activeTab: BottomNavTab;
@@ -75,25 +75,24 @@ export const BottomNavBar: React.FC<Props> = ({
         </svg>
       </button>
 
-      {/* 3. Practice / Dumbbell */}
+      {/* 3. Speed Training (⚡ Golden Lightning) */}
       <button
         type="button"
-        onClick={() => handleTabClick('practice')}
+        onClick={() => handleTabClick('speed')}
         className={`flex items-center justify-center p-2 transition-all cursor-pointer ${
-          activeTab === 'practice'
-            ? 'rounded-xl border-2 border-[#1CB0F6] bg-[#1CB0F6]/10'
+          activeTab === 'speed'
+            ? 'rounded-xl border-2 border-[#FFC800] bg-[#FFC800]/10'
             : 'hover:opacity-80'
         }`}
-        title="Practice & Speed Training"
-        aria-label="Practice"
+        title="Speed Training - Timed PBs & Roadmaps"
+        aria-label="Speed Training"
       >
         <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
-          {/* Cyan Dumbbell */}
           <path
-            d="M6 7v10M18 7v10M3 9v6M21 9v6M6 12h12"
-            stroke="#1CB0F6"
-            strokeWidth="2.5"
-            strokeLinecap="round"
+            d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z"
+            fill="#FFC800"
+            stroke="#E5A100"
+            strokeWidth="1.5"
             strokeLinejoin="round"
           />
         </svg>

@@ -91,13 +91,13 @@ export const TopBar: React.FC<Props> = ({
             className="flex items-center gap-1.5 sm:gap-2 select-none cursor-pointer group shrink-0"
             title="ByteSized - Click Byte to hear a meow!"
           >
-            <CatFace size="sm" mood="happy" className="transform group-hover:scale-105 transition-transform" />
-            <span className="font-black text-base sm:text-lg tracking-tight text-white select-none">
+            <CatFace size="sm" mood="happy" className="transform group-hover:scale-105 transition-transform shrink-0" />
+            <span className="hidden sm:inline font-black text-base sm:text-lg tracking-tight text-white select-none shrink-0">
               Byte<span className="text-[#1CB0F6]">Sized</span>
             </span>
           </div>
 
-          <div className="h-5 w-px bg-[#263843] mx-0.5 sm:mx-1 hidden xs:block" />
+          <div className="h-5 w-px bg-[#263843] mx-0.5 sm:mx-1 hidden sm:block" />
 
           {/* Course Flag / Badge Pill with Level */}
           <div className="relative shrink-0" ref={dropdownRef}>
@@ -186,13 +186,13 @@ export const TopBar: React.FC<Props> = ({
       </div>
 
         {/* Center: Duolingo Core Gamification Stats (Flame, Gems, Hearts) */}
-        <div className="flex items-center gap-3 sm:gap-6 font-extrabold text-sm sm:text-base">
+        <div className="flex items-center gap-2 sm:gap-6 font-extrabold text-xs sm:text-base shrink-0">
           {/* Daily Streak (🔥 274) */}
           <div
-            className="flex items-center gap-1.5 text-[#FF9600] cursor-default"
+            className="flex items-center gap-1 sm:gap-1.5 text-[#FF9600] cursor-default"
             title={`${state.streak} ${t.streakTitle}`}
           >
-            <Flame className="w-4.5 sm:w-5 h-4.5 sm:h-5 fill-current text-[#FF9600]" />
+            <Flame className="w-4 sm:w-5 h-4 sm:h-5 fill-current text-[#FF9600]" />
             <span className="tracking-tight">{state.streak}</span>
           </div>
 
@@ -326,15 +326,15 @@ export const TopBar: React.FC<Props> = ({
         </div>
 
         {/* Right: User Avatar / Sign In & Dark Mode */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Dark Mode Toggle */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Dark Mode Toggle - Visible on sm+ screens to preserve mobile header space for Sign In */}
           <button
             type="button"
             onClick={() => {
               sound.playClick();
               toggleDarkMode();
             }}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-[#18252D] transition-colors cursor-pointer"
+            className="hidden sm:inline-flex p-2 rounded-xl text-slate-400 hover:text-white hover:bg-[#18252D] transition-colors cursor-pointer"
             title={state.darkMode ? t.lightMode : t.darkMode}
             aria-label="Toggle theme"
           >
@@ -345,7 +345,7 @@ export const TopBar: React.FC<Props> = ({
             )}
           </button>
 
-          {/* Account / Sign In */}
+          {/* Account / Sign In - Always visible on all mobile screens */}
           {onOpenAuth && (
             state.authUser ? (
               <button
@@ -354,7 +354,7 @@ export const TopBar: React.FC<Props> = ({
                   sound.playClick();
                   onOpenAuth('login');
                 }}
-                className="flex items-center gap-1.5 p-1 rounded-full hover:ring-2 hover:ring-[#1CB0F6] transition-all cursor-pointer"
+                className="flex items-center gap-1.5 p-0.5 sm:p-1 rounded-full hover:ring-2 hover:ring-[#1CB0F6] transition-all cursor-pointer shrink-0"
                 title={`Account: ${state.authUser.username ? `@${state.authUser.username}` : (state.authUser.displayName || state.authUser.email)}`}
               >
                 <img
@@ -370,7 +370,7 @@ export const TopBar: React.FC<Props> = ({
                   sound.playClick();
                   onOpenAuth('login');
                 }}
-                className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-[#18252D] hover:bg-[#20313B] border border-[#263843] transition-colors cursor-pointer shrink-0"
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-black text-white bg-[#1CB0F6] hover:bg-[#23B7FF] border-b-2 border-[#1899D6] active:translate-y-0.5 transition-all cursor-pointer shrink-0 whitespace-nowrap shadow-xs"
               >
                 <span>Sign In</span>
               </button>

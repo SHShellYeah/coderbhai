@@ -98,8 +98,10 @@ const MainApp: React.FC = () => {
       setMobileTab('learn');
     } else if (tab === 'quests') {
       setMobileTab('quests');
-    } else if (tab === 'practice') {
-      setIsPracticeOpen(true);
+    } else if (tab === 'speed' || tab === 'practice') {
+      setSpeedTrainingInitialProblemId(undefined);
+      setSpeedTrainingInitialTab('hub');
+      setIsSpeedTrainingOpen(true);
     } else if (tab === 'chat') {
       handleOpenMessaging();
     } else if (tab === 'arena') {
@@ -239,6 +241,12 @@ const MainApp: React.FC = () => {
         }}
         onOpenQuestionBank={() => setIsQuestionBankOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSpeedTraining={(tab) => {
+          setSpeedTrainingInitialProblemId(undefined);
+          setSpeedTrainingInitialTab(tab || 'hub');
+          setIsSpeedTrainingOpen(true);
+        }}
+        onOpenPractice={() => setIsPracticeOpen(true)}
       />
 
       {/* Full-Screen Interactive Lesson Modal */}
@@ -264,7 +272,15 @@ const MainApp: React.FC = () => {
 
       {/* Practice Weak Areas & Refill Hearts Modal */}
       {isPracticeOpen && (
-        <PracticeModal onClose={() => setIsPracticeOpen(false)} />
+        <PracticeModal
+          onClose={() => setIsPracticeOpen(false)}
+          onOpenSpeedTraining={() => {
+            setIsPracticeOpen(false);
+            setSpeedTrainingInitialProblemId(undefined);
+            setSpeedTrainingInitialTab('hub');
+            setIsSpeedTrainingOpen(true);
+          }}
+        />
       )}
 
       {/* Byte Guided Onboarding & Custom Course Plan Modal */}

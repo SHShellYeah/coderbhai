@@ -16,6 +16,8 @@ import {
   Languages,
   Palette,
   LogOut,
+  Zap,
+  RotateCcw,
   Sparkles
 } from 'lucide-react';
 
@@ -28,6 +30,8 @@ interface Props {
   onOpenCodeZone: () => void;
   onOpenQuestionBank: () => void;
   onOpenSettings: () => void;
+  onOpenSpeedTraining?: (tab?: 'hub' | 'timed-training') => void;
+  onOpenPractice?: () => void;
 }
 
 export const MoreDrawerModal: React.FC<Props> = ({
@@ -39,6 +43,8 @@ export const MoreDrawerModal: React.FC<Props> = ({
   onOpenCodeZone,
   onOpenQuestionBank,
   onOpenSettings,
+  onOpenSpeedTraining,
+  onOpenPractice,
 }) => {
   const { state, toggleDarkMode, toggleLanguage, toggleSound, logout } = useGame();
   const t = useTranslation(state.language);
@@ -48,7 +54,7 @@ export const MoreDrawerModal: React.FC<Props> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-pop">
       <div
-        className="w-full max-w-md bg-[#131F24] border border-[#263843] rounded-t-3xl sm:rounded-2xl p-5 text-white shadow-2xl overflow-y-auto max-h-[85vh]"
+        className="w-full max-w-md bg-[#131F24] border border-[#263843] rounded-t-3xl sm:rounded-2xl p-5 text-white shadow-2xl overflow-y-auto max-h-[88vh]"
         style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
       >
         {/* Header */}
@@ -57,7 +63,7 @@ export const MoreDrawerModal: React.FC<Props> = ({
             <div className="w-7 h-7 rounded-full bg-[#CE82FF] flex items-center justify-center text-white text-xs font-bold">
               ⋯
             </div>
-            <h3 className="text-base font-extrabold tracking-tight">More Features</h3>
+            <h3 className="text-base font-extrabold tracking-tight">Features & Menu</h3>
           </div>
           <button
             type="button"
@@ -91,7 +97,7 @@ export const MoreDrawerModal: React.FC<Props> = ({
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#263843] flex items-center justify-center text-slate-300">
+              <div className="w-10 h-10 rounded-full bg-[#263843] flex items-center justify-center text-slate-300 shrink-0">
                 <User className="w-5 h-5" />
               </div>
               <div className="flex flex-col text-left">
@@ -121,15 +127,69 @@ export const MoreDrawerModal: React.FC<Props> = ({
                 onClose();
                 onOpenAuth('login');
               }}
-              className="px-3 py-1.5 rounded-xl bg-[#1CB0F6] text-white font-bold text-xs border-b-2 border-[#1899D6] active:translate-y-0.5 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-[#1CB0F6] hover:bg-[#23B7FF] text-white font-black text-xs border-b-2 border-[#1899D6] active:translate-y-0.5 transition-all cursor-pointer shadow-xs whitespace-nowrap shrink-0"
             >
-              Sign In
+              Sign In / Join
             </button>
           )}
         </div>
 
+        {/* Speed Training Featured Hero Card */}
+        {onOpenSpeedTraining && (
+          <button
+            type="button"
+            onClick={() => {
+              sound.playClick();
+              onClose();
+              onOpenSpeedTraining('hub');
+            }}
+            className="w-full mb-3.5 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-amber-500/10 border-2 border-amber-500/40 hover:border-amber-400 text-left transition-all cursor-pointer flex items-center justify-between shadow-sm active:translate-y-0.5 group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#FFC800] text-amber-950 flex items-center justify-center font-black shadow-xs shrink-0 group-hover:scale-105 transition-transform">
+                <Zap className="w-5 h-5 fill-current" />
+              </div>
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-extrabold text-sm text-white">Speed Training</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-400 text-slate-950">
+                    Timed PBs
+                  </span>
+                </div>
+                <span className="text-xs text-amber-200/90 font-medium">
+                  NeetCode 150 • Blind 75 • DSA Roadmaps
+                </span>
+              </div>
+            </div>
+            <div className="w-7 h-7 rounded-xl bg-white/10 flex items-center justify-center text-amber-300 font-bold text-sm">
+              →
+            </div>
+          </button>
+        )}
+
         {/* Feature Grid */}
         <div className="grid grid-cols-2 gap-2.5 mb-4">
+          {/* Practice & Mistakes Refill */}
+          {onOpenPractice && (
+            <button
+              type="button"
+              onClick={() => {
+                sound.playClick();
+                onClose();
+                onOpenPractice();
+              }}
+              className="flex items-center gap-2.5 p-3 rounded-xl bg-[#18252D] hover:bg-[#20313B] border border-[#263843] text-left transition-colors cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+                <RotateCcw className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-xs text-white">Refill Hearts</span>
+                <span className="text-[10px] text-slate-400">Review mistakes</span>
+              </div>
+            </button>
+          )}
+
           {/* Byte's Learning Plan */}
           <button
             type="button"
